@@ -7,7 +7,7 @@ fi
 
 scriptdir=$(cd $(dirname "$0") && pwd)
 
-sudo modprobe null_blk nr_devices=0 || return $?
+modprobe null_blk nr_devices=0 || return $?
 
 function create_zoned_nullb()
 {
@@ -27,23 +27,23 @@ function create_zoned_nullb()
         done
 
         dev="/sys/kernel/config/nullb/nullb$nid"
-        sudo mkdir "$dev"
+        mkdir "$dev"
 
-        sudo echo $bs > "$dev"/blocksize
-        sudo echo 0 > "$dev"/completion_nsec
-        sudo echo 0 > "$dev"/irqmode
-        sudo echo 2 > "$dev"/queue_mode
-        sudo echo 1024 > "$dev"/hw_queue_depth
-        sudo echo 1 > "$dev"/memory_backed
-        sudo echo 1 > "$dev"/zoned
+        echo $bs > "$dev"/blocksize
+        echo 0 > "$dev"/completion_nsec
+        echo 0 > "$dev"/irqmode
+        echo 2 > "$dev"/queue_mode
+        echo 1024 > "$dev"/hw_queue_depth
+        echo 1 > "$dev"/memory_backed
+        echo 1 > "$dev"/zoned
 
-        sudo echo $cap > "$dev"/size
-        sudo echo $zs > "$dev"/zone_size
-        sudo echo $nr_conv > "$dev"/zone_nr_conv
+        echo $cap > "$dev"/size
+        echo $zs > "$dev"/zone_size
+        echo $nr_conv > "$dev"/zone_nr_conv
 
-        sudo echo 1 > "$dev"/power
+        echo 1 > "$dev"/power
 
-        sudo echo mq-deadline > /sys/block/nullb$nid/queue/scheduler
+        echo mq-deadline > /sys/block/nullb$nid/queue/scheduler
 
         echo "$nid"
 }

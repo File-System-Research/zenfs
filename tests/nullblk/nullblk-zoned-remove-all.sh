@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo rmmod null_blk
+rmmod null_blk

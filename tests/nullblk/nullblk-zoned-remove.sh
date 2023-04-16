@@ -12,7 +12,7 @@ if [ ! -b "/dev/nullb$nid" ]; then
     exit 1
 fi
 
-sudo echo 0 > /sys/kernel/config/nullb/nullb$nid/power
-sudo rmdir /sys/kernel/config/nullb/nullb$nid
+echo 0 > /sys/kernel/config/nullb/nullb$nid/power
+rmdir /sys/kernel/config/nullb/nullb$nid
 
 echo "Destroyed /dev/nullb$nid"
