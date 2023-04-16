@@ -5,7 +5,7 @@ set(ZENFS_STANDALONE true)
 if(ZENFS_STANDALONE)
   project(zenfs)
 
-  file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define ZENFS_VERSION \"v2.1.0-57-gb04ca0c\"\n")
+  file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define ZENFS_VERSION \"v0.0.1-alpha\"\n")
 
   set(zenfs_SOURCES "fs/fs_zenfs.cc" "fs/zbd_zenfs.cc" "fs/io_zenfs.cc" "fs/zonefs_zenfs.cc"
     "fs/zbdlib_zenfs.cc")
