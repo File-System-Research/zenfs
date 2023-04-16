@@ -11,7 +11,7 @@ if(ZENFS_STANDALONE)
     "fs/zbdlib_zenfs.cc")
   set(zenfs_HEADERS "fs/fs_zenfs.h" "fs/zbd_zenfs.h" "fs/io_zenfs.h" "fs/version.h" "fs/metrics.h"
     "fs/snapshot.h" "fs/filesystem_utility.h" "fs/zonefs_zenfs.h" "fs/zbdlib_zenfs.h")
-  set(zenfs_LIBS "zbd" "gflags" "rocksdb")
+  set(zenfs_LIBS "zbd" "gflags" "rocksdb" "uring" "zstd" "lz4" "snappy" "bz2" "z")
 
 #  file(GLOB_RECURSE port_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/port/*.cc)
 #  file(GLOB_RECURSE util_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/util/util/*.cc)
