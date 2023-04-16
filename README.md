@@ -49,6 +49,34 @@ $ make
 $ popd
 ```
 
+### Standalone build
+
+If you want to build ZenFS without building RocksDB, here are the steps:
+
+Build rocksdb manually:
+
+```shell
+# cd to the rocksdb source directory
+cd rocksdb
+# build static library and install to system. DO NOT `make -j`, which will run out of your memory
+sudo DEBUG_LEVEL=0 USE_RTTI=1 make -j14 install
+# check if pkg-config can find the installed library librocksdb.a
+PKG_CONFIG_PATH=/usr/local/lib/pkgconfig pkg-config --path rocksdb 
+```
+
+Build standalone ZenFS (default in this repo):
+
+```shell
+cmake -B build -S .
+cmake --build build
+```
+
+Will link RocksDB as a static library from system. `zenfs` and `libazenfs.a` will be generated in `build/`.
+
+NOTE: Cannot "mount" ZenFS without RocksDB now. To test ZenFS, `db_bench` is required but it's in RocksDB.
+
+![structure](https://user-images.githubusercontent.com/81512075/208292592-21d26151-34a6-4847-8c02-e8bf0ae9955e.png)
+
 ## Configure the IO Scheduler for the zoned block device
 
 The IO scheduler must be set to deadline to avoid writes from being reordered.
