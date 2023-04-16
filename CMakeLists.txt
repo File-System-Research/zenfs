@@ -34,6 +34,11 @@ if(ZENFS_STANDALONE)
   add_definitions(-DWITH_TERARKDB=1 -DOS_LINUX=1 -DROCKSDB_PLATFORM_POSIX=1)
   add_executable(zenfs ${CMAKE_CURRENT_SOURCE_DIR}/util/zenfs.cc)
   target_link_libraries(zenfs azenfs)
+
+  # basic test
+  enable_testing()
+  add_test(NAME zenfs-list COMMAND sudo $<TARGET_FILE:zenfs> list --zbd=nullb0)
+  add_test(NAME zenfs-mkfs COMMAND sudo $<TARGET_FILE:zenfs> mkfs --zbd=nullb0 --aux_path=/tmp/aux_path --force)
 else()
   set(zenfs_SOURCES "fs/fs_zenfs.cc" "fs/zbd_zenfs.cc" "fs/io_zenfs.cc" "fs/zonefs_zenfs.cc"
     "fs/zbdlib_zenfs.cc" PARENT_SCOPE)
