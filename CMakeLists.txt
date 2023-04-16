@@ -20,7 +20,7 @@ if(ZENFS_STANDALONE)
   if(NOT ZENFS_SKIP_LIBZBD_CHECK)
     find_package(PkgConfig REQUIRED)
     pkg_search_module(ZBD REQUIRED libzbd>=1.5.0)
-    pkg_search_module(rocksdb REQUIRED)
+    # pkg_search_module(rocksdb REQUIRED)
     find_package(gflags REQUIRED)
   endif()
 
