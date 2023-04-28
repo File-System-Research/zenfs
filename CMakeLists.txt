@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.4)
 
-set(ZENFS_STANDALONE true)
+if (NOT DEFINED ZENFS_STANDALONE)
+  set(ZENFS_STANDALONE 1)
+endif ()
 
 if(ZENFS_STANDALONE)
   project(zenfs)
@@ -62,11 +64,11 @@ else()
     pkg_check_modules(ZBD REQUIRED libzbd>=1.5.0)
   endif()
 
-  execute_process(WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    RESULT_VARIABLE GENVER_RESULT
-    COMMAND ./generate-version.sh)
-
-  if(GENVER_RESULT AND NOT GENVER_RESULT EQUAL 0)
-    message(FATAL_ERROR "Generating ZenFS version failed")
-  endif()
+#  execute_process(WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+#    RESULT_VARIABLE GENVER_RESULT
+#    COMMAND ./generate-version.sh)
+#
+#  if(GENVER_RESULT AND NOT GENVER_RESULT EQUAL 0)
+#    message(FATAL_ERROR "Generating ZenFS version failed")
+#  endif()
 endif()
