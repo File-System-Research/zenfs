@@ -11,7 +11,7 @@ if(ZENFS_STANDALONE)
     "fs/zbdlib_zenfs.cc")
   set(zenfs_HEADERS "fs/fs_zenfs.h" "fs/zbd_zenfs.h" "fs/io_zenfs.h" "fs/version.h" "fs/metrics.h"
     "fs/snapshot.h" "fs/filesystem_utility.h" "fs/zonefs_zenfs.h" "fs/zbdlib_zenfs.h")
-  set(zenfs_LIBS "zbd" "gflags" "rocksdb" "uring" "zstd" "lz4" "snappy" "bz2" "z")
+  set(zenfs_LIBS "zbd" "gflags" "rocksdb" "uring" "zstd" "lz4" "snappy" "bz2" "z" "numa")
 
 #  file(GLOB_RECURSE port_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/port/*.cc)
 #  file(GLOB_RECURSE util_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/util/util/*.cc)
@@ -22,6 +22,11 @@ if(ZENFS_STANDALONE)
     pkg_search_module(ZBD REQUIRED libzbd>=1.5.0)
     # pkg_search_module(rocksdb REQUIRED)
     find_package(gflags REQUIRED)
+    add_definitions(-DGFLAGS=1)
+    include_directories(${GFLAGS_INCLUDE_DIR})
+    # find_package(NUMA REQUIRED)
+    add_definitions(-DNUMA)
+    # include_directories(${NUMA_INCLUDE_DIR})
   endif()
 
 #  add_library(port STATIC ${port_SOURCES})
@@ -34,6 +39,9 @@ if(ZENFS_STANDALONE)
   add_definitions(-DWITH_TERARKDB=1 -DOS_LINUX=1 -DROCKSDB_PLATFORM_POSIX=1)
   add_executable(zenfs ${CMAKE_CURRENT_SOURCE_DIR}/util/zenfs.cc)
   target_link_libraries(zenfs azenfs)
+
+  add_executable(db_bench ${CMAKE_CURRENT_SOURCE_DIR}/util/db_bench.cc)
+  target_link_libraries(db_bench azenfs)
 
   # basic test
   enable_testing()
