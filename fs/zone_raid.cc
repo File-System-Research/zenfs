@@ -27,7 +27,8 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
                        const std::shared_ptr<ZonedBlockDeviceBackend> &device)
       : mode(mode), device(device) {
     assert(device);
-    assert(mode == RaidMode::RAID0);
+    assert(mode == RaidMode::RAID1);
+    syncMetaData();
   }
 
  private:
@@ -37,10 +38,13 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
         device->Open(readonly, exclusive, max_active_zones, max_open_zones);
     max_active_zones_ = *max_active_zones;
     max_open_zones_ = *max_open_zones;
+    syncMetaData();
     return r;
   }
   std::unique_ptr<ZoneList> ListZones() override {
     if (mode == RaidMode::RAID0) {
+      return device->ListZones();
+    } else if (mode == RaidMode::RAID1) {
       // only half zones available
       auto zones = device->ListZones();
       if (zones && zones->ZoneCount() > 0) {
@@ -57,6 +61,8 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
   IOStatus Reset(uint64_t start, bool *offline,
                  uint64_t *max_capacity) override {
     if (mode == RaidMode::RAID0) {
+      return device->Reset(start, offline, max_capacity);
+    } else if (mode == RaidMode::RAID1) {
       bool offline_a, offline_b;
       uint64_t max_capacity_a, max_capacity_b;
       auto a = device->Reset(start, &offline_a, &max_capacity_a);
@@ -72,6 +78,8 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
   }
   IOStatus Finish(uint64_t start) override {
     if (mode == RaidMode::RAID0) {
+      return device->Finish(start);
+    } else if (mode == RaidMode::RAID1) {
       auto a = device->Finish(start);
       auto b = device->Finish(start << 1);
       if (!a.ok()) return a;
@@ -82,6 +90,8 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
   }
   IOStatus Close(uint64_t start) override {
     if (mode == RaidMode::RAID0) {
+      return device->Close(start);
+    } else if (mode == RaidMode::RAID1) {
       auto a = device->Close(start);
       auto b = device->Close(start << 1);
       if (!a.ok()) return a;
@@ -91,7 +101,7 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
     return unsupported;
   }
   int Read(char *buf, int size, uint64_t pos, bool direct) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       // TODO: data check
       return device->Read(buf, size, pos, direct);
     }
@@ -99,6 +109,8 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
   }
   int Write(char *data, uint32_t size, uint64_t pos) override {
     if (mode == RaidMode::RAID0) {
+      return device->Write(data, size, pos);
+    } else if (mode == RaidMode::RAID1) {
       auto a = device->Write(data, size, pos);
       auto b = device->Write(data, size, pos << 1);
       return a;
@@ -107,6 +119,8 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
   }
   int InvalidateCache(uint64_t pos, uint64_t size) override {
     if (mode == RaidMode::RAID0) {
+      return device->InvalidateCache(pos, size);
+    } else if (mode == RaidMode::RAID1) {
       auto a = device->InvalidateCache(pos, size);
       auto b = device->InvalidateCache(pos << 1, size);
       return a;
@@ -114,60 +128,60 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
     return 0;
   }
   bool ZoneIsSwr(std::unique_ptr<ZoneList> &zones, unsigned int idx) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->ZoneIsSwr(zones, idx);
     }
     return false;
   }
   bool ZoneIsOffline(std::unique_ptr<ZoneList> &zones,
                      unsigned int idx) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->ZoneIsOffline(zones, idx);
     }
     return false;
   }
   bool ZoneIsWritable(std::unique_ptr<ZoneList> &zones,
                       unsigned int idx) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->ZoneIsWritable(zones, idx);
     }
     return false;
   }
   bool ZoneIsActive(std::unique_ptr<ZoneList> &zones,
                     unsigned int idx) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->ZoneIsActive(zones, idx);
     }
     return false;
   }
   bool ZoneIsOpen(std::unique_ptr<ZoneList> &zones, unsigned int idx) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->ZoneIsOpen(zones, idx);
     }
     return false;
   }
   uint64_t ZoneStart(std::unique_ptr<ZoneList> &zones,
                      unsigned int idx) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->ZoneStart(zones, idx);
     }
     return 0;
   }
   uint64_t ZoneMaxCapacity(std::unique_ptr<ZoneList> &zones,
                            unsigned int idx) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->ZoneMaxCapacity(zones, idx);
     }
     return 0;
   }
   uint64_t ZoneWp(std::unique_ptr<ZoneList> &zones, unsigned int idx) override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->ZoneWp(zones, idx);
     }
     return 0;
   }
   std::string GetFilename() override {
-    if (mode == RaidMode::RAID0) {
+    if (mode == RaidMode::RAID0 || mode == RaidMode::RAID1) {
       return device->GetFilename();
     }
     return {};
