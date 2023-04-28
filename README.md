@@ -56,12 +56,12 @@ If you want to build ZenFS without building RocksDB, here are the steps:
 Build rocksdb manually:
 
 ```shell
+# we have some patches there
+git clone https://github.com/RethinkFS/rocksdb -b zenfs
 # cd to the rocksdb source directory
 cd rocksdb
 # build static library and install to system. DO NOT `make -j`, which will run out of your memory
 sudo DEBUG_LEVEL=0 USE_RTTI=1 make -j14 install
-# check if pkg-config can find the installed library librocksdb.a
-PKG_CONFIG_PATH=/usr/local/lib/pkgconfig pkg-config --path rocksdb 
 ```
 
 Build standalone ZenFS (default in this repo):
