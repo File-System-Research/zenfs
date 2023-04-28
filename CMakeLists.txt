@@ -45,8 +45,8 @@ if(ZENFS_STANDALONE)
 
   # basic test
   enable_testing()
-  add_test(NAME zenfs-list COMMAND sudo $<TARGET_FILE:zenfs> list --zbd=nullb0)
   add_test(NAME zenfs-mkfs COMMAND sudo $<TARGET_FILE:zenfs> mkfs --zbd=nullb0 --aux_path=/tmp/aux_path --force)
+  add_test(NAME zenfs-list COMMAND sudo $<TARGET_FILE:zenfs> list --zbd=nullb0)
 
   add_test(NAME zenfs_db_bench COMMAND $<TARGET_FILE:db_bench> --fs_uri=zenfs://dev:nullb0 --benchmarks=fillrandom --use_direct_io_for_flush_and_compaction)
 else()
