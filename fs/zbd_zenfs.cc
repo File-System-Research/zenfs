@@ -194,7 +194,7 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
       std::string raid_paths_str = path.substr(pos + 1, path.length());
       std::vector<std::string> raid_paths;
       if (raid_paths_str.find(',') == std::string::npos) {
-        raid_paths.emplace_back(path);
+        raid_paths.emplace_back(raid_paths_str);
       } else {
         std::regex re{","};
         raid_paths = {std::sregex_token_iterator(raid_paths_str.begin(),
@@ -203,9 +203,10 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
       }
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> raid_devices;
       for (auto &&p : raid_paths) {
-        if (p.find("dev:") == 0)
-          raid_devices.emplace_back(std::make_unique<ZbdlibBackend>(p));
-        else
+        if (p.find("dev:") == 0) {
+          auto pp = p.substr(strlen("dev:"));
+          raid_devices.emplace_back(std::make_unique<ZbdlibBackend>(pp));
+        } else
           raid_devices.emplace_back(std::make_unique<ZoneFsBackend>(p));
       }
       zbd_be_ = std::make_unique<RaidZonedBlockDevice>(

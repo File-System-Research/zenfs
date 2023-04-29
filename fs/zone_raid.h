@@ -1,4 +1,5 @@
 #include <memory>
+#include <numeric>
 
 #include "zbd_zenfs.h"
 
@@ -49,9 +50,20 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   const IOStatus unsupported = IOStatus::NotSupported("Raid unsupported");
 
   void syncMetaData() {
+    auto total_nr_zones = std::accumulate(
+        devices_.begin(), devices_.end(), 0,
+        [](int sum, const std::unique_ptr<ZonedBlockDeviceBackend> &dev) {
+          return sum + dev->nr_zones_;
+        });
     block_sz_ = devices_.begin()->get()->block_sz_;
     zone_sz_ = devices_.begin()->get()->zone_sz_;
-    nr_zones_ = devices_.begin()->get()->nr_zones_;
+    if (mode_ == RaidMode::RAID0) {
+      nr_zones_ = total_nr_zones;
+    } else if (mode_ == RaidMode::RAID1) {
+      nr_zones_ = total_nr_zones >> 1;
+    } else {
+      nr_zones_ = 0;
+    }
   }
 
  public:

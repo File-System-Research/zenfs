@@ -24,7 +24,7 @@ std::unique_ptr<ZoneList> RaidZonedBlockDevice::ListZones() {
     auto zones = devices_.begin()->get()->ListZones();
     if (zones && zones->ZoneCount() > 0) {
       // clone one
-      auto nr_zones = zones->ZoneCount() / 2;
+      auto nr_zones = zones->ZoneCount() >> 1;
       auto original_data = (struct zbd_zone *)zones->GetData();
       auto data = new struct zbd_zone[nr_zones];
       memcpy(data, original_data, sizeof(struct zbd_zone) * nr_zones);
@@ -78,7 +78,7 @@ IOStatus RaidZonedBlockDevice::Close(uint64_t start) {
 }
 int RaidZonedBlockDevice::Read(char *buf, int size, uint64_t pos, bool direct) {
   if (mode_ == RaidMode::RAID0 || mode_ == RaidMode::RAID1) {
-    // TODO: data check
+    // TODO: data read and check
     return devices_.begin()->get()->Read(buf, size, pos, direct);
   }
   return 0;
