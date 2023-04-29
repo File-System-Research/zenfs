@@ -183,15 +183,15 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
     zbd_be_ = std::unique_ptr<ZoneFsBackend>(new ZoneFsBackend(path));
     Info(logger_, "New zonefs backing: %s", zbd_be_->GetFilename().c_str());
   } else if (backend == ZbdBackendType::kRaid) {
-    // parse raid uri. format: "raid<num>:<path1>,<path2>,<path3>,..."
+    // parse raid uri. format: "raid<num>:dev:null0,<path2>,<path3>,..."
     const std::string raid_prefix = "raid";
     if (path.length() > raid_prefix.length() &&
         path.find(':') != std::string::npos &&
-        std::equal(raid_prefix.begin(), raid_prefix.end(), path.begin())) {
+        std::equal(path.begin(), path.end(), path.begin())) {
+      auto pos = path.find(':');
       std::string raid_num_str =
-          path.substr(raid_prefix.length(), raid_prefix.find(':'));
-      std::string raid_paths_str =
-          raid_prefix.substr(raid_prefix.find(':') + 1);
+          path.substr(raid_prefix.length(), pos - raid_prefix.length());
+      std::string raid_paths_str = path.substr(pos + 1, path.length());
       std::vector<std::string> raid_paths;
       if (raid_paths_str.find(',') == std::string::npos) {
         raid_paths.emplace_back(path);
@@ -203,15 +203,13 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
       }
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> raid_devices;
       for (auto &&p : raid_paths) {
-        if (p.find("zenfs") != std::string::npos)
+        if (p.find("dev:") == 0)
           raid_devices.emplace_back(std::make_unique<ZbdlibBackend>(p));
         else
           raid_devices.emplace_back(std::make_unique<ZoneFsBackend>(p));
       }
-      std::unique_ptr<ZonedBlockDeviceBackend> d =
-          std::move(*raid_devices.erase(raid_devices.begin()));
       zbd_be_ = std::make_unique<RaidZonedBlockDevice>(
-          raid_mode_from_str(raid_num_str), std::move(d));
+          raid_mode_from_str(raid_num_str), std::move(raid_devices));
     } else {
       zbd_be_ = nullptr;
       Error(logger_,

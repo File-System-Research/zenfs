@@ -23,15 +23,15 @@ __attribute__((__unused__)) static const char *raid_mode_str(RaidMode mode) {
 }
 __attribute__((__unused__)) static RaidMode raid_mode_from_str(
     const std::string &str) {
-  if (str == "RAID0") {
+  if (str == "0") {
     return RaidMode::RAID0;
-  } else if (str == "RAID1") {
+  } else if (str == "1") {
     return RaidMode::RAID1;
-  } else if (str == "RAID5") {
+  } else if (str == "5") {
     return RaidMode::RAID5;
-  } else if (str == "RAID6") {
+  } else if (str == "6") {
     return RaidMode::RAID6;
-  } else if (str == "RAID10") {
+  } else if (str == "10") {
     return RaidMode::RAID10;
   }
   return RaidMode::RAID0;
@@ -41,7 +41,7 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
  private:
   RaidMode mode_;
   // TODO: multi-devices RAID
-  std::unique_ptr<ZonedBlockDeviceBackend> device_;
+  std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices_;
 
   unsigned int max_active_zones_{};
   unsigned int max_open_zones_{};
@@ -49,17 +49,18 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   const IOStatus unsupported = IOStatus::NotSupported("Raid unsupported");
 
   void syncMetaData() {
-    block_sz_ = device_->block_sz_;
-    zone_sz_ = device_->zone_sz_;
-    nr_zones_ = device_->nr_zones_;
+    block_sz_ = devices_.begin()->get()->block_sz_;
+    zone_sz_ = devices_.begin()->get()->zone_sz_;
+    nr_zones_ = devices_.begin()->get()->nr_zones_;
   }
 
  public:
-  explicit RaidZonedBlockDevice(RaidMode mode,
-                                std::unique_ptr<ZonedBlockDeviceBackend> device)
-      : mode_(mode), device_(std::move(device)) {
-    assert(device);
-    assert(mode == RaidMode::RAID1);
+  explicit RaidZonedBlockDevice(
+      RaidMode mode,
+      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices)
+      : mode_(mode), devices_(std::move(devices)) {
+    assert(!devices_.empty());
+    assert(mode_ == RaidMode::RAID1);
     syncMetaData();
   }
   IOStatus Open(bool readonly, bool exclusive, unsigned int *max_active_zones,

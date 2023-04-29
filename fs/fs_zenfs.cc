@@ -1887,6 +1887,11 @@ FactoryFunc<FileSystem> zenfs_filesystem_reg =
             if (!s.ok()) {
               *errmsg = s.ToString();
             }
+          } else if (devID.find("raid") == 0) {
+            s = NewZenFS(&fs, ZbdBackendType::kRaid, devID);
+            if (!s.ok()) {
+              *errmsg = s.ToString();
+            }
           } else if (devID.rfind("uuid:") == 0) {
             std::map<std::string, std::pair<std::string, ZbdBackendType>>
                 zenFileSystems;
