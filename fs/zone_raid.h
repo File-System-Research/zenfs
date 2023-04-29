@@ -5,11 +5,43 @@
 namespace ROCKSDB_NAMESPACE {
 enum class RaidMode { RAID0, RAID1, RAID5, RAID6, RAID10 };
 
-class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
+__attribute__((__unused__)) static const char *raid_mode_str(RaidMode mode) {
+  switch (mode) {
+    case RaidMode::RAID0:
+      return "RAID0";
+    case RaidMode::RAID1:
+      return "RAID1";
+    case RaidMode::RAID5:
+      return "RAID5";
+    case RaidMode::RAID6:
+      return "RAID6";
+    case RaidMode::RAID10:
+      return "RAID10";
+    default:
+      return "UNKNOWN";
+  }
+}
+__attribute__((__unused__)) static RaidMode raid_mode_from_str(
+    const std::string &str) {
+  if (str == "RAID0") {
+    return RaidMode::RAID0;
+  } else if (str == "RAID1") {
+    return RaidMode::RAID1;
+  } else if (str == "RAID5") {
+    return RaidMode::RAID5;
+  } else if (str == "RAID6") {
+    return RaidMode::RAID6;
+  } else if (str == "RAID10") {
+    return RaidMode::RAID10;
+  }
+  return RaidMode::RAID0;
+}
+
+class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
  private:
-  RaidMode mode;
+  RaidMode mode_;
   // TODO: multi-devices RAID
-  std::shared_ptr<ZonedBlockDeviceBackend> device;
+  std::unique_ptr<ZonedBlockDeviceBackend> device_;
 
   unsigned int max_active_zones_{};
   unsigned int max_open_zones_{};
@@ -17,15 +49,15 @@ class RaidZonedBlockDevice : ZonedBlockDeviceBackend {
   const IOStatus unsupported = IOStatus::NotSupported("Raid unsupported");
 
   void syncMetaData() {
-    block_sz_ = device->block_sz_;
-    zone_sz_ = device->zone_sz_;
-    nr_zones_ = device->nr_zones_;
+    block_sz_ = device_->block_sz_;
+    zone_sz_ = device_->zone_sz_;
+    nr_zones_ = device_->nr_zones_;
   }
 
  public:
-  RaidZonedBlockDevice(RaidMode mode,
-                       const std::shared_ptr<ZonedBlockDeviceBackend> &device)
-      : mode(mode), device(device) {
+  explicit RaidZonedBlockDevice(RaidMode mode,
+                                std::unique_ptr<ZonedBlockDeviceBackend> device)
+      : mode_(mode), device_(std::move(device)) {
     assert(device);
     assert(mode == RaidMode::RAID1);
     syncMetaData();

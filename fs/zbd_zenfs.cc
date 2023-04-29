@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -31,6 +32,7 @@
 #include "rocksdb/io_status.h"
 #include "snapshot.h"
 #include "zbdlib_zenfs.h"
+#include "zone_raid.h"
 #include "zonefs_zenfs.h"
 
 #define KB (1024)
@@ -180,6 +182,43 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
   } else if (backend == ZbdBackendType::kZoneFS) {
     zbd_be_ = std::unique_ptr<ZoneFsBackend>(new ZoneFsBackend(path));
     Info(logger_, "New zonefs backing: %s", zbd_be_->GetFilename().c_str());
+  } else if (backend == ZbdBackendType::kRaid) {
+    // parse raid uri. format: "raid<num>:<path1>,<path2>,<path3>,..."
+    const std::string raid_prefix = "raid";
+    if (path.length() > raid_prefix.length() &&
+        path.find(':') != std::string::npos &&
+        std::equal(raid_prefix.begin(), raid_prefix.end(), path.begin())) {
+      std::string raid_num_str =
+          path.substr(raid_prefix.length(), raid_prefix.find(':'));
+      std::string raid_paths_str =
+          raid_prefix.substr(raid_prefix.find(':') + 1);
+      std::vector<std::string> raid_paths;
+      if (raid_paths_str.find(',') == std::string::npos) {
+        raid_paths.emplace_back(path);
+      } else {
+        std::regex re{","};
+        raid_paths = {std::sregex_token_iterator(raid_paths_str.begin(),
+                                                 raid_paths_str.end(), re, -1),
+                      std::sregex_token_iterator()};
+      }
+      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> raid_devices;
+      for (auto &&p : raid_paths) {
+        if (p.find("zenfs") != std::string::npos)
+          raid_devices.emplace_back(std::make_unique<ZbdlibBackend>(p));
+        else
+          raid_devices.emplace_back(std::make_unique<ZoneFsBackend>(p));
+      }
+      std::unique_ptr<ZonedBlockDeviceBackend> d =
+          std::move(*raid_devices.erase(raid_devices.begin()));
+      zbd_be_ = std::make_unique<RaidZonedBlockDevice>(
+          raid_mode_from_str(raid_num_str), std::move(d));
+    } else {
+      zbd_be_ = nullptr;
+      Error(logger_,
+            "Failed to parse raid path: %s. Format is: "
+            "raid<num>:<path1>,<path2>,<path3>,...",
+            path.c_str());
+    }
   }
 }
 
