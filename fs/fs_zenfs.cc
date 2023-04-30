@@ -1352,7 +1352,7 @@ Status ZenFS::Mount(bool readonly) {
   /* We need a minimum of two non-offline meta data zones */
   if (metazones.size() < 2) {
     Error(logger_,
-          "Need at least two non-offline meta zones to open for write");
+          "Need at least two non-offline meta zones to open for write! Now is %zu", metazones.size());
     return Status::NotSupported();
   }
 
