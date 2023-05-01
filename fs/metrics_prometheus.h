@@ -30,10 +30,10 @@ class GaugeMetric {
   std::atomic<uint64_t> min;
 };
 
-class ZenFSPrometheusMetrics : public rocksdb::ZenFSMetrics {
+class AquaFSPrometheusMetrics : public rocksdb::AquaFSMetrics {
  private:
   std::shared_ptr<Registry> registry_;
-  std::unordered_map<ZenFSMetricsHistograms, std::shared_ptr<GaugeMetric>>
+  std::unordered_map<AquaFSMetricsHistograms, std::shared_ptr<GaugeMetric>>
       metric_map_;
   uint64_t report_interval_ms_ = 5000;
   std::thread *collect_thread_;
@@ -41,46 +41,46 @@ class ZenFSPrometheusMetrics : public rocksdb::ZenFSMetrics {
 
   const std::unordered_map<uint32_t, std::pair<std::string, uint32_t>>
       info_map_ = {
-          {ZENFS_NON_WAL_WRITE_LATENCY,
-           {"zenfs_non_wal_write_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_WAL_WRITE_LATENCY,
-           {"zenfs_wal_write_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_READ_LATENCY,
-           {"zenfs_read_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_WAL_SYNC_LATENCY,
-           {"zenfs_wal_sync_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_NON_WAL_SYNC_LATENCY,
-           {"zenfs_non_wal_sync_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_ZONE_WRITE_LATENCY,
-           {"zenfs_zone_write_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_ROLL_LATENCY,
-           {"zenfs_roll_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_META_ALLOC_LATENCY,
-           {"zenfs_meta_alloc_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_META_SYNC_LATENCY,
-           {"zenfs_meta_sync_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-          {ZENFS_WRITE_QPS, {"zenfs_write_qps", ZENFS_REPORTER_TYPE_QPS}},
-          {ZENFS_READ_QPS, {"zenfs_read_qps", ZENFS_REPORTER_TYPE_QPS}},
-          {ZENFS_SYNC_QPS, {"zenfs_sync_qps", ZENFS_REPORTER_TYPE_QPS}},
-          {ZENFS_META_ALLOC_QPS,
-           {"zenfs_meta_alloc_qps", ZENFS_REPORTER_TYPE_QPS}},
-          {ZENFS_IO_ALLOC_QPS, {"zenfs_io_alloc_qps", ZENFS_REPORTER_TYPE_QPS}},
-          {ZENFS_ROLL_QPS, {"zenfs_roll_qps", ZENFS_REPORTER_TYPE_QPS}},
-          {ZENFS_WRITE_THROUGHPUT,
-           {"zenfs_write_throughput", ZENFS_REPORTER_TYPE_THROUGHPUT}},
-          {ZENFS_RESETABLE_ZONES_COUNT,
-           {"zenfs_resetable_zones", ZENFS_REPORTER_TYPE_GENERAL}},
-          {ZENFS_OPEN_ZONES_COUNT,
-           {"zenfs_open_zones", ZENFS_REPORTER_TYPE_GENERAL}},
-          {ZENFS_ACTIVE_ZONES_COUNT,
-           {"zenfs_active_zones", ZENFS_REPORTER_TYPE_GENERAL}},
+          {AQUAFS_NON_WAL_WRITE_LATENCY,
+           {"aquafs_non_wal_write_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_WAL_WRITE_LATENCY,
+           {"aquafs_wal_write_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_READ_LATENCY,
+           {"aquafs_read_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_WAL_SYNC_LATENCY,
+           {"aquafs_wal_sync_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_NON_WAL_SYNC_LATENCY,
+           {"aquafs_non_wal_sync_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_ZONE_WRITE_LATENCY,
+           {"aquafs_zone_write_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_ROLL_LATENCY,
+           {"aquafs_roll_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_META_ALLOC_LATENCY,
+           {"aquafs_meta_alloc_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_META_SYNC_LATENCY,
+           {"aquafs_meta_sync_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+          {AQUAFS_WRITE_QPS, {"aquafs_write_qps", AQUAFS_REPORTER_TYPE_QPS}},
+          {AQUAFS_READ_QPS, {"aquafs_read_qps", AQUAFS_REPORTER_TYPE_QPS}},
+          {AQUAFS_SYNC_QPS, {"aquafs_sync_qps", AQUAFS_REPORTER_TYPE_QPS}},
+          {AQUAFS_META_ALLOC_QPS,
+           {"aquafs_meta_alloc_qps", AQUAFS_REPORTER_TYPE_QPS}},
+          {AQUAFS_IO_ALLOC_QPS, {"aquafs_io_alloc_qps", AQUAFS_REPORTER_TYPE_QPS}},
+          {AQUAFS_ROLL_QPS, {"aquafs_roll_qps", AQUAFS_REPORTER_TYPE_QPS}},
+          {AQUAFS_WRITE_THROUGHPUT,
+           {"aquafs_write_throughput", AQUAFS_REPORTER_TYPE_THROUGHPUT}},
+          {AQUAFS_RESETABLE_ZONES_COUNT,
+           {"aquafs_resetable_zones", AQUAFS_REPORTER_TYPE_GENERAL}},
+          {AQUAFS_OPEN_ZONES_COUNT,
+           {"aquafs_open_zones", AQUAFS_REPORTER_TYPE_GENERAL}},
+          {AQUAFS_ACTIVE_ZONES_COUNT,
+           {"aquafs_active_zones", AQUAFS_REPORTER_TYPE_GENERAL}},
       };
 
   void run();
 
  public:
-  ZenFSPrometheusMetrics();
-  ~ZenFSPrometheusMetrics();
+  AquaFSPrometheusMetrics();
+  ~AquaFSPrometheusMetrics();
 
  private:
   virtual void AddReporter(uint32_t label, ReporterType type = 0) override;
@@ -89,19 +89,19 @@ class ZenFSPrometheusMetrics : public rocksdb::ZenFSMetrics {
 
  public:
   virtual void ReportQPS(uint32_t label, size_t qps) override {
-    Report(label, qps, ZENFS_REPORTER_TYPE_QPS);
+    Report(label, qps, AQUAFS_REPORTER_TYPE_QPS);
   }
   virtual void ReportLatency(uint32_t label, size_t latency) override {
-    Report(label, latency, ZENFS_REPORTER_TYPE_LATENCY);
+    Report(label, latency, AQUAFS_REPORTER_TYPE_LATENCY);
   }
   virtual void ReportThroughput(uint32_t label, size_t throughput) override {
-    Report(label, throughput, ZENFS_REPORTER_TYPE_THROUGHPUT);
+    Report(label, throughput, AQUAFS_REPORTER_TYPE_THROUGHPUT);
   }
   virtual void ReportGeneral(uint32_t label, size_t value) override {
-    Report(label, value, ZENFS_REPORTER_TYPE_GENERAL);
+    Report(label, value, AQUAFS_REPORTER_TYPE_GENERAL);
   }
 
-  virtual void ReportSnapshot(const ZenFSSnapshot &snapshot) override {}
+  virtual void ReportSnapshot(const AquaFSSnapshot &snapshot) override {}
 };
 
 }  // namespace ROCKSDB_NAMESPACE

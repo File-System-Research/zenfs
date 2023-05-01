@@ -34,7 +34,7 @@ namespace ROCKSDB_NAMESPACE {
 class ZonedBlockDevice;
 class ZonedBlockDeviceBackend;
 class ZoneSnapshot;
-class ZenFSSnapshotOptions;
+class AquaFSSnapshotOptions;
 
 class ZoneList {
  private:
@@ -163,7 +163,7 @@ class ZonedBlockDevice {
   unsigned int max_nr_active_io_zones_;
   unsigned int max_nr_open_io_zones_;
 
-  std::shared_ptr<ZenFSMetrics> metrics_;
+  std::shared_ptr<AquaFSMetrics> metrics_;
 
   void EncodeJsonZone(std::ostream &json_stream,
                       const std::vector<Zone *> zones);
@@ -171,8 +171,8 @@ class ZonedBlockDevice {
  public:
   explicit ZonedBlockDevice(std::string path, ZbdBackendType backend,
                             std::shared_ptr<Logger> logger,
-                            std::shared_ptr<ZenFSMetrics> metrics =
-                                std::make_shared<NoZenFSMetrics>());
+                            std::shared_ptr<AquaFSMetrics> metrics =
+                                std::make_shared<NoAquaFSMetrics>());
   virtual ~ZonedBlockDevice();
 
   IOStatus Open(bool readonly, bool exclusive);
@@ -208,7 +208,7 @@ class ZonedBlockDevice {
 
   void SetZoneDeferredStatus(IOStatus status);
 
-  std::shared_ptr<ZenFSMetrics> GetMetrics() { return metrics_; }
+  std::shared_ptr<AquaFSMetrics> GetMetrics() { return metrics_; }
 
   void GetZoneSnapshot(std::vector<ZoneSnapshot> &snapshot);
 

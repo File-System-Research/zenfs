@@ -6,7 +6,7 @@
 
 #if !defined(ROCKSDB_LITE) && defined(OS_LINUX)
 
-#include "fs_zenfs.h"
+#include "fs_aquafs.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#ifdef ZENFS_EXPORT_PROMETHEUS
+#ifdef AQUAFS_EXPORT_PROMETHEUS
 #include "metrics_prometheus.h"
 #endif
 #include "rocksdb/utilities/object_registry.h"
@@ -36,7 +36,7 @@ namespace ROCKSDB_NAMESPACE {
 
 Status Superblock::DecodeFrom(Slice* input) {
   if (input->size() != ENCODED_SIZE) {
-    return Status::Corruption("ZenFS Superblock",
+    return Status::Corruption("AquaFS Superblock",
                               "Error: Superblock size missmatch");
   }
 
@@ -52,20 +52,20 @@ Status Superblock::DecodeFrom(Slice* input) {
   GetFixed32(input, &finish_treshold_);
   memcpy(&aux_fs_path_, input->data(), sizeof(aux_fs_path_));
   input->remove_prefix(sizeof(aux_fs_path_));
-  memcpy(&zenfs_version_, input->data(), sizeof(zenfs_version_));
-  input->remove_prefix(sizeof(zenfs_version_));
+  memcpy(&aquafs_version_, input->data(), sizeof(aquafs_version_));
+  input->remove_prefix(sizeof(aquafs_version_));
   memcpy(&reserved_, input->data(), sizeof(reserved_));
   input->remove_prefix(sizeof(reserved_));
   assert(input->size() == 0);
 
   if (magic_ != MAGIC)
-    return Status::Corruption("ZenFS Superblock", "Error: Magic missmatch");
+    return Status::Corruption("AquaFS Superblock", "Error: Magic missmatch");
   if (superblock_version_ != CURRENT_SUPERBLOCK_VERSION) {
     return Status::Corruption(
-        "ZenFS Superblock",
-        "Error: Incompatible ZenFS on-disk format version, "
-        "please migrate data or switch to previously used ZenFS version. "
-        "See the ZenFS README for instructions.");
+        "AquaFS Superblock",
+        "Error: Incompatible AquaFS on-disk format version, "
+        "please migrate data or switch to previously used AquaFS version. "
+        "See the AquaFS README for instructions.");
   }
 
   return Status::OK();
@@ -84,7 +84,7 @@ void Superblock::EncodeTo(std::string* output) {
   PutFixed32(output, nr_zones_);
   PutFixed32(output, finish_treshold_);
   output->append(aux_fs_path_, sizeof(aux_fs_path_));
-  output->append(zenfs_version_, sizeof(zenfs_version_));
+  output->append(aquafs_version_, sizeof(aquafs_version_));
   output->append(reserved_, sizeof(reserved_));
   assert(output->length() == ENCODED_SIZE);
 }
@@ -112,22 +112,22 @@ void Superblock::GetReport(std::string* reportString) {
   reportString->append(std::to_string(!!(flags_ & FLAGS_ENABLE_GC)));
   reportString->append("\nAuxiliary FS Path:\t\t");
   reportString->append(aux_fs_path_);
-  reportString->append("\nZenFS Version:\t\t\t");
-  std::string zenfs_version = zenfs_version_;
-  if (zenfs_version.length() == 0) {
-    zenfs_version = "Not Available";
+  reportString->append("\nAquaFS Version:\t\t\t");
+  std::string aquafs_version = aquafs_version_;
+  if (aquafs_version.length() == 0) {
+    aquafs_version = "Not Available";
   }
-  reportString->append(zenfs_version);
+  reportString->append(aquafs_version);
 }
 
 Status Superblock::CompatibleWith(ZonedBlockDevice* zbd) {
   if (block_size_ != zbd->GetBlockSize())
-    return Status::Corruption("ZenFS Superblock",
+    return Status::Corruption("AquaFS Superblock",
                               "Error: block size missmatch");
   if (zone_size_ != (zbd->GetZoneSize() / block_size_))
-    return Status::Corruption("ZenFS Superblock", "Error: zone size missmatch");
+    return Status::Corruption("AquaFS Superblock", "Error: zone size missmatch");
   if (nr_zones_ > zbd->GetNrZones())
-    return Status::Corruption("ZenFS Superblock",
+    return Status::Corruption("AquaFS Superblock",
                               "Error: nr of zones missmatch");
 
   return Status::OK();
@@ -242,21 +242,21 @@ IOStatus ZenMetaLog::ReadRecord(Slice* record, std::string* scratch) {
   return IOStatus::OK();
 }
 
-ZenFS::ZenFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
+AquaFS::AquaFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
              std::shared_ptr<Logger> logger)
     : FileSystemWrapper(aux_fs), zbd_(zbd), logger_(logger) {
-  Info(logger_, "ZenFS initializing");
-  Info(logger_, "ZenFS parameters: block device: %s, aux filesystem: %s",
+  Info(logger_, "AquaFS initializing");
+  Info(logger_, "AquaFS parameters: block device: %s, aux filesystem: %s",
        zbd_->GetFilename().c_str(), target()->Name());
 
-  Info(logger_, "ZenFS initializing");
+  Info(logger_, "AquaFS initializing");
   next_file_id_ = 1;
   metadata_writer_.zenFS = this;
 }
 
-ZenFS::~ZenFS() {
+AquaFS::~AquaFS() {
   Status s;
-  Info(logger_, "ZenFS shutting down");
+  Info(logger_, "AquaFS shutting down");
   zbd_->LogZoneUsage();
   LogFiles();
 
@@ -270,15 +270,15 @@ ZenFS::~ZenFS() {
   delete zbd_;
 }
 
-void ZenFS::GCWorker() {
+void AquaFS::GCWorker() {
   while (run_gc_worker_) {
     usleep(1000 * 1000 * 10);
 
     uint64_t non_free = zbd_->GetUsedSpace() + zbd_->GetReclaimableSpace();
     uint64_t free = zbd_->GetFreeSpace();
     uint64_t free_percent = (100 * free) / (free + non_free);
-    ZenFSSnapshot snapshot;
-    ZenFSSnapshotOptions options;
+    AquaFSSnapshot snapshot;
+    AquaFSSnapshotOptions options;
 
     if (free_percent > GC_START_LEVEL) continue;
 
@@ -286,7 +286,7 @@ void ZenFS::GCWorker() {
     options.zone_file_ = 1;
     options.log_garbage_ = 1;
 
-    GetZenFSSnapshot(snapshot, options);
+    GetAquaFSSnapshot(snapshot, options);
 
     uint64_t threshold = (100 - GC_SLOPE * (GC_START_LEVEL - free_percent));
     std::set<uint64_t> migrate_zones_start;
@@ -321,7 +321,7 @@ void ZenFS::GCWorker() {
   }
 }
 
-IOStatus ZenFS::Repair() {
+IOStatus AquaFS::Repair() {
   std::map<std::string, std::shared_ptr<ZoneFile>>::iterator it;
   for (it = files_.begin(); it != files_.end(); it++) {
     std::shared_ptr<ZoneFile> zFile = it->second;
@@ -334,12 +334,12 @@ IOStatus ZenFS::Repair() {
   return IOStatus::OK();
 }
 
-std::string ZenFS::FormatPathLexically(fs::path filepath) {
+std::string AquaFS::FormatPathLexically(fs::path filepath) {
   fs::path ret = fs::path("/") / filepath.lexically_normal();
   return ret.string();
 }
 
-void ZenFS::LogFiles() {
+void AquaFS::LogFiles() {
   std::map<std::string, std::shared_ptr<ZoneFile>>::iterator it;
   uint64_t total_size = 0;
 
@@ -365,7 +365,7 @@ void ZenFS::LogFiles() {
        total_size / (1024 * 1024));
 }
 
-void ZenFS::ClearFiles() {
+void AquaFS::ClearFiles() {
   std::map<std::string, std::shared_ptr<ZoneFile>>::iterator it;
   std::lock_guard<std::mutex> file_lock(files_mtx_);
   for (it = files_.begin(); it != files_.end(); it++) it->second.reset();
@@ -373,7 +373,7 @@ void ZenFS::ClearFiles() {
 }
 
 /* Assumes that files_mutex_ is held */
-IOStatus ZenFS::WriteSnapshotLocked(ZenMetaLog* meta_log) {
+IOStatus AquaFS::WriteSnapshotLocked(ZenMetaLog* meta_log) {
   IOStatus s;
   std::string snapshot;
 
@@ -388,7 +388,7 @@ IOStatus ZenFS::WriteSnapshotLocked(ZenMetaLog* meta_log) {
   return s;
 }
 
-IOStatus ZenFS::WriteEndRecord(ZenMetaLog* meta_log) {
+IOStatus AquaFS::WriteEndRecord(ZenMetaLog* meta_log) {
   std::string endRecord;
 
   PutFixed32(&endRecord, kEndRecord);
@@ -396,14 +396,14 @@ IOStatus ZenFS::WriteEndRecord(ZenMetaLog* meta_log) {
 }
 
 /* Assumes the files_mtx_ is held */
-IOStatus ZenFS::RollMetaZoneLocked() {
+IOStatus AquaFS::RollMetaZoneLocked() {
   std::unique_ptr<ZenMetaLog> new_meta_log, old_meta_log;
   Zone* new_meta_zone = nullptr;
   IOStatus s;
 
-  ZenFSMetricsLatencyGuard guard(zbd_->GetMetrics(), ZENFS_ROLL_LATENCY,
+  AquaFSMetricsLatencyGuard guard(zbd_->GetMetrics(), AQUAFS_ROLL_LATENCY,
                                  Env::Default());
-  zbd_->GetMetrics()->ReportQPS(ZENFS_ROLL_QPS, 1);
+  zbd_->GetMetrics()->ReportQPS(AQUAFS_ROLL_QPS, 1);
 
   IOStatus status = zbd_->AllocateMetaZone(&new_meta_zone);
   if (!status.ok()) return status;
@@ -444,7 +444,7 @@ IOStatus ZenFS::RollMetaZoneLocked() {
   return s;
 }
 
-IOStatus ZenFS::PersistSnapshot(ZenMetaLog* meta_writer) {
+IOStatus AquaFS::PersistSnapshot(ZenMetaLog* meta_writer) {
   IOStatus s;
 
   std::lock_guard<std::mutex> file_lock(files_mtx_);
@@ -464,7 +464,7 @@ IOStatus ZenFS::PersistSnapshot(ZenMetaLog* meta_writer) {
   return s;
 }
 
-IOStatus ZenFS::PersistRecord(std::string record) {
+IOStatus AquaFS::PersistRecord(std::string record) {
   IOStatus s;
 
   std::lock_guard<std::mutex> lock(metadata_sync_mtx_);
@@ -479,7 +479,7 @@ IOStatus ZenFS::PersistRecord(std::string record) {
   return s;
 }
 
-IOStatus ZenFS::SyncFileExtents(ZoneFile* zoneFile,
+IOStatus AquaFS::SyncFileExtents(ZoneFile* zoneFile,
                                 std::vector<ZoneExtent*> new_extents) {
   IOStatus s;
 
@@ -505,11 +505,11 @@ IOStatus ZenFS::SyncFileExtents(ZoneFile* zoneFile,
 }
 
 /* Must hold files_mtx_ */
-IOStatus ZenFS::SyncFileMetadataNoLock(ZoneFile* zoneFile, bool replace) {
+IOStatus AquaFS::SyncFileMetadataNoLock(ZoneFile* zoneFile, bool replace) {
   std::string fileRecord;
   std::string output;
   IOStatus s;
-  ZenFSMetricsLatencyGuard guard(zbd_->GetMetrics(), ZENFS_META_SYNC_LATENCY,
+  AquaFSMetricsLatencyGuard guard(zbd_->GetMetrics(), AQUAFS_META_SYNC_LATENCY,
                                  Env::Default());
 
   if (zoneFile->IsDeleted()) {
@@ -533,13 +533,13 @@ IOStatus ZenFS::SyncFileMetadataNoLock(ZoneFile* zoneFile, bool replace) {
   return s;
 }
 
-IOStatus ZenFS::SyncFileMetadata(ZoneFile* zoneFile, bool replace) {
+IOStatus AquaFS::SyncFileMetadata(ZoneFile* zoneFile, bool replace) {
   std::lock_guard<std::mutex> lock(files_mtx_);
   return SyncFileMetadataNoLock(zoneFile, replace);
 }
 
 /* Must hold files_mtx_ */
-std::shared_ptr<ZoneFile> ZenFS::GetFileNoLock(std::string fname) {
+std::shared_ptr<ZoneFile> AquaFS::GetFileNoLock(std::string fname) {
   std::shared_ptr<ZoneFile> zoneFile(nullptr);
   fname = FormatPathLexically(fname);
   if (files_.find(fname) != files_.end()) {
@@ -548,7 +548,7 @@ std::shared_ptr<ZoneFile> ZenFS::GetFileNoLock(std::string fname) {
   return zoneFile;
 }
 
-std::shared_ptr<ZoneFile> ZenFS::GetFile(std::string fname) {
+std::shared_ptr<ZoneFile> AquaFS::GetFile(std::string fname) {
   std::shared_ptr<ZoneFile> zoneFile(nullptr);
   std::lock_guard<std::mutex> lock(files_mtx_);
   zoneFile = GetFileNoLock(fname);
@@ -556,7 +556,7 @@ std::shared_ptr<ZoneFile> ZenFS::GetFile(std::string fname) {
 }
 
 /* Must hold files_mtx_ */
-IOStatus ZenFS::DeleteFileNoLock(std::string fname, const IOOptions& options,
+IOStatus AquaFS::DeleteFileNoLock(std::string fname, const IOOptions& options,
                                  IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> zoneFile(nullptr);
   IOStatus s;
@@ -588,7 +588,7 @@ IOStatus ZenFS::DeleteFileNoLock(std::string fname, const IOOptions& options,
   return s;
 }
 
-IOStatus ZenFS::NewSequentialFile(const std::string& filename,
+IOStatus AquaFS::NewSequentialFile(const std::string& filename,
                                   const FileOptions& file_opts,
                                   std::unique_ptr<FSSequentialFile>* result,
                                   IODebugContext* dbg) {
@@ -607,7 +607,7 @@ IOStatus ZenFS::NewSequentialFile(const std::string& filename,
   return IOStatus::OK();
 }
 
-IOStatus ZenFS::NewRandomAccessFile(const std::string& filename,
+IOStatus AquaFS::NewRandomAccessFile(const std::string& filename,
                                     const FileOptions& file_opts,
                                     std::unique_ptr<FSRandomAccessFile>* result,
                                     IODebugContext* dbg) {
@@ -631,7 +631,7 @@ inline bool ends_with(std::string const& value, std::string const& ending) {
   return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-IOStatus ZenFS::NewWritableFile(const std::string& filename,
+IOStatus AquaFS::NewWritableFile(const std::string& filename,
                                 const FileOptions& file_opts,
                                 std::unique_ptr<FSWritableFile>* result,
                                 IODebugContext* /*dbg*/) {
@@ -642,7 +642,7 @@ IOStatus ZenFS::NewWritableFile(const std::string& filename,
   return OpenWritableFile(fname, file_opts, result, nullptr, false);
 }
 
-IOStatus ZenFS::ReuseWritableFile(const std::string& filename,
+IOStatus AquaFS::ReuseWritableFile(const std::string& filename,
                                   const std::string& old_filename,
                                   const FileOptions& file_opts,
                                   std::unique_ptr<FSWritableFile>* result,
@@ -669,7 +669,7 @@ IOStatus ZenFS::ReuseWritableFile(const std::string& filename,
   return OpenWritableFile(fname, file_opts, result, dbg, false);
 }
 
-IOStatus ZenFS::FileExists(const std::string& filename,
+IOStatus AquaFS::FileExists(const std::string& filename,
                            const IOOptions& options, IODebugContext* dbg) {
   std::string fname = FormatPathLexically(filename);
   Debug(logger_, "FileExists: %s \n", fname.c_str());
@@ -684,7 +684,7 @@ IOStatus ZenFS::FileExists(const std::string& filename,
 /* If the file does not exist, create a new one,
  * else return the existing file
  */
-IOStatus ZenFS::ReopenWritableFile(const std::string& filename,
+IOStatus AquaFS::ReopenWritableFile(const std::string& filename,
                                    const FileOptions& file_opts,
                                    std::unique_ptr<FSWritableFile>* result,
                                    IODebugContext* dbg) {
@@ -695,7 +695,7 @@ IOStatus ZenFS::ReopenWritableFile(const std::string& filename,
 }
 
 /* Must hold files_mtx_ */
-void ZenFS::GetZenFSChildrenNoLock(const std::string& dir,
+void AquaFS::GetAquaFSChildrenNoLock(const std::string& dir,
                                    bool include_grandchildren,
                                    std::vector<std::string>* result) {
   auto path_as_string_with_separator_at_end = [](fs::path const& path) {
@@ -733,7 +733,7 @@ void ZenFS::GetZenFSChildrenNoLock(const std::string& dir,
 }
 
 /* Must hold files_mtx_ */
-IOStatus ZenFS::GetChildrenNoLock(const std::string& dir_path,
+IOStatus AquaFS::GetChildrenNoLock(const std::string& dir_path,
                                   const IOOptions& options,
                                   std::vector<std::string>* result,
                                   IODebugContext* dbg) {
@@ -745,7 +745,7 @@ IOStatus ZenFS::GetChildrenNoLock(const std::string& dir_path,
 
   s = target()->GetChildren(ToAuxPath(dir), options, &auxfiles, dbg);
   if (!s.ok()) {
-    /* On ZenFS empty directories cannot be created, therefore we cannot
+    /* On AquaFS empty directories cannot be created, therefore we cannot
        distinguish between "Directory not found" and "Directory is empty"
        and always return empty lists with OK status in both cases. */
     if (s.IsNotFound()) {
@@ -758,12 +758,12 @@ IOStatus ZenFS::GetChildrenNoLock(const std::string& dir_path,
     if (f != "." && f != "..") result->push_back(f);
   }
 
-  GetZenFSChildrenNoLock(dir, false, result);
+  GetAquaFSChildrenNoLock(dir, false, result);
 
   return s;
 }
 
-IOStatus ZenFS::GetChildren(const std::string& dir, const IOOptions& options,
+IOStatus AquaFS::GetChildren(const std::string& dir, const IOOptions& options,
                             std::vector<std::string>* result,
                             IODebugContext* dbg) {
   std::lock_guard<std::mutex> lock(files_mtx_);
@@ -771,7 +771,7 @@ IOStatus ZenFS::GetChildren(const std::string& dir, const IOOptions& options,
 }
 
 /* Must hold files_mtx_ */
-IOStatus ZenFS::DeleteDirRecursiveNoLock(const std::string& dir,
+IOStatus AquaFS::DeleteDirRecursiveNoLock(const std::string& dir,
                                          const IOOptions& options,
                                          IODebugContext* dbg) {
   std::vector<std::string> children;
@@ -808,7 +808,7 @@ IOStatus ZenFS::DeleteDirRecursiveNoLock(const std::string& dir,
   return target()->DeleteDir(ToAuxPath(d), options, dbg);
 }
 
-IOStatus ZenFS::DeleteDirRecursive(const std::string& d,
+IOStatus AquaFS::DeleteDirRecursive(const std::string& d,
                                    const IOOptions& options,
                                    IODebugContext* dbg) {
   IOStatus s;
@@ -820,7 +820,7 @@ IOStatus ZenFS::DeleteDirRecursive(const std::string& d,
   return s;
 }
 
-IOStatus ZenFS::OpenWritableFile(const std::string& filename,
+IOStatus AquaFS::OpenWritableFile(const std::string& filename,
                                  const FileOptions& file_opts,
                                  std::unique_ptr<FSWritableFile>* result,
                                  IODebugContext* dbg, bool reopen) {
@@ -876,7 +876,7 @@ IOStatus ZenFS::OpenWritableFile(const std::string& filename,
   return s;
 }
 
-IOStatus ZenFS::DeleteFile(const std::string& fname, const IOOptions& options,
+IOStatus AquaFS::DeleteFile(const std::string& fname, const IOOptions& options,
                            IODebugContext* dbg) {
   IOStatus s;
 
@@ -891,7 +891,7 @@ IOStatus ZenFS::DeleteFile(const std::string& fname, const IOOptions& options,
   return s;
 }
 
-IOStatus ZenFS::GetFileModificationTime(const std::string& filename,
+IOStatus AquaFS::GetFileModificationTime(const std::string& filename,
                                         const IOOptions& options,
                                         uint64_t* mtime, IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> zoneFile(nullptr);
@@ -909,7 +909,7 @@ IOStatus ZenFS::GetFileModificationTime(const std::string& filename,
   return s;
 }
 
-IOStatus ZenFS::GetFileSize(const std::string& filename,
+IOStatus AquaFS::GetFileSize(const std::string& filename,
                             const IOOptions& options, uint64_t* size,
                             IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> zoneFile(nullptr);
@@ -930,7 +930,7 @@ IOStatus ZenFS::GetFileSize(const std::string& filename,
 }
 
 /* Must hold files_mtx_ */
-IOStatus ZenFS::RenameChildNoLock(std::string const& source_dir,
+IOStatus AquaFS::RenameChildNoLock(std::string const& source_dir,
                                   std::string const& dest_dir,
                                   std::string const& child,
                                   const IOOptions& options,
@@ -941,7 +941,7 @@ IOStatus ZenFS::RenameChildNoLock(std::string const& source_dir,
 }
 
 /* Must hold files_mtx_ */
-IOStatus ZenFS::RollbackAuxDirRenameNoLock(
+IOStatus AquaFS::RollbackAuxDirRenameNoLock(
     const std::string& source_path, const std::string& dest_path,
     const std::vector<std::string>& renamed_children, const IOOptions& options,
     IODebugContext* dbg) {
@@ -967,7 +967,7 @@ IOStatus ZenFS::RollbackAuxDirRenameNoLock(
 }
 
 /* Must hold files_mtx_ */
-IOStatus ZenFS::RenameAuxPathNoLock(const std::string& source_path,
+IOStatus AquaFS::RenameAuxPathNoLock(const std::string& source_path,
                                     const std::string& dest_path,
                                     const IOOptions& options,
                                     IODebugContext* dbg) {
@@ -981,7 +981,7 @@ IOStatus ZenFS::RenameAuxPathNoLock(const std::string& source_path,
     return s;
   }
 
-  GetZenFSChildrenNoLock(source_path, true, &children);
+  GetAquaFSChildrenNoLock(source_path, true, &children);
 
   for (const auto& child : children) {
     s = RenameChildNoLock(source_path, dest_path, child, options, dbg);
@@ -1001,7 +1001,7 @@ IOStatus ZenFS::RenameAuxPathNoLock(const std::string& source_path,
 }
 
 /* Must hold files_mtx_ */
-IOStatus ZenFS::RenameFileNoLock(const std::string& src_path,
+IOStatus AquaFS::RenameFileNoLock(const std::string& src_path,
                                  const std::string& dst_path,
                                  const IOOptions& options,
                                  IODebugContext* dbg) {
@@ -1045,7 +1045,7 @@ IOStatus ZenFS::RenameFileNoLock(const std::string& src_path,
   return s;
 }
 
-IOStatus ZenFS::RenameFile(const std::string& source_path,
+IOStatus AquaFS::RenameFile(const std::string& source_path,
                            const std::string& dest_path,
                            const IOOptions& options, IODebugContext* dbg) {
   IOStatus s;
@@ -1057,7 +1057,7 @@ IOStatus ZenFS::RenameFile(const std::string& source_path,
   return s;
 }
 
-IOStatus ZenFS::LinkFile(const std::string& file, const std::string& link,
+IOStatus AquaFS::LinkFile(const std::string& file, const std::string& link,
                          const IOOptions& options, IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> src_file(nullptr);
   std::string fname = FormatPathLexically(file);
@@ -1088,7 +1088,7 @@ IOStatus ZenFS::LinkFile(const std::string& file, const std::string& link,
   return s;
 }
 
-IOStatus ZenFS::NumFileLinks(const std::string& file, const IOOptions& options,
+IOStatus AquaFS::NumFileLinks(const std::string& file, const IOOptions& options,
                              uint64_t* nr_links, IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> src_file(nullptr);
   std::string fname = FormatPathLexically(file);
@@ -1108,7 +1108,7 @@ IOStatus ZenFS::NumFileLinks(const std::string& file, const IOOptions& options,
   return s;
 }
 
-IOStatus ZenFS::AreFilesSame(const std::string& file, const std::string& linkf,
+IOStatus AquaFS::AreFilesSame(const std::string& file, const std::string& linkf,
                              const IOOptions& options, bool* res,
                              IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> src_file(nullptr);
@@ -1135,7 +1135,7 @@ IOStatus ZenFS::AreFilesSame(const std::string& file, const std::string& linkf,
   return s;
 }
 
-void ZenFS::EncodeSnapshotTo(std::string* output) {
+void AquaFS::EncodeSnapshotTo(std::string* output) {
   std::map<std::string, std::shared_ptr<ZoneFile>>::iterator it;
   std::string files_string;
   PutFixed32(output, kCompleteFilesSnapshot);
@@ -1149,7 +1149,7 @@ void ZenFS::EncodeSnapshotTo(std::string* output) {
   PutLengthPrefixedSlice(output, Slice(files_string));
 }
 
-void ZenFS::EncodeJson(std::ostream& json_stream) {
+void AquaFS::EncodeJson(std::ostream& json_stream) {
   bool first_element = true;
   json_stream << "[";
   for (const auto& file : files_) {
@@ -1163,7 +1163,7 @@ void ZenFS::EncodeJson(std::ostream& json_stream) {
   json_stream << "]";
 }
 
-Status ZenFS::DecodeFileUpdateFrom(Slice* slice, bool replace) {
+Status AquaFS::DecodeFileUpdateFrom(Slice* slice, bool replace) {
   std::shared_ptr<ZoneFile> update(new ZoneFile(zbd_, 0, &metadata_writer_));
   uint64_t id;
   Status s;
@@ -1204,7 +1204,7 @@ Status ZenFS::DecodeFileUpdateFrom(Slice* slice, bool replace) {
   return Status::OK();
 }
 
-Status ZenFS::DecodeSnapshotFrom(Slice* input) {
+Status AquaFS::DecodeSnapshotFrom(Slice* input) {
   Slice slice;
 
   assert(files_.size() == 0);
@@ -1225,7 +1225,7 @@ Status ZenFS::DecodeSnapshotFrom(Slice* input) {
   return Status::OK();
 }
 
-void ZenFS::EncodeFileDeletionTo(std::shared_ptr<ZoneFile> zoneFile,
+void AquaFS::EncodeFileDeletionTo(std::shared_ptr<ZoneFile> zoneFile,
                                  std::string* output, std::string linkf) {
   std::string file_string;
 
@@ -1236,7 +1236,7 @@ void ZenFS::EncodeFileDeletionTo(std::shared_ptr<ZoneFile> zoneFile,
   PutLengthPrefixedSlice(output, Slice(file_string));
 }
 
-Status ZenFS::DecodeFileDeletionFrom(Slice* input) {
+Status AquaFS::DecodeFileDeletionFrom(Slice* input) {
   uint64_t fileID;
   std::string fileName;
   Slice slice;
@@ -1264,7 +1264,7 @@ Status ZenFS::DecodeFileDeletionFrom(Slice* input) {
   return Status::OK();
 }
 
-Status ZenFS::RecoverFrom(ZenMetaLog* log) {
+Status AquaFS::RecoverFrom(ZenMetaLog* log) {
   bool at_least_one_snapshot = false;
   std::string scratch;
   uint32_t tag = 0;
@@ -1278,7 +1278,7 @@ Status ZenFS::RecoverFrom(ZenMetaLog* log) {
     if (!rs.ok()) {
       Error(logger_, "Read recovery record failed with error: %s",
             rs.ToString().c_str());
-      return Status::Corruption("ZenFS", "Metadata corruption");
+      return Status::Corruption("AquaFS", "Metadata corruption");
     }
 
     if (!GetFixed32(&record, &tag)) break;
@@ -1286,7 +1286,7 @@ Status ZenFS::RecoverFrom(ZenMetaLog* log) {
     if (tag == kEndRecord) break;
 
     if (!GetLengthPrefixedSlice(&record, &data)) {
-      return Status::Corruption("ZenFS", "No recovery record data");
+      return Status::Corruption("AquaFS", "No recovery record data");
     }
 
     switch (tag) {
@@ -1330,18 +1330,18 @@ Status ZenFS::RecoverFrom(ZenMetaLog* log) {
 
       default:
         Warn(logger_, "Unexpected metadata record tag: %u", tag);
-        return Status::Corruption("ZenFS", "Unexpected tag");
+        return Status::Corruption("AquaFS", "Unexpected tag");
     }
   }
 
   if (at_least_one_snapshot)
     return Status::OK();
   else
-    return Status::NotFound("ZenFS", "No snapshot found");
+    return Status::NotFound("AquaFS", "No snapshot found");
 }
 
 /* Mount the filesystem by recovering form the latest valid metadata zone */
-Status ZenFS::Mount(bool readonly) {
+Status AquaFS::Mount(bool readonly) {
   std::vector<Zone*> metazones = zbd_->GetMetaZones();
   std::vector<std::unique_ptr<Superblock>> valid_superblocks;
   std::vector<std::unique_ptr<ZenMetaLog>> valid_logs;
@@ -1485,7 +1485,7 @@ Status ZenFS::Mount(bool readonly) {
     if (superblock_->IsGCEnabled()) {
       Info(logger_, "Starting garbage collection worker");
       run_gc_worker_ = true;
-      gc_worker_.reset(new std::thread(&ZenFS::GCWorker, this));
+      gc_worker_.reset(new std::thread(&AquaFS::GCWorker, this));
     }
   }
 
@@ -1494,7 +1494,7 @@ Status ZenFS::Mount(bool readonly) {
   return Status::OK();
 }
 
-Status ZenFS::MkFS(std::string aux_fs_p, uint32_t finish_threshold,
+Status AquaFS::MkFS(std::string aux_fs_p, uint32_t finish_threshold,
                    bool enable_gc) {
   std::vector<Zone*> metazones = zbd_->GetMetaZones();
   std::unique_ptr<ZenMetaLog> log;
@@ -1557,7 +1557,7 @@ Status ZenFS::MkFS(std::string aux_fs_p, uint32_t finish_threshold,
   return Status::OK();
 }
 
-std::map<std::string, Env::WriteLifeTimeHint> ZenFS::GetWriteLifeTimeHints() {
+std::map<std::string, Env::WriteLifeTimeHint> AquaFS::GetWriteLifeTimeHints() {
   std::map<std::string, Env::WriteLifeTimeHint> hint_map;
 
   for (auto it = files_.begin(); it != files_.end(); it++) {
@@ -1577,15 +1577,15 @@ __attribute__((__unused__)) static std::string GetLogFilename(std::string bdev) 
   char buf[40];
 
   std::strftime(buf, sizeof(buf), "%Y-%m-%d_%H:%M:%S.log", log_start);
-  ss << DEFAULT_ZENV_LOG_PATH << std::string("zenfs_") << bdev << "_" << buf;
+  ss << DEFAULT_ZENV_LOG_PATH << std::string("aquafs_") << bdev << "_" << buf;
 
   return ss.str();
 }
 #endif
 
-Status NewZenFS(FileSystem** fs, const std::string& bdevname,
-                std::shared_ptr<ZenFSMetrics> metrics) {
-  return NewZenFS(fs, ZbdBackendType::kBlockDev, bdevname, metrics);
+Status NewAquaFS(FileSystem** fs, const std::string& bdevname,
+                std::shared_ptr<AquaFSMetrics> metrics) {
+  return NewAquaFS(fs, ZbdBackendType::kBlockDev, bdevname, metrics);
 }
 
 class MyConsoleLogger : public Logger {
@@ -1602,13 +1602,13 @@ class MyConsoleLogger : public Logger {
   port::Mutex lock_;
 };
 
-Status NewZenFS(FileSystem** fs, const ZbdBackendType backend_type,
+Status NewAquaFS(FileSystem** fs, const ZbdBackendType backend_type,
                 const std::string& backend_name,
-                std::shared_ptr<ZenFSMetrics> metrics) {
+                std::shared_ptr<AquaFSMetrics> metrics) {
   std::shared_ptr<Logger> logger;
   Status s;
 
-  // TerarkDB needs to log important information in production while ZenFS
+  // TerarkDB needs to log important information in production while AquaFS
   // doesn't (currently).
   //
   // TODO(guokuankuan@bytedance.com) We need to figure out how to reuse
@@ -1617,7 +1617,7 @@ Status NewZenFS(FileSystem** fs, const ZbdBackendType backend_type,
   // s = Env::Default()->NewLogger(GetLogFilename(backend_name), &logger);
   logger = std::make_shared<MyConsoleLogger>();
   if (!s.ok()) {
-    fprintf(stderr, "ZenFS: Could not create logger");
+    fprintf(stderr, "AquaFS: Could not create logger");
   } else {
     logger->SetInfoLogLevel(DEBUG_LEVEL);
 #ifdef WITH_TERARKDB
@@ -1635,7 +1635,7 @@ Status NewZenFS(FileSystem** fs, const ZbdBackendType backend_type,
     return Status::IOError(zbd_status.ToString());
   }
 
-  ZenFS* zenFS = new ZenFS(zbd, FileSystem::Default(), logger);
+  AquaFS* zenFS = new AquaFS(zbd, FileSystem::Default(), logger);
   s = zenFS->Mount(false);
   if (!s.ok()) {
     delete zenFS;
@@ -1724,8 +1724,8 @@ Status ListZenFileSystems(
   return Status::OK();
 }
 
-void ZenFS::GetZenFSSnapshot(ZenFSSnapshot& snapshot,
-                             const ZenFSSnapshotOptions& options) {
+void AquaFS::GetAquaFSSnapshot(AquaFSSnapshot& snapshot,
+                             const AquaFSSnapshotOptions& options) {
   if (options.zbd_) {
     snapshot.zbd_ = ZBDSnapshot(*zbd_);
   }
@@ -1760,7 +1760,7 @@ void ZenFS::GetZenFSSnapshot(ZenFSSnapshot& snapshot,
   }
 }
 
-IOStatus ZenFS::MigrateExtents(
+IOStatus AquaFS::MigrateExtents(
     const std::vector<ZoneExtentSnapshot*>& extents) {
   IOStatus s;
   // Group extents by their filename
@@ -1782,7 +1782,7 @@ IOStatus ZenFS::MigrateExtents(
   return s;
 }
 
-IOStatus ZenFS::MigrateFileExtents(
+IOStatus AquaFS::MigrateFileExtents(
     const std::string& fname,
     const std::vector<ZoneExtentSnapshot*>& migrate_exts) {
   IOStatus s = IOStatus::OK();
@@ -1839,7 +1839,7 @@ IOStatus ZenFS::MigrateFileExtents(
 
     uint64_t target_start = target_zone->wp_;
     if (zfile->IsSparse()) {
-      // For buffered write, ZenFS use inlined metadata for extents and each
+      // For buffered write, AquaFS use inlined metadata for extents and each
       // extent has a SPARSE_HEADER_SIZE.
       target_start = target_zone->wp_ + ZoneFile::SPARSE_HEADER_SIZE;
       zfile->MigrateData(ext->start_ - ZoneFile::SPARSE_HEADER_SIZE,
@@ -1873,17 +1873,17 @@ IOStatus ZenFS::MigrateFileExtents(
   return IOStatus::OK();
 }
 
-extern "C" FactoryFunc<FileSystem> zenfs_filesystem_reg;
+extern "C" FactoryFunc<FileSystem> aquafs_filesystem_reg;
 
-FactoryFunc<FileSystem> zenfs_filesystem_reg =
+FactoryFunc<FileSystem> aquafs_filesystem_reg =
 #if (ROCKSDB_MAJOR < 6) || (ROCKSDB_MAJOR <= 6 && ROCKSDB_MINOR < 28)
     ObjectLibrary::Default()->Register<FileSystem>(
-        "zenfs://.*", [](const std::string& uri, std::unique_ptr<FileSystem>* f,
+        "aquafs://.*", [](const std::string& uri, std::unique_ptr<FileSystem>* f,
                          std::string* errmsg) {
 #else
     ObjectLibrary::Default()->AddFactory<FileSystem>(
-        ObjectLibrary::PatternEntry("zenfs", false)
-            .AddSeparator("://"), /* "zenfs://.+" */
+        ObjectLibrary::PatternEntry("aquafs", false)
+            .AddSeparator("://"), /* "aquafs://.+" */
         [](const std::string& uri, std::unique_ptr<FileSystem>* f,
            std::string* errmsg) {
 #endif
@@ -1891,20 +1891,20 @@ FactoryFunc<FileSystem> zenfs_filesystem_reg =
           FileSystem* fs = nullptr;
           Status s;
 
-          devID.replace(0, strlen("zenfs://"), "");
+          devID.replace(0, strlen("aquafs://"), "");
           if (devID.rfind("dev:") == 0) {
             devID.replace(0, strlen("dev:"), "");
-#ifdef ZENFS_EXPORT_PROMETHEUS
-            s = NewZenFS(&fs, ZbdBackendType::kBlockDev, devID,
-                         std::make_shared<ZenFSPrometheusMetrics>());
+#ifdef AQUAFS_EXPORT_PROMETHEUS
+            s = NewAquaFS(&fs, ZbdBackendType::kBlockDev, devID,
+                         std::make_shared<AquaFSPrometheusMetrics>());
 #else
-            s = NewZenFS(&fs, ZbdBackendType::kBlockDev, devID);
+            s = NewAquaFS(&fs, ZbdBackendType::kBlockDev, devID);
 #endif
             if (!s.ok()) {
               *errmsg = s.ToString();
             }
           } else if (devID.find("raid") == 0) {
-            s = NewZenFS(&fs, ZbdBackendType::kRaid, devID);
+            s = NewAquaFS(&fs, ZbdBackendType::kRaid, devID);
             if (!s.ok()) {
               *errmsg = s.ToString();
             }
@@ -1921,12 +1921,12 @@ FactoryFunc<FileSystem> zenfs_filesystem_reg =
                 *errmsg = "UUID not found";
               } else {
 
-#ifdef ZENFS_EXPORT_PROMETHEUS
-                s = NewZenFS(&fs, zenFileSystems[devID].second,
+#ifdef AQUAFS_EXPORT_PROMETHEUS
+                s = NewAquaFS(&fs, zenFileSystems[devID].second,
                              zenFileSystems[devID].first,
-                             std::make_shared<ZenFSPrometheusMetrics>());
+                             std::make_shared<AquaFSPrometheusMetrics>());
 #else
-                s = NewZenFS(&fs, zenFileSystems[devID].second,
+                s = NewAquaFS(&fs, zenFileSystems[devID].second,
                              zenFileSystems[devID].first);
 #endif
                 if (!s.ok()) {
@@ -1936,7 +1936,7 @@ FactoryFunc<FileSystem> zenfs_filesystem_reg =
             }
           } else if (devID.rfind("zonefs:") == 0) {
             devID.replace(0, strlen("zonefs:"), "");
-            s = NewZenFS(&fs, ZbdBackendType::kZoneFS, devID);
+            s = NewAquaFS(&fs, ZbdBackendType::kZoneFS, devID);
             if (!s.ok()) {
               *errmsg = s.ToString();
             }
@@ -1953,10 +1953,10 @@ FactoryFunc<FileSystem> zenfs_filesystem_reg =
 #include "rocksdb/env.h"
 
 namespace ROCKSDB_NAMESPACE {
-Status NewZenFS(FileSystem** /*fs*/, const ZbdBackendType /*backend_type*/,
+Status NewAquaFS(FileSystem** /*fs*/, const ZbdBackendType /*backend_type*/,
                 const std::string& /*backend_name*/,
-                ZenFSMetrics* /*metrics*/) {
-  return Status::NotSupported("Not built with ZenFS support\n");
+                AquaFSMetrics* /*metrics*/) {
+  return Status::NotSupported("Not built with AquaFS support\n");
 }
 std::map<std::string, std::string> ListZenFileSystems() {
   std::map<std::string, std::pair<std::string, ZbdBackendType>> zenFileSystems;

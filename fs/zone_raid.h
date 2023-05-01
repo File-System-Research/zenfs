@@ -3,7 +3,7 @@
 #include <numeric>
 #include <unordered_map>
 
-#include "zbd_zenfs.h"
+#include "zbd_aquafs.h"
 
 namespace ROCKSDB_NAMESPACE {
 enum class RaidMode {

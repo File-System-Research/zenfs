@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Do a zenfs restore and verify the restored data ondisk and source data match.
+# Do a aquafs restore and verify the restored data ondisk and source data match.
 
 source utils/common.sh
 
 BACKUP_DIR=$RESULT_DIR/backup
 
 cp $BACKUP_DIR/write_lifetime_hints.dat $BACKUP_DIR/rocksdbtest/dbbench/
-$ZENFS_DIR/zenfs restore --zbd=$ZDEV --path=$BACKUP_DIR/rocksdbtest/dbbench/ --restore-path=rocksdbtest/dbbench >> $TEST_OUT
+$AQUAFS_DIR/aquafs restore --zbd=$ZDEV --path=$BACKUP_DIR/rocksdbtest/dbbench/ --restore-path=rocksdbtest/dbbench >> $TEST_OUT
 RES=$?
 if [ $RES -ne 0 ]; then
   echo "Restore failed" >> $TEST_OUT

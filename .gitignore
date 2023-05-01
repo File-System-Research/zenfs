@@ -1,4 +1,4 @@
-# util/zenfs
+# util/aquafs
 fs/*.o
 fs/*.cc.d
 tests/results

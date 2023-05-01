@@ -23,7 +23,7 @@
 
 #include "rocksdb/file_system.h"
 #include "rocksdb/io_status.h"
-#include "zbd_zenfs.h"
+#include "zbd_aquafs.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -158,7 +158,7 @@ class ZoneFile {
   IOStatus CloseActiveZone();
 
  public:
-  std::shared_ptr<ZenFSMetrics> GetZBDMetrics() { return zbd_->GetMetrics(); };
+  std::shared_ptr<AquaFSMetrics> GetZBDMetrics() { return zbd_->GetMetrics(); };
   IOType GetIOType() const { return io_type_; };
   bool IsDeleted() const { return is_deleted_; };
   void SetDeleted() { is_deleted_ = true; };

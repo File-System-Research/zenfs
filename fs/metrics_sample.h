@@ -11,12 +11,12 @@
 namespace ROCKSDB_NAMESPACE {
 
 const std::unordered_map<uint32_t, std::pair<std::string, uint32_t>>
-    ZenFSHistogramsNameMap = {
-        {ZENFS_WRITE_LATENCY,
-         {"zenfs_write_latency", ZENFS_REPORTER_TYPE_LATENCY}},
-        {ZENFS_WRITE_QPS, {"zenfs_write_qps", ZENFS_REPORTER_TYPE_QPS}},
-        {ZENFS_RESETABLE_ZONES_COUNT,
-         {"zenfs_resetable_zones", ZENFS_REPORTER_TYPE_GENERAL}}};
+    AquaFSHistogramsNameMap = {
+        {AQUAFS_WRITE_LATENCY,
+         {"aquafs_write_latency", AQUAFS_REPORTER_TYPE_LATENCY}},
+        {AQUAFS_WRITE_QPS, {"aquafs_write_qps", AQUAFS_REPORTER_TYPE_QPS}},
+        {AQUAFS_RESETABLE_ZONES_COUNT,
+         {"aquafs_resetable_zones", AQUAFS_REPORTER_TYPE_GENERAL}}};
 
 struct ReporterSample {
  public:
@@ -26,7 +26,7 @@ struct ReporterSample {
 
  private:
   port::Mutex mu_;
-  ZenFSMetricsReporterType type_;
+  AquaFSMetricsReporterType type_;
   std::vector<TypeRecord> hist_;
 
   static const TypeTime MinReportInterval =
@@ -39,112 +39,112 @@ struct ReporterSample {
   }
 
  public:
-  ReporterSample(ZenFSMetricsReporterType type) : mu_(), type_(type), hist_() {}
+  ReporterSample(AquaFSMetricsReporterType type) : mu_(), type_(type), hist_() {}
   void Record(const TypeTime& time, TypeValue value) {
     MutexLock guard(&mu_);
     if (ReadyToReport(time)) hist_.push_back(TypeRecord(time, value));
   }
-  ZenFSMetricsReporterType Type() const { return type_; }
+  AquaFSMetricsReporterType Type() const { return type_; }
   void GetHistSnapshot(std::vector<TypeRecord>& hist) {
     MutexLock guard(&mu_);
     hist = hist_;
   }
 };
 
-struct ZenFSMetricsSample : public ZenFSMetrics {
+struct AquaFSMetricsSample : public AquaFSMetrics {
  public:
   typedef uint64_t TypeMicroSec;
   typedef ReporterSample TypeReporter;
 
  private:
   Env* env_;
-  std::unordered_map<ZenFSMetricsHistograms, TypeReporter> reporter_map_;
+  std::unordered_map<AquaFSMetricsHistograms, TypeReporter> reporter_map_;
 
  public:
-  ZenFSMetricsSample(Env* env) : env_(env), reporter_map_() {
-    for (auto& label_with_type : ZenFSHistogramsNameMap)
+  AquaFSMetricsSample(Env* env) : env_(env), reporter_map_() {
+    for (auto& label_with_type : AquaFSHistogramsNameMap)
       AddReporter(static_cast<uint32_t>(label_with_type.first),
                   static_cast<uint32_t>(label_with_type.second.second));
   }
-  ~ZenFSMetricsSample() {}
+  ~AquaFSMetricsSample() {}
 
   virtual void AddReporter(uint32_t label_uint,
                            uint32_t type_uint = 0) override {
-    auto label = static_cast<ZenFSMetricsHistograms>(label_uint);
-    assert(ZenFSHistogramsNameMap.find(label) != ZenFSHistogramsNameMap.end());
+    auto label = static_cast<AquaFSMetricsHistograms>(label_uint);
+    assert(AquaFSHistogramsNameMap.find(label) != AquaFSHistogramsNameMap.end());
 
-    auto pair = ZenFSHistogramsNameMap.find(label)->second;
+    auto pair = AquaFSHistogramsNameMap.find(label)->second;
     auto type = pair.second;
 
     if (type_uint != 0) {
-      auto type_check = static_cast<ZenFSMetricsReporterType>(type_uint);
+      auto type_check = static_cast<AquaFSMetricsReporterType>(type_uint);
       assert(type_check == type);
       (void)type_check;
     }
 
     switch (type) {
-      case ZENFS_REPORTER_TYPE_GENERAL:
-      case ZENFS_REPORTER_TYPE_LATENCY:
-      case ZENFS_REPORTER_TYPE_QPS:
-      case ZENFS_REPORTER_TYPE_THROUGHPUT:
-      case ZENFS_REPORTER_TYPE_WITHOUT_CHECK: {
+      case AQUAFS_REPORTER_TYPE_GENERAL:
+      case AQUAFS_REPORTER_TYPE_LATENCY:
+      case AQUAFS_REPORTER_TYPE_QPS:
+      case AQUAFS_REPORTER_TYPE_THROUGHPUT:
+      case AQUAFS_REPORTER_TYPE_WITHOUT_CHECK: {
         reporter_map_.emplace(label, type);
       } break;
     }
   }
   virtual void Report(uint32_t label_uint, size_t value,
                       uint32_t type_uint = 0) override {
-    auto label = static_cast<ZenFSMetricsHistograms>(label_uint);
-    assert(ZenFSHistogramsNameMap.find(label) != ZenFSHistogramsNameMap.end());
-    auto p = reporter_map_.find(static_cast<ZenFSMetricsHistograms>(label));
+    auto label = static_cast<AquaFSMetricsHistograms>(label_uint);
+    assert(AquaFSHistogramsNameMap.find(label) != AquaFSHistogramsNameMap.end());
+    auto p = reporter_map_.find(static_cast<AquaFSMetricsHistograms>(label));
     assert(p != reporter_map_.end());
     TypeReporter& reporter = p->second;
     auto type = reporter.Type();
 
     if (type_uint != 0) {
-      auto type_check = static_cast<ZenFSMetricsReporterType>(type_uint);
+      auto type_check = static_cast<AquaFSMetricsReporterType>(type_uint);
       assert(type_check == type);
       (void)type_check;
     }
 
     switch (type) {
-      case ZENFS_REPORTER_TYPE_GENERAL:
-      case ZENFS_REPORTER_TYPE_LATENCY:
-      case ZENFS_REPORTER_TYPE_QPS:
-      case ZENFS_REPORTER_TYPE_THROUGHPUT:
-      case ZENFS_REPORTER_TYPE_WITHOUT_CHECK: {
+      case AQUAFS_REPORTER_TYPE_GENERAL:
+      case AQUAFS_REPORTER_TYPE_LATENCY:
+      case AQUAFS_REPORTER_TYPE_QPS:
+      case AQUAFS_REPORTER_TYPE_THROUGHPUT:
+      case AQUAFS_REPORTER_TYPE_WITHOUT_CHECK: {
         reporter.Record(GetTime(), value);
       } break;
     }
   }
 
-  virtual void ReportSnapshot(const ZenFSSnapshot& snapshot) {
+  virtual void ReportSnapshot(const AquaFSSnapshot& snapshot) {
     uint64_t free_space_gb = snapshot.zbd_.free_space >> 30;
-    ReportGeneral(ZENFS_LABEL(FREE_SPACE, SIZE), free_space_gb);
+    ReportGeneral(AQUAFS_LABEL(FREE_SPACE, SIZE), free_space_gb);
     // Report anything you care about.
   }
 
  public:
   virtual void ReportQPS(uint32_t label, size_t qps) override {
-    Report(label, qps, ZENFS_REPORTER_TYPE_QPS);
+    Report(label, qps, AQUAFS_REPORTER_TYPE_QPS);
   }
   virtual void ReportLatency(uint32_t label, size_t latency) override {
-    Report(label, latency, ZENFS_REPORTER_TYPE_LATENCY);
+    Report(label, latency, AQUAFS_REPORTER_TYPE_LATENCY);
   }
   virtual void ReportThroughput(uint32_t label, size_t throughput) override {
-    Report(label, throughput, ZENFS_REPORTER_TYPE_THROUGHPUT);
+    Report(label, throughput, AQUAFS_REPORTER_TYPE_THROUGHPUT);
   }
   virtual void ReportGeneral(uint32_t label, size_t value) override {
-    Report(label, value, ZENFS_REPORTER_TYPE_GENERAL);
+    Report(label, value, AQUAFS_REPORTER_TYPE_GENERAL);
   }
 
  public:
   virtual void DebugPrint(std::ostream& os) {
-    os << "[Text histogram from ZenFSMetricsSample: ]{" << std::endl;
+    os << "[Text histogram from AquaFSMetricsSample: ]{" << std::endl;
     for (auto& label_with_rep : reporter_map_) {
       auto label = label_with_rep.first;
       auto& reporter = label_with_rep.second;
-      auto pair = ZenFSHistogramsNameMap.find(label)->second;
+      auto pair = AquaFSHistogramsNameMap.find(label)->second;
       const std::string& name = pair.first;
       os << "  " << name << ":[";
 

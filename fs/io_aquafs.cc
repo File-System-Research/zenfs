@@ -6,7 +6,7 @@
 
 #if !defined(ROCKSDB_LITE) && !defined(OS_WIN)
 
-#include "io_zenfs.h"
+#include "io_aquafs.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -360,9 +360,9 @@ IOStatus ZoneFile::InvalidateCache(uint64_t pos, uint64_t size) {
 
 IOStatus ZoneFile::PositionedRead(uint64_t offset, size_t n, Slice* result,
                                   char* scratch, bool direct) {
-  ZenFSMetricsLatencyGuard guard(zbd_->GetMetrics(), ZENFS_READ_LATENCY,
+  AquaFSMetricsLatencyGuard guard(zbd_->GetMetrics(), AQUAFS_READ_LATENCY,
                                  Env::Default());
-  zbd_->GetMetrics()->ReportQPS(ZENFS_READ_QPS, 1);
+  zbd_->GetMetrics()->ReportQPS(AQUAFS_READ_QPS, 1);
 
   ReadLock lck(this);
 
@@ -875,12 +875,12 @@ IOStatus ZonedWritableFile::DataSync() {
 IOStatus ZonedWritableFile::Fsync(const IOOptions& /*options*/,
                                   IODebugContext* /*dbg*/) {
   IOStatus s;
-  ZenFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
+  AquaFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
                                  zoneFile_->GetIOType() == IOType::kWAL
-                                     ? ZENFS_WAL_SYNC_LATENCY
-                                     : ZENFS_NON_WAL_SYNC_LATENCY,
+                                     ? AQUAFS_WAL_SYNC_LATENCY
+                                     : AQUAFS_NON_WAL_SYNC_LATENCY,
                                  Env::Default());
-  zoneFile_->GetZBDMetrics()->ReportQPS(ZENFS_SYNC_QPS, 1);
+  zoneFile_->GetZBDMetrics()->ReportQPS(AQUAFS_SYNC_QPS, 1);
 
   s = DataSync();
   if (!s.ok()) return s;
@@ -983,13 +983,13 @@ IOStatus ZonedWritableFile::Append(const Slice& data,
                                    const IOOptions& /*options*/,
                                    IODebugContext* /*dbg*/) {
   IOStatus s;
-  ZenFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
+  AquaFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
                                  zoneFile_->GetIOType() == IOType::kWAL
-                                     ? ZENFS_WAL_WRITE_LATENCY
-                                     : ZENFS_NON_WAL_WRITE_LATENCY,
+                                     ? AQUAFS_WAL_WRITE_LATENCY
+                                     : AQUAFS_NON_WAL_WRITE_LATENCY,
                                  Env::Default());
-  zoneFile_->GetZBDMetrics()->ReportQPS(ZENFS_WRITE_QPS, 1);
-  zoneFile_->GetZBDMetrics()->ReportThroughput(ZENFS_WRITE_THROUGHPUT,
+  zoneFile_->GetZBDMetrics()->ReportQPS(AQUAFS_WRITE_QPS, 1);
+  zoneFile_->GetZBDMetrics()->ReportThroughput(AQUAFS_WRITE_THROUGHPUT,
                                                data.size());
 
   if (buffered) {
@@ -1008,13 +1008,13 @@ IOStatus ZonedWritableFile::PositionedAppend(const Slice& data, uint64_t offset,
                                              const IOOptions& /*options*/,
                                              IODebugContext* /*dbg*/) {
   IOStatus s;
-  ZenFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
+  AquaFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
                                  zoneFile_->GetIOType() == IOType::kWAL
-                                     ? ZENFS_WAL_WRITE_LATENCY
-                                     : ZENFS_NON_WAL_WRITE_LATENCY,
+                                     ? AQUAFS_WAL_WRITE_LATENCY
+                                     : AQUAFS_NON_WAL_WRITE_LATENCY,
                                  Env::Default());
-  zoneFile_->GetZBDMetrics()->ReportQPS(ZENFS_WRITE_QPS, 1);
-  zoneFile_->GetZBDMetrics()->ReportThroughput(ZENFS_WRITE_THROUGHPUT,
+  zoneFile_->GetZBDMetrics()->ReportQPS(AQUAFS_WRITE_QPS, 1);
+  zoneFile_->GetZBDMetrics()->ReportThroughput(AQUAFS_WRITE_THROUGHPUT,
                                                data.size());
 
   if (offset != wp) {

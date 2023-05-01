@@ -21,7 +21,7 @@
 // #include <rocksdb/env.h>
 // #include <rocksdb/file_system.h>
 //
-// #include "fs/fs_zenfs.h"
+// #include "fs/fs_aquafs.h"
 // #include "port/stack_trace.h"
 // #include "rocksdb/db_bench_tool.h"
 //
@@ -102,7 +102,7 @@
 // //
 // //   // if (env_opts == 1) {
 // //     Status s = Env::CreateFromUri(config_options, "",
-// "zenfs://dev:nullb0",
+// "aquafs://dev:nullb0",
 // //                                   &FLAGS_env, &env_guard);
 // //     if (!s.ok()) {
 // //       fprintf(stderr, "Failed creating env: %s\n", s.ToString().c_str());
@@ -231,7 +231,7 @@
 //   ConfigOptions config_options;
 //   // std::shared_ptr<FileSystem> fs;
 //   FileSystem* fs;
-//   std::string fs_uri = "zenfs://dev:nullb0";
+//   std::string fs_uri = "aquafs://dev:nullb0";
 //   // std::string fs_uri = "";
 //   // // Status s = Env::CreateFromUri(config_options, "", fs_uri, &FLAGS_env,
 //   // &env_guard); Status s = FileSystem::CreateFromString(config_options,
@@ -242,8 +242,8 @@
 //   // }
 //   // assert(s.ok());
 //
-//   // fs = make_shared(new ZenFS());
-//   Status s = NewZenFS(&fs, ZbdBackendType::kBlockDev, "nullb0");
+//   // fs = make_shared(new AquaFS());
+//   Status s = NewAquaFS(&fs, ZbdBackendType::kBlockDev, "nullb0");
 //   if (!s.ok()) {
 //     printf("%s\n", s.getState());
 //   }

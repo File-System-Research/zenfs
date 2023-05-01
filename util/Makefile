@@ -1,6 +1,6 @@
-# ZenFS utility makefile
+# AquaFS utility makefile
 
-TARGET = zenfs
+TARGET = aquafs
 
 CC ?= gcc
 CXX ?= g++

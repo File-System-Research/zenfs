@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Do a zenfs backup and verify the backed up data and ondisk data match.
+# Do a aquafs backup and verify the backed up data and ondisk data match.
 
 source utils/common.sh
 
 BACKUP_DIR=$RESULT_DIR/backup
 
-LIST=$($ZENFS_DIR/zenfs list --zbd=$ZDEV --path=rocksdbtest/dbbench | wc -l)
+LIST=$($AQUAFS_DIR/aquafs list --zbd=$ZDEV --path=rocksdbtest/dbbench | wc -l)
 echo "List reported $LIST files, backup dir is $BACKUP_DIR"
 mkdir -p $BACKUP_DIR
-$ZENFS_DIR/zenfs backup --zbd=$ZDEV --path=$BACKUP_DIR >> $TEST_OUT
+$AQUAFS_DIR/aquafs backup --zbd=$ZDEV --path=$BACKUP_DIR >> $TEST_OUT
 RES=$?
 if [ $RES -ne 0 ]; then
   echo "Backup failed"

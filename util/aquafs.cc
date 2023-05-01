@@ -5,6 +5,8 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <fs/fs_aquafs.h>
+#include <fs/version.h>
 #include <gflags/gflags.h>
 #include <rocksdb/file_system.h>
 #include <sys/stat.h>
@@ -17,14 +19,6 @@
 #include <memory>
 #include <sstream>
 #include <streambuf>
-
-#ifdef WITH_TERARKDB
-#include <fs/fs_zenfs.h>
-#include <fs/version.h>
-#else
-#include <rocksdb/plugin/zenfs/fs/fs_zenfs.h>
-#include <rocksdb/plugin/zenfs/fs/version.h>
-#endif
 
 using GFLAGS_NAMESPACE::ParseCommandLineFlags;
 using GFLAGS_NAMESPACE::RegisterFlagValidator;
@@ -58,15 +52,19 @@ void AddDirSeparatorAtEnd(std::string &path) {
 
 std::unique_ptr<ZonedBlockDevice> zbd_open(bool readonly, bool exclusive) {
   std::unique_ptr<ZonedBlockDevice> zbd{new ZonedBlockDevice(
-      FLAGS_zbd.empty() ? FLAGS_zonefs.empty() ? FLAGS_raids : FLAGS_zonefs : FLAGS_zbd,
-      FLAGS_zbd.empty() ? FLAGS_zonefs.empty() ? ZbdBackendType::kRaid : ZbdBackendType::kZoneFS : ZbdBackendType::kBlockDev,
+      FLAGS_zbd.empty() ? FLAGS_zonefs.empty() ? FLAGS_raids : FLAGS_zonefs
+                        : FLAGS_zbd,
+      FLAGS_zbd.empty() ? FLAGS_zonefs.empty() ? ZbdBackendType::kRaid
+                                               : ZbdBackendType::kZoneFS
+                        : ZbdBackendType::kBlockDev,
       nullptr)};
 
   IOStatus open_status = zbd->Open(readonly, exclusive);
 
   if (!open_status.ok()) {
     fprintf(stderr, "Failed to open zoned block device: %s, error: %s\n",
-            FLAGS_zbd.empty() ? FLAGS_raids.c_str() : FLAGS_zbd.c_str(), open_status.ToString().c_str());
+            FLAGS_zbd.empty() ? FLAGS_raids.c_str() : FLAGS_zbd.c_str(),
+            open_status.ToString().c_str());
     zbd.reset();
   }
 
@@ -75,17 +73,17 @@ std::unique_ptr<ZonedBlockDevice> zbd_open(bool readonly, bool exclusive) {
 
 // Here we pass 'zbd' by non-const reference to be able to pass its ownership
 // to 'zenFS'
-Status zenfs_mount(std::unique_ptr<ZonedBlockDevice> &zbd,
-                   std::unique_ptr<ZenFS> *zenFS, bool readonly) {
+Status aquafs_mount(std::unique_ptr<ZonedBlockDevice> &zbd,
+                    std::unique_ptr<AquaFS> *zenFS, bool readonly) {
   Status s;
 
-  std::unique_ptr<ZenFS> localZenFS{
-      new ZenFS(zbd.release(), FileSystem::Default(), nullptr)};
-  s = localZenFS->Mount(readonly);
+  std::unique_ptr<AquaFS> localAquaFS{
+      new AquaFS(zbd.release(), FileSystem::Default(), nullptr)};
+  s = localAquaFS->Mount(readonly);
   if (!s.ok()) {
-    localZenFS.reset();
+    localAquaFS.reset();
   }
-  *zenFS = std::move(localZenFS);
+  *zenFS = std::move(localAquaFS);
 
   return s;
 }
@@ -160,7 +158,7 @@ int create_aux_dir(const char *path) {
   return 0;
 }
 
-int zenfs_tool_mkfs() {
+int aquafs_tool_mkfs() {
   Status s;
 
   if (FLAGS_aux_path.empty()) {
@@ -173,8 +171,8 @@ int zenfs_tool_mkfs() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, false);
   if ((s.ok() || !s.IsNotFound()) && !FLAGS_force) {
     fprintf(
         stderr,
@@ -186,7 +184,7 @@ int zenfs_tool_mkfs() {
 
   zbd = zbd_open(false, true);
   ZonedBlockDevice *zbdRaw = zbd.get();
-  zenFS.reset(new ZenFS(zbd.release(), FileSystem::Default(), nullptr));
+  zenFS.reset(new AquaFS(zbd.release(), FileSystem::Default(), nullptr));
 
   AddDirSeparatorAtEnd(FLAGS_aux_path);
 
@@ -197,13 +195,13 @@ int zenfs_tool_mkfs() {
     return 1;
   }
 
-  fprintf(stdout, "ZenFS file system created. Free space: %lu MB\n",
+  fprintf(stdout, "AquaFS file system created. Free space: %lu MB\n",
           zbdRaw->GetFreeSpace() / (1024 * 1024));
 
   return 0;
 }
 
-void list_children(const std::unique_ptr<ZenFS> &zenFS,
+void list_children(const std::unique_ptr<AquaFS> &zenFS,
                    const std::string &path) {
   IOOptions opts;
   IODebugContext dbg;
@@ -242,13 +240,13 @@ void list_children(const std::unique_ptr<ZenFS> &zenFS,
   }
 }
 
-int zenfs_tool_list() {
+int aquafs_tool_list() {
   Status s;
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(true, false);
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, true);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -260,14 +258,14 @@ int zenfs_tool_list() {
   return 0;
 }
 
-int zenfs_tool_df() {
+int aquafs_tool_df() {
   Status s;
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(true, false);
   if (!zbd) return 1;
   ZonedBlockDevice *zbdRaw = zbd.get();
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, true);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -289,7 +287,7 @@ int zenfs_tool_df() {
   return 0;
 }
 
-int zenfs_tool_lsuuid() {
+int aquafs_tool_lsuuid() {
   std::map<std::string, std::pair<std::string, ZbdBackendType>> zenFileSystems;
   Status s = ListZenFileSystems(zenFileSystems);
   if (!s.ok()) {
@@ -347,8 +345,8 @@ void ReadWriteLifeTimeHints() {
   wlth_file.close();
 }
 
-IOStatus zenfs_tool_copy_file(FileSystem *f_fs, const std::string &f,
-                              FileSystem *t_fs, const std::string &t) {
+IOStatus aquafs_tool_copy_file(FileSystem *f_fs, const std::string &f,
+                               FileSystem *t_fs, const std::string &t) {
   FileOptions fopts;
   IOOptions iopts;
   IODebugContext dbg;
@@ -404,8 +402,8 @@ IOStatus zenfs_tool_copy_file(FileSystem *f_fs, const std::string &f,
   return t_file->Fsync(iopts, &dbg);
 }
 
-IOStatus zenfs_tool_copy_dir(FileSystem *f_fs, const std::string &f_dir,
-                             FileSystem *t_fs, const std::string &t_dir) {
+IOStatus aquafs_tool_copy_dir(FileSystem *f_fs, const std::string &f_dir,
+                              FileSystem *t_fs, const std::string &t_dir) {
   IOOptions opts;
   IODebugContext dbg;
   IOStatus s;
@@ -444,12 +442,12 @@ IOStatus zenfs_tool_copy_dir(FileSystem *f_fs, const std::string &f_dir,
       if (!s.ok()) {
         return s;
       }
-      s = zenfs_tool_copy_dir(f_fs, filename + "/", t_fs, dest_filename);
+      s = aquafs_tool_copy_dir(f_fs, filename + "/", t_fs, dest_filename);
       if (!s.ok()) {
         return s;
       }
     } else {
-      s = zenfs_tool_copy_file(f_fs, filename, t_fs, dest_filename);
+      s = aquafs_tool_copy_file(f_fs, filename, t_fs, dest_filename);
       if (!s.ok()) {
         return s;
       }
@@ -458,7 +456,7 @@ IOStatus zenfs_tool_copy_dir(FileSystem *f_fs, const std::string &f_dir,
 
   return s;
 }
-IOStatus zenfs_create_directories(FileSystem *fs, std::string path) {
+IOStatus aquafs_create_directories(FileSystem *fs, std::string path) {
   std::string dir_name;
   IODebugContext dbg;
   IOOptions opts;
@@ -477,7 +475,7 @@ IOStatus zenfs_create_directories(FileSystem *fs, std::string path) {
   return s;
 }
 
-int zenfs_tool_backup() {
+int aquafs_tool_backup() {
   Status status;
   IOStatus io_status;
   IOOptions opts;
@@ -495,8 +493,8 @@ int zenfs_tool_backup() {
 
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  status = zenfs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> zenFS;
+  status = aquafs_mount(zbd, &zenFS, true);
   if (!status.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             status.ToString().c_str());
@@ -516,11 +514,11 @@ int zenfs_tool_backup() {
         FLAGS_path + "/" +
         FLAGS_backup_path.substr(FLAGS_backup_path.find_last_of('/') + 1);
     io_status =
-        zenfs_tool_copy_file(zenFS.get(), FLAGS_backup_path,
-                             FileSystem::Default().get(), dest_filename);
+        aquafs_tool_copy_file(zenFS.get(), FLAGS_backup_path,
+                              FileSystem::Default().get(), dest_filename);
   } else {
     io_status =
-        zenfs_create_directories(FileSystem::Default().get(), FLAGS_path);
+        aquafs_create_directories(FileSystem::Default().get(), FLAGS_path);
     if (!io_status.ok()) {
       fprintf(stderr, "Create directory failed, error: %s\n",
               io_status.ToString().c_str());
@@ -529,8 +527,8 @@ int zenfs_tool_backup() {
 
     std::string backup_path = FLAGS_backup_path;
     AddDirSeparatorAtEnd(backup_path);
-    io_status = zenfs_tool_copy_dir(zenFS.get(), backup_path,
-                                    FileSystem::Default().get(), FLAGS_path);
+    io_status = aquafs_tool_copy_dir(zenFS.get(), backup_path,
+                                     FileSystem::Default().get(), FLAGS_path);
   }
   if (!io_status.ok()) {
     fprintf(stderr, "Copy failed, error: %s\n", io_status.ToString().c_str());
@@ -541,7 +539,7 @@ int zenfs_tool_backup() {
   return SaveWriteLifeTimeHints();
 }
 
-int zenfs_tool_link() {
+int aquafs_tool_link() {
   Status s;
   IOStatus io_s;
   IOOptions iopts;
@@ -554,8 +552,8 @@ int zenfs_tool_link() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, false);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -573,7 +571,7 @@ int zenfs_tool_link() {
   return 0;
 }
 
-int zenfs_tool_delete_file() {
+int aquafs_tool_delete_file() {
   Status s;
   IOStatus io_s;
   IOOptions iopts;
@@ -586,8 +584,8 @@ int zenfs_tool_delete_file() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, false);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -604,7 +602,7 @@ int zenfs_tool_delete_file() {
   return 0;
 }
 
-int zenfs_tool_rename_file() {
+int aquafs_tool_rename_file() {
   Status s;
   IOStatus io_s;
   IOOptions iopts;
@@ -618,8 +616,8 @@ int zenfs_tool_rename_file() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, false);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -637,7 +635,7 @@ int zenfs_tool_rename_file() {
   return 0;
 }
 
-int zenfs_tool_remove_directory() {
+int aquafs_tool_remove_directory() {
   Status s;
   IOStatus io_s;
   IOOptions iopts;
@@ -650,8 +648,8 @@ int zenfs_tool_remove_directory() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, false);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -680,7 +678,7 @@ int zenfs_tool_remove_directory() {
   return 0;
 }
 
-int zenfs_tool_restore() {
+int aquafs_tool_restore() {
   Status status;
   IOStatus io_status;
   IOOptions opts;
@@ -706,15 +704,15 @@ int zenfs_tool_restore() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  status = zenfs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> zenFS;
+  status = aquafs_mount(zbd, &zenFS, false);
   if (!status.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             status.ToString().c_str());
     return 1;
   }
 
-  io_status = zenfs_create_directories(zenFS.get(), FLAGS_restore_path);
+  io_status = aquafs_create_directories(zenFS.get(), FLAGS_restore_path);
   if (!io_status.ok()) {
     fprintf(stderr, "Create directory failed, error: %s\n",
             io_status.ToString().c_str());
@@ -724,12 +722,12 @@ int zenfs_tool_restore() {
   if (!is_dir) {
     std::string dest_file =
         FLAGS_restore_path + fpath.lexically_normal().filename().string();
-    io_status = zenfs_tool_copy_file(f_fs, FLAGS_path, zenFS.get(), dest_file);
+    io_status = aquafs_tool_copy_file(f_fs, FLAGS_path, zenFS.get(), dest_file);
   } else {
     AddDirSeparatorAtEnd(FLAGS_path);
     ReadWriteLifeTimeHints();
     io_status =
-        zenfs_tool_copy_dir(f_fs, FLAGS_path, zenFS.get(), FLAGS_restore_path);
+        aquafs_tool_copy_dir(f_fs, FLAGS_path, zenFS.get(), FLAGS_restore_path);
   }
 
   if (!io_status.ok()) {
@@ -740,14 +738,14 @@ int zenfs_tool_restore() {
   return 0;
 }
 
-int zenfs_tool_dump() {
+int aquafs_tool_dump() {
   Status s;
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(true, false);
   if (!zbd) return 1;
   ZonedBlockDevice *zbdRaw = zbd.get();
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, true);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -764,13 +762,13 @@ int zenfs_tool_dump() {
   return 0;
 }
 
-int zenfs_tool_fsinfo() {
+int aquafs_tool_fsinfo() {
   Status s;
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(true, false);
   if (!zbd) return 1;
 
-  std::unique_ptr<ZenFS> zenFS;
-  s = zenfs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> zenFS;
+  s = aquafs_mount(zbd, &zenFS, true);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -792,19 +790,20 @@ int main(int argc, char **argv) {
   if (argc < 2) {
     fprintf(stderr, "You need to specify a command:\n");
     fprintf(stderr,
-            "\t./zenfs [list | ls-uuid | df | backup | restore | dump | "
+            "\t./aquafs [list | ls-uuid | df | backup | restore | dump | "
             "fs-info | link | delete | rename | rmdir]\n");
     return 1;
   }
 
-  gflags::SetVersionString(ZENFS_VERSION);
+  gflags::SetVersionString(AQUAFS_VERSION);
   std::string subcmd(argv[1]);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  if (FLAGS_zonefs.empty() && FLAGS_zbd.empty() && FLAGS_raids.empty() && subcmd != "ls-uuid") {
-    fprintf(
-        stderr,
-        "You need to specify a zoned block device using --zbd or --zonefs or --raids\n");
+  if (FLAGS_zonefs.empty() && FLAGS_zbd.empty() && FLAGS_raids.empty() &&
+      subcmd != "ls-uuid") {
+    fprintf(stderr,
+            "You need to specify a zoned block device using --zbd or --zonefs "
+            "or --raids\n");
     return 1;
   }
   if (!FLAGS_zonefs.empty() && !FLAGS_zbd.empty()) {
@@ -814,29 +813,29 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (subcmd == "mkfs") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_mkfs();
+    return ROCKSDB_NAMESPACE::aquafs_tool_mkfs();
   } else if (subcmd == "list") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_list();
+    return ROCKSDB_NAMESPACE::aquafs_tool_list();
   } else if (subcmd == "ls-uuid") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_lsuuid();
+    return ROCKSDB_NAMESPACE::aquafs_tool_lsuuid();
   } else if (subcmd == "df") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_df();
+    return ROCKSDB_NAMESPACE::aquafs_tool_df();
   } else if (subcmd == "backup") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_backup();
+    return ROCKSDB_NAMESPACE::aquafs_tool_backup();
   } else if (subcmd == "restore") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_restore();
+    return ROCKSDB_NAMESPACE::aquafs_tool_restore();
   } else if (subcmd == "dump") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_dump();
+    return ROCKSDB_NAMESPACE::aquafs_tool_dump();
   } else if (subcmd == "fs-info") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_fsinfo();
+    return ROCKSDB_NAMESPACE::aquafs_tool_fsinfo();
   } else if (subcmd == "link") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_link();
+    return ROCKSDB_NAMESPACE::aquafs_tool_link();
   } else if (subcmd == "delete") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_delete_file();
+    return ROCKSDB_NAMESPACE::aquafs_tool_delete_file();
   } else if (subcmd == "rename") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_rename_file();
+    return ROCKSDB_NAMESPACE::aquafs_tool_rename_file();
   } else if (subcmd == "rmdir") {
-    return ROCKSDB_NAMESPACE::zenfs_tool_remove_directory();
+    return ROCKSDB_NAMESPACE::aquafs_tool_remove_directory();
   } else {
     fprintf(stderr, "Subcommand not recognized: %s\n", subcmd.c_str());
     return 1;

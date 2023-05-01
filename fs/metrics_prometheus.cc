@@ -12,7 +12,7 @@
 using namespace ROCKSDB_NAMESPACE;
 using namespace prometheus;
 
-ZenFSPrometheusMetrics::ZenFSPrometheusMetrics() {
+AquaFSPrometheusMetrics::AquaFSPrometheusMetrics() {
   registry_ = std::make_shared<Registry>();
 
   for (auto &label_with_type : info_map_)
@@ -20,15 +20,15 @@ ZenFSPrometheusMetrics::ZenFSPrometheusMetrics() {
                 static_cast<uint32_t>(label_with_type.second.second));
 
   stop_collect_thread_.store(false);
-  collect_thread_ = new std::thread(&ZenFSPrometheusMetrics::run, this);
+  collect_thread_ = new std::thread(&AquaFSPrometheusMetrics::run, this);
 }
 
-ZenFSPrometheusMetrics::~ZenFSPrometheusMetrics() {
+AquaFSPrometheusMetrics::~AquaFSPrometheusMetrics() {
   stop_collect_thread_.store(true);
   collect_thread_->join();
 }
 
-void ZenFSPrometheusMetrics::run() {
+void AquaFSPrometheusMetrics::run() {
   Exposer server{"127.0.0.1:8080"};
   server.RegisterCollectable(registry_);
 
@@ -50,9 +50,9 @@ void ZenFSPrometheusMetrics::run() {
   }
 }
 
-void ZenFSPrometheusMetrics::Report(uint32_t label_uint, size_t value,
+void AquaFSPrometheusMetrics::Report(uint32_t label_uint, size_t value,
                                     uint32_t type_uint) {
-  auto label = static_cast<ZenFSMetricsHistograms>(label_uint);
+  auto label = static_cast<AquaFSMetricsHistograms>(label_uint);
 
   if (metric_map_.find(label) == metric_map_.end()) return;
 
@@ -83,9 +83,9 @@ void ZenFSPrometheusMetrics::Report(uint32_t label_uint, size_t value,
   }
 }
 
-void ZenFSPrometheusMetrics::AddReporter(uint32_t label_uint,
+void AquaFSPrometheusMetrics::AddReporter(uint32_t label_uint,
                                          ReporterType type) {
-  auto label = static_cast<ZenFSMetricsHistograms>(label_uint);
+  auto label = static_cast<AquaFSMetricsHistograms>(label_uint);
 
   assert(info_map_.find(label) != info_map_.end());
   if (info_map_.find(label) == info_map_.end()) return;

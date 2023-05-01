@@ -6,7 +6,7 @@
 
 // Metrics Framework Introduction
 //
-// The metrics framework is used for users to identify ZenFS's performance
+// The metrics framework is used for users to identify AquaFS's performance
 // bottomneck, it can collect throuput, qps and latency of each critical
 // function call.
 //
@@ -14,98 +14,98 @@
 // define how they would like to report these collected information.
 //
 // Steps to add new metrics trace point:
-//   1. Add a new trace point label name in `ZenFSMetricsHistograms`.
+//   1. Add a new trace point label name in `AquaFSMetricsHistograms`.
 //   2. Find target function, add these lines for tracing
 //       // Latency Trace
-//       ZenFSMetricsGuard guard(zoneFile_->GetZBDMetrics(),
-//       ZENFS_WAL_WRITE_LATENCY, Env::Default());
+//       AquaFSMetricsGuard guard(zoneFile_->GetZBDMetrics(),
+//       AQUAFS_WAL_WRITE_LATENCY, Env::Default());
 //       // Throughput Trace
-//       zoneFile_->GetZBDMetrics()->ReportThroughput(ZENFS_WRITE_THROUGHPUT,
+//       zoneFile_->GetZBDMetrics()->ReportThroughput(AQUAFS_WRITE_THROUGHPUT,
 //       data.size());
 //       // QPS Trace
-//       zoneFile_->GetZBDMetrics()->ReportQPS(ZENFS_WRITE_QPS, 1);
-//    3. Implement a `ZenFSMetrics` to define how you would like to report your
+//       zoneFile_->GetZBDMetrics()->ReportQPS(AQUAFS_WRITE_QPS, 1);
+//    3. Implement a `AquaFSMetrics` to define how you would like to report your
 //    data (Refer to file  `metrics_sample.h`)
-//    4. Define your customized label name when implement ZenFSMetrics
-//    5. Init your metrics and pass it into `NewZenFS()` function (default is
-//    `NoZenFSMetrics`)
+//    4. Define your customized label name when implement AquaFSMetrics
+//    5. Init your metrics and pass it into `NewAquaFS()` function (default is
+//    `NoAquaFSMetrics`)
 
 #pragma once
 #include "rocksdb/env.h"
 namespace ROCKSDB_NAMESPACE {
 
-class ZenFSMetricsGuard;
-class ZenFSSnapshot;
-class ZenFSSnapshotOptions;
+class AquaFSMetricsGuard;
+class AquaFSSnapshot;
+class AquaFSSnapshotOptions;
 
 // Types of Reporter that may be used for statistics.
-enum ZenFSMetricsReporterType : uint32_t {
-  ZENFS_REPORTER_TYPE_WITHOUT_CHECK = 0,
-  ZENFS_REPORTER_TYPE_GENERAL,
-  ZENFS_REPORTER_TYPE_LATENCY,
-  ZENFS_REPORTER_TYPE_QPS,
-  ZENFS_REPORTER_TYPE_THROUGHPUT,
+enum AquaFSMetricsReporterType : uint32_t {
+  AQUAFS_REPORTER_TYPE_WITHOUT_CHECK = 0,
+  AQUAFS_REPORTER_TYPE_GENERAL,
+  AQUAFS_REPORTER_TYPE_LATENCY,
+  AQUAFS_REPORTER_TYPE_QPS,
+  AQUAFS_REPORTER_TYPE_THROUGHPUT,
 };
 
 // Names of Reporter that may be used for statistics.
-enum ZenFSMetricsHistograms : uint32_t {
-  ZENFS_HISTOGRAM_ENUM_MIN,
+enum AquaFSMetricsHistograms : uint32_t {
+  AQUAFS_HISTOGRAM_ENUM_MIN,
 
-  ZENFS_READ_LATENCY,
-  ZENFS_READ_QPS,
+  AQUAFS_READ_LATENCY,
+  AQUAFS_READ_QPS,
 
-  ZENFS_WRITE_LATENCY,
-  ZENFS_WAL_WRITE_LATENCY,
-  ZENFS_NON_WAL_WRITE_LATENCY,
-  ZENFS_WRITE_QPS,
-  ZENFS_WRITE_THROUGHPUT,
+  AQUAFS_WRITE_LATENCY,
+  AQUAFS_WAL_WRITE_LATENCY,
+  AQUAFS_NON_WAL_WRITE_LATENCY,
+  AQUAFS_WRITE_QPS,
+  AQUAFS_WRITE_THROUGHPUT,
 
-  ZENFS_SYNC_LATENCY,
-  ZENFS_WAL_SYNC_LATENCY,
-  ZENFS_NON_WAL_SYNC_LATENCY,
-  ZENFS_SYNC_QPS,
+  AQUAFS_SYNC_LATENCY,
+  AQUAFS_WAL_SYNC_LATENCY,
+  AQUAFS_NON_WAL_SYNC_LATENCY,
+  AQUAFS_SYNC_QPS,
 
-  ZENFS_IO_ALLOC_LATENCY,
-  ZENFS_WAL_IO_ALLOC_LATENCY,
-  ZENFS_NON_WAL_IO_ALLOC_LATENCY,
-  ZENFS_IO_ALLOC_QPS,
+  AQUAFS_IO_ALLOC_LATENCY,
+  AQUAFS_WAL_IO_ALLOC_LATENCY,
+  AQUAFS_NON_WAL_IO_ALLOC_LATENCY,
+  AQUAFS_IO_ALLOC_QPS,
 
-  ZENFS_META_ALLOC_LATENCY,
-  ZENFS_META_ALLOC_QPS,
+  AQUAFS_META_ALLOC_LATENCY,
+  AQUAFS_META_ALLOC_QPS,
 
-  ZENFS_META_SYNC_LATENCY,
+  AQUAFS_META_SYNC_LATENCY,
 
-  ZENFS_ROLL_LATENCY,
-  ZENFS_ROLL_QPS,
-  ZENFS_ROLL_THROUGHPUT,
+  AQUAFS_ROLL_LATENCY,
+  AQUAFS_ROLL_QPS,
+  AQUAFS_ROLL_THROUGHPUT,
 
-  ZENFS_ACTIVE_ZONES_COUNT,
-  ZENFS_OPEN_ZONES_COUNT,
+  AQUAFS_ACTIVE_ZONES_COUNT,
+  AQUAFS_OPEN_ZONES_COUNT,
 
-  ZENFS_FREE_SPACE_SIZE,
-  ZENFS_USED_SPACE_SIZE,
-  ZENFS_RECLAIMABLE_SPACE_SIZE,
+  AQUAFS_FREE_SPACE_SIZE,
+  AQUAFS_USED_SPACE_SIZE,
+  AQUAFS_RECLAIMABLE_SPACE_SIZE,
 
-  ZENFS_RESETABLE_ZONES_COUNT,
+  AQUAFS_RESETABLE_ZONES_COUNT,
 
-  ZENFS_HISTOGRAM_ENUM_MAX,
+  AQUAFS_HISTOGRAM_ENUM_MAX,
 
-  ZENFS_ZONE_WRITE_THROUGHPUT,
-  ZENFS_ZONE_WRITE_LATENCY,
+  AQUAFS_ZONE_WRITE_THROUGHPUT,
+  AQUAFS_ZONE_WRITE_LATENCY,
 
-  ZENFS_L0_IO_ALLOC_LATENCY,
+  AQUAFS_L0_IO_ALLOC_LATENCY,
 };
 
-struct ZenFSMetrics {
+struct AquaFSMetrics {
  public:
   typedef uint32_t Label;
   typedef uint32_t ReporterType;
   // We give an enum to identify the reporters and an enum to identify the
-  // reporter types: ZenFSMetricsHistograms and ZenFSMetricsReporterType,
+  // reporter types: AquaFSMetricsHistograms and AquaFSMetricsReporterType,
   // respectively, at the end of the code.
  public:
-  ZenFSMetrics() {}
-  virtual ~ZenFSMetrics() {}
+  AquaFSMetrics() {}
+  virtual ~AquaFSMetrics() {}
 
  public:
   // Add a reporter named label.
@@ -115,7 +115,7 @@ struct ZenFSMetrics {
   // You can give a type for type-checking.
   virtual void Report(Label label, size_t value,
                       ReporterType type_check = 0) = 0;
-  virtual void ReportSnapshot(const ZenFSSnapshot& snapshot) = 0;
+  virtual void ReportSnapshot(const AquaFSSnapshot& snapshot) = 0;
 
  public:
   // Syntactic sugars for type-checking.
@@ -134,15 +134,15 @@ struct ZenFSMetrics {
   // and more
 };
 
-struct NoZenFSMetrics : public ZenFSMetrics {
-  NoZenFSMetrics() : ZenFSMetrics() {}
-  virtual ~NoZenFSMetrics() {}
+struct NoAquaFSMetrics : public AquaFSMetrics {
+  NoAquaFSMetrics() : AquaFSMetrics() {}
+  virtual ~NoAquaFSMetrics() {}
 
  public:
   virtual void AddReporter(uint32_t /*label*/, uint32_t /*type*/) override {}
   virtual void Report(uint32_t /*label*/, size_t /*value*/,
                       uint32_t /*type_check*/) override {}
-  virtual void ReportSnapshot(const ZenFSSnapshot& /*snapshot*/) override {}
+  virtual void ReportSnapshot(const AquaFSSnapshot& /*snapshot*/) override {}
 };
 
 // The implementation of this class will start timing when initialized,
@@ -150,20 +150,20 @@ struct NoZenFSMetrics : public ZenFSMetrics {
 // and report the difference in time to the target label via
 // metrics->ReportLatency(). By default, the method to collect the time will be
 // to call env->NowMicros().
-struct ZenFSMetricsLatencyGuard {
-  std::shared_ptr<ZenFSMetrics> metrics_;
+struct AquaFSMetricsLatencyGuard {
+  std::shared_ptr<AquaFSMetrics> metrics_;
   uint32_t label_;
   Env* env_;
   uint64_t begin_time_micro_;
 
-  ZenFSMetricsLatencyGuard(std::shared_ptr<ZenFSMetrics> metrics,
+  AquaFSMetricsLatencyGuard(std::shared_ptr<AquaFSMetrics> metrics,
                            uint32_t label, Env* env)
       : metrics_(metrics),
         label_(label),
         env_(env),
         begin_time_micro_(GetTime()) {}
 
-  virtual ~ZenFSMetricsLatencyGuard() {
+  virtual ~AquaFSMetricsLatencyGuard() {
     uint64_t end_time_micro_ = GetTime();
     assert(end_time_micro_ >= begin_time_micro_);
     metrics_->ReportLatency(label_,
@@ -176,9 +176,9 @@ struct ZenFSMetricsLatencyGuard {
   virtual uint64_t Report(uint64_t time) { return time; }
 };
 
-#define ZENFS_LABEL(label, type) ZENFS_##label##_##type
-#define ZENFS_LABEL_DETAILED(label, sub_label, type) \
-  ZENFS_##sub_label##_##label##_##type
-// eg : ZENFS_LABEL(WRITE, WAL, THROUGHPUT) => ZENFS_WAL_WRITE_THROUGHPUT
+#define AQUAFS_LABEL(label, type) AQUAFS_##label##_##type
+#define AQUAFS_LABEL_DETAILED(label, sub_label, type) \
+  AQUAFS_##sub_label##_##label##_##type
+// eg : AQUAFS_LABEL(WRITE, WAL, THROUGHPUT) => AQUAFS_WAL_WRITE_THROUGHPUT
 
 }  // namespace ROCKSDB_NAMESPACE

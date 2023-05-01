@@ -9,13 +9,13 @@
 #include <string>
 #include <vector>
 
-#include "io_zenfs.h"
-#include "zbd_zenfs.h"
+#include "io_aquafs.h"
+#include "zbd_aquafs.h"
 
 namespace ROCKSDB_NAMESPACE {
 
 // Indicate what stats info we want.
-struct ZenFSSnapshotOptions {
+struct AquaFSSnapshotOptions {
   // Global zoned device stats info
   bool zbd_ = 0;
   // Per zone stats info
@@ -90,11 +90,11 @@ class ZoneFileSnapshot {
   }
 };
 
-class ZenFSSnapshot {
+class AquaFSSnapshot {
  public:
-  ZenFSSnapshot() {}
+  AquaFSSnapshot() {}
 
-  ZenFSSnapshot& operator=(ZenFSSnapshot&& snapshot) {
+  AquaFSSnapshot& operator=(AquaFSSnapshot&& snapshot) {
     zbd_ = snapshot.zbd_;
     zones_ = std::move(snapshot.zones_);
     zone_files_ = std::move(snapshot.zone_files_);

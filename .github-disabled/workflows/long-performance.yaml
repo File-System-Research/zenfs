@@ -29,13 +29,13 @@ jobs:
           repository: facebook/rocksdb
           ref: v7.0.2
           path: harness/rocksdb-context/rocksdb
-      - name: Checkout zenfs
+      - name: Checkout aquafs
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          path: harness/rocksdb-context/rocksdb/plugin/zenfs
+          path: harness/rocksdb-context/rocksdb/plugin/aquafs
       - name: Run long performance test ${{ matrix.drive-size }}
-        run: cd harness && st --silent -o logs/make -- disk-select --disk ${{ matrix.drive-size }} -- make NO_VAGRANT=1 results/zenfs-long.xml 
+        run: cd harness && st --silent -o logs/make -- disk-select --disk ${{ matrix.drive-size }} -- make NO_VAGRANT=1 results/aquafs-long.xml 
       - name: Collect Results ${{ matrix.drive-size }}
         run: cd harness && make NO_VAGRANT=1 upload 
         if: always()

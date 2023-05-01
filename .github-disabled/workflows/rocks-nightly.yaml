@@ -31,17 +31,17 @@ jobs:
           repository: facebook/rocksdb
           ref: ${{ matrix.rocksdb-ref }}
           path: harness/rocksdb-context/rocksdb
-      - name: Checkout zenfs
+      - name: Checkout aquafs
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          path: harness/rocksdb-context/rocksdb/plugin/zenfs
+          path: harness/rocksdb-context/rocksdb/plugin/aquafs
       - name: Build docker image
         run: cd harness && st -o logs/make-smoke -- make NO_VAGRANT=1 V=1 rocksdb-docker-image 
       - name: Run smoke tests
-        run: cd harness && st --silent -o logs/make-smoke -- disk-select --disk 1TB -- make NO_VAGRANT=1 results/zenfs-smoke.xml 
+        run: cd harness && st --silent -o logs/make-smoke -- disk-select --disk 1TB -- make NO_VAGRANT=1 results/aquafs-smoke.xml 
       - name: Run utils tests
-        run: cd harness && st --silent -o logs/make-utils -- disk-select --disk 1TB -- make NO_VAGRANT=1 results/zenfs-utils.xml 
+        run: cd harness && st --silent -o logs/make-utils -- disk-select --disk 1TB -- make NO_VAGRANT=1 results/aquafs-utils.xml 
       - name: Collect Results
         run: cd harness && make NO_VAGRANT=1 upload 
         if: always()

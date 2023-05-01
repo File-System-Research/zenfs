@@ -6,7 +6,7 @@
 
 #if !defined(ROCKSDB_LITE) && !defined(OS_WIN)
 
-#include "zonefs_zenfs.h"
+#include "zonefs_aquafs.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -27,19 +27,19 @@
 #include "rocksdb/env.h"
 #include "rocksdb/io_status.h"
 
-#define ZENFS_ZONEFS_ZONE_OFFLINE(_f_mode) \
+#define AQUAFS_ZONEFS_ZONE_OFFLINE(_f_mode) \
   (((_f_mode) &                            \
     (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR | S_IWGRP | S_IWOTH)) == 0)
-#define ZENFS_ZONEFS_DEFAULT_MAX_LIMIT 14
-#define ZENFS_ZONEFS_DEFAULT_MAX_RD_LIMIT 100
+#define AQUAFS_ZONEFS_DEFAULT_MAX_LIMIT 14
+#define AQUAFS_ZONEFS_DEFAULT_MAX_RD_LIMIT 100
 
 namespace ROCKSDB_NAMESPACE {
 
 ZoneFsFileCache::ZoneFsFileCache(int flags) {
   if (flags & O_RDONLY)
-    max_ = ZENFS_ZONEFS_DEFAULT_MAX_RD_LIMIT;
+    max_ = AQUAFS_ZONEFS_DEFAULT_MAX_RD_LIMIT;
   else
-    max_ = ZENFS_ZONEFS_DEFAULT_MAX_LIMIT;
+    max_ = AQUAFS_ZONEFS_DEFAULT_MAX_LIMIT;
   flags_ = flags;
 }
 
@@ -143,7 +143,7 @@ std::string ZoneFsBackend::GetBackingDevice(const char *mountpoint) {
 unsigned int ZoneFsBackend::GetSysFsValue(std::string dev_name,
                                           std::string field) {
   std::ifstream sysfs;
-  unsigned int val = ZENFS_ZONEFS_DEFAULT_MAX_LIMIT;
+  unsigned int val = AQUAFS_ZONEFS_DEFAULT_MAX_LIMIT;
 
   sysfs.open("/sys/fs/zonefs/" + dev_name + "/" + field, std::ifstream::in);
   if (sysfs.is_open()) {
@@ -201,7 +201,7 @@ IOStatus ZoneFsBackend::Open(bool readonly,
     *max_open_zones =
         ZoneFsBackend::GetSysFsValue(backing_dev, "max_wro_seq_files");
   } else {
-    *max_active_zones = *max_open_zones = ZENFS_ZONEFS_DEFAULT_MAX_LIMIT;
+    *max_active_zones = *max_open_zones = AQUAFS_ZONEFS_DEFAULT_MAX_LIMIT;
   }
 
   wr_fds_.Resize(*max_active_zones);
@@ -250,7 +250,7 @@ IOStatus ZoneFsBackend::Reset(uint64_t start, bool *offline,
         ErrorToString(errno));
   }
 
-  if (ZENFS_ZONEFS_ZONE_OFFLINE(file_stat.st_mode)) {
+  if (AQUAFS_ZONEFS_ZONE_OFFLINE(file_stat.st_mode)) {
     *offline = true;
     *max_capacity = 0;
   } else {
@@ -371,7 +371,7 @@ bool ZoneFsBackend::ZoneIsSwr(__attribute__((unused))
 bool ZoneFsBackend::ZoneIsOffline(std::unique_ptr<ZoneList> &zones,
                                   unsigned int idx) {
   struct stat *z = &((struct stat *)zones->GetData())[idx];
-  return ZENFS_ZONEFS_ZONE_OFFLINE(z->st_mode);
+  return AQUAFS_ZONEFS_ZONE_OFFLINE(z->st_mode);
 };
 bool ZoneFsBackend::ZoneIsWritable(std::unique_ptr<ZoneList> &zones,
                                    unsigned int idx) {
@@ -388,7 +388,7 @@ bool ZoneFsBackend::ZoneIsOpen(__attribute__((unused))
                                std::unique_ptr<ZoneList> &zones,
                                __attribute__((unused)) unsigned int idx) {
   // With zonefs there is no way to determine if a zone is open. Since the
-  // the zone list is obtained before any ZenFS activity is performed, we
+  // the zone list is obtained before any AquaFS activity is performed, we
   // assume that all zones are closed.
   return false;
 };

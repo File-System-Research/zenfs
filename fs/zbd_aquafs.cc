@@ -6,7 +6,7 @@
 
 #if !defined(ROCKSDB_LITE) && !defined(OS_WIN)
 
-#include "zbd_zenfs.h"
+#include "zbd_aquafs.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -31,9 +31,9 @@
 #include "rocksdb/env.h"
 #include "rocksdb/io_status.h"
 #include "snapshot.h"
-#include "zbdlib_zenfs.h"
+#include "zbdlib_aquafs.h"
 #include "zone_raid.h"
-#include "zonefs_zenfs.h"
+#include "zonefs_aquafs.h"
 
 #define KB (1024)
 #define MB (1024 * KB)
@@ -43,10 +43,10 @@
  * to roll the metadata log safely. One extra
  * is allocated to cover for one zone going offline.
  */
-#define ZENFS_META_ZONES (3 + 1)
+#define AQUAFS_META_ZONES (3 + 1)
 
 /* Minimum of number of zones that makes sense */
-#define ZENFS_MIN_ZONES (32)
+#define AQUAFS_MIN_ZONES (32)
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -127,9 +127,9 @@ IOStatus Zone::Close() {
 }
 
 IOStatus Zone::Append(char *data, uint32_t size) {
-  ZenFSMetricsLatencyGuard guard(zbd_->GetMetrics(), ZENFS_ZONE_WRITE_LATENCY,
+  AquaFSMetricsLatencyGuard guard(zbd_->GetMetrics(), AQUAFS_ZONE_WRITE_LATENCY,
                                  Env::Default());
-  zbd_->GetMetrics()->ReportThroughput(ZENFS_ZONE_WRITE_THROUGHPUT, size);
+  zbd_->GetMetrics()->ReportThroughput(AQUAFS_ZONE_WRITE_THROUGHPUT, size);
   char *ptr = data;
   uint32_t left = size;
   int ret;
@@ -174,7 +174,7 @@ Zone *ZonedBlockDevice::GetIOZone(uint64_t offset) {
 
 ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
                                    std::shared_ptr<Logger> logger,
-                                   std::shared_ptr<ZenFSMetrics> metrics)
+                                   std::shared_ptr<AquaFSMetrics> metrics)
     : logger_(logger), metrics_(metrics) {
   if (backend == ZbdBackendType::kBlockDev) {
     zbd_be_ = std::unique_ptr<ZbdlibBackend>(new ZbdlibBackend(path));
@@ -238,9 +238,9 @@ IOStatus ZonedBlockDevice::Open(bool readonly, bool exclusive) {
                                &max_nr_open_zones);
   if (ios != IOStatus::OK()) return ios;
 
-  if (zbd_be_->GetNrZones() < ZENFS_MIN_ZONES) {
+  if (zbd_be_->GetNrZones() < AQUAFS_MIN_ZONES) {
     return IOStatus::NotSupported("To few zones on zoned backend (" +
-                                  std::to_string(ZENFS_MIN_ZONES) +
+                                  std::to_string(AQUAFS_MIN_ZONES) +
                                   " required)");
   }
 
@@ -263,7 +263,7 @@ IOStatus ZonedBlockDevice::Open(bool readonly, bool exclusive) {
     return IOStatus::IOError("Failed to list zones");
   }
 
-  while (m < ZENFS_META_ZONES && i < zone_rep->ZoneCount()) {
+  while (m < AQUAFS_META_ZONES && i < zone_rep->ZoneCount()) {
     /* Only use sequential write required zones */
     if (zbd_be_->ZoneIsSwr(zone_rep, i)) {
       if (!zbd_be_->ZoneIsOffline(zone_rep, i)) {
@@ -453,9 +453,9 @@ unsigned int GetLifeTimeDiff(Env::WriteLifeTimeHint zone_lifetime,
 IOStatus ZonedBlockDevice::AllocateMetaZone(Zone **out_meta_zone) {
   assert(out_meta_zone);
   *out_meta_zone = nullptr;
-  ZenFSMetricsLatencyGuard guard(metrics_, ZENFS_META_ALLOC_LATENCY,
+  AquaFSMetricsLatencyGuard guard(metrics_, AQUAFS_META_ALLOC_LATENCY,
                                  Env::Default());
-  metrics_->ReportQPS(ZENFS_META_ALLOC_QPS, 1);
+  metrics_->ReportQPS(AQUAFS_META_ALLOC_QPS, 1);
 
   for (const auto z : meta_zones) {
     /* If the zone is not used, reset and use it */
@@ -758,18 +758,18 @@ IOStatus ZonedBlockDevice::AllocateIOZone(Env::WriteLifeTimeHint file_lifetime,
   int new_zone = 0;
   IOStatus s;
 
-  auto tag = ZENFS_WAL_IO_ALLOC_LATENCY;
+  auto tag = AQUAFS_WAL_IO_ALLOC_LATENCY;
   if (io_type != IOType::kWAL) {
     // L0 flushes have lifetime MEDIUM
     if (file_lifetime == Env::WLTH_MEDIUM) {
-      tag = ZENFS_L0_IO_ALLOC_LATENCY;
+      tag = AQUAFS_L0_IO_ALLOC_LATENCY;
     } else {
-      tag = ZENFS_NON_WAL_IO_ALLOC_LATENCY;
+      tag = AQUAFS_NON_WAL_IO_ALLOC_LATENCY;
     }
   }
 
-  ZenFSMetricsLatencyGuard guard(metrics_, tag, Env::Default());
-  metrics_->ReportQPS(ZENFS_IO_ALLOC_QPS, 1);
+  AquaFSMetricsLatencyGuard guard(metrics_, tag, Env::Default());
+  metrics_->ReportQPS(AQUAFS_IO_ALLOC_QPS, 1);
 
   // Check if a deferred IO error was set
   s = GetZoneDeferredStatus();
@@ -862,8 +862,8 @@ IOStatus ZonedBlockDevice::AllocateIOZone(Env::WriteLifeTimeHint file_lifetime,
 
   *out_zone = allocated_zone;
 
-  metrics_->ReportGeneral(ZENFS_OPEN_ZONES_COUNT, open_io_zones_);
-  metrics_->ReportGeneral(ZENFS_ACTIVE_ZONES_COUNT, active_io_zones_);
+  metrics_->ReportGeneral(AQUAFS_OPEN_ZONES_COUNT, open_io_zones_);
+  metrics_->ReportGeneral(AQUAFS_ACTIVE_ZONES_COUNT, active_io_zones_);
 
   return IOStatus::OK();
 }

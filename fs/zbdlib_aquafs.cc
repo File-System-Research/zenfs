@@ -6,7 +6,7 @@
 
 #if !defined(ROCKSDB_LITE) && !defined(OS_WIN)
 
-#include "zbdlib_zenfs.h"
+#include "zbdlib_aquafs.h"
 
 #include <errno.h>
 #include <fcntl.h>

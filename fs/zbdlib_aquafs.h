@@ -13,7 +13,7 @@
 #include <unistd.h>
 
 #include "rocksdb/io_status.h"
-#include "zbd_zenfs.h"
+#include "zbd_aquafs.h"
 
 namespace ROCKSDB_NAMESPACE {
 

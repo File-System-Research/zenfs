@@ -6,7 +6,7 @@ if [[ -z "${STRESS_CMD}" ]] || [[ ! -f "${STRESS_CMD}" ]]; then
 fi
 
 if [[ -z "${FS_PARAMS}" ]]; then
-  echo "FS_PARAMS should supply e.g. a file system uri like: '--fs_uri=zenfs://dev:nvme0n1'"
+  echo "FS_PARAMS should supply e.g. a file system uri like: '--fs_uri=aquafs://dev:nvme0n1'"
   exit 1
 fi
 

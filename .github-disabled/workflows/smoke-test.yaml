@@ -45,20 +45,20 @@ jobs:
           path: harness/terarkdb-context/terarkdb
           submodules: recursive
 
-      - name: Checkout zenfs for RocksDB
+      - name: Checkout aquafs for RocksDB
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          path: harness/rocksdb-context/rocksdb/plugin/zenfs
+          path: harness/rocksdb-context/rocksdb/plugin/aquafs
 
-      - name: Remove zenfs TerarkDB submodule
-        run: rm -rf harness/terarkdb-context/terarkdb/third-party/zenfs
+      - name: Remove aquafs TerarkDB submodule
+        run: rm -rf harness/terarkdb-context/terarkdb/third-party/aquafs
 
-      - name: Checkout zenfs for TerarkDB
+      - name: Checkout aquafs for TerarkDB
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          path: harness/terarkdb-context/terarkdb/third-party/zenfs
+          path: harness/terarkdb-context/terarkdb/third-party/aquafs
 
       - name: Build RocksDB docker image
         run: cd harness && st -o logs/make-rocksdb-image-$(uuidgen) -- make NO_VAGRANT=1 V=1 rocksdb-docker-image 
@@ -67,13 +67,13 @@ jobs:
         run: cd harness && st -o logs/make-terarkdb-image-$(uuidgen) -- make NO_VAGRANT=1 V=1 IMAGE=terarkdb terarkdb-docker-image 
 
       - name: Run smoke tests for RocksDB
-        run: cd harness && st --silent -o logs/make-rocksdb-smoke-$(uuidgen) -- disk-select --disk 1TB -- make NO_VAGRANT=1 results/zenfs-smoke.xml 
+        run: cd harness && st --silent -o logs/make-rocksdb-smoke-$(uuidgen) -- disk-select --disk 1TB -- make NO_VAGRANT=1 results/aquafs-smoke.xml 
 
       - name: Run smoke tests for TerarkDB
-        run: cd harness && st --silent -o logs/make-tetarkdb-smoke-$(uuidgen) -- disk-select --disk 1TB -- make NO_VAGRANT=1 IMAGE=terarkdb results/zenfs-smoke.xml 
+        run: cd harness && st --silent -o logs/make-tetarkdb-smoke-$(uuidgen) -- disk-select --disk 1TB -- make NO_VAGRANT=1 IMAGE=terarkdb results/aquafs-smoke.xml 
 
       - name: Run utils tests
-        run: cd harness && st --silent -o logs/make-utils -- disk-select --disk 1TB -- make NO_VAGRANT=1 results/zenfs-utils.xml 
+        run: cd harness && st --silent -o logs/make-utils -- disk-select --disk 1TB -- make NO_VAGRANT=1 results/aquafs-utils.xml 
 
       - name: Collect Results
         run: cd harness && make NO_VAGRANT=1 upload 

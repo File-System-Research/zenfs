@@ -17,14 +17,14 @@ namespace fs = std::filesystem;
 #include <memory>
 #include <thread>
 
-#include "io_zenfs.h"
+#include "io_aquafs.h"
 #include "metrics.h"
 #include "rocksdb/env.h"
 #include "rocksdb/file_system.h"
 #include "rocksdb/status.h"
 #include "snapshot.h"
 #include "version.h"
-#include "zbd_zenfs.h"
+#include "zbd_aquafs.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -32,8 +32,8 @@ namespace ROCKSDB_NAMESPACE {
 
 class ZoneSnapshot;
 class ZoneFileSnapshot;
-class ZenFSSnapshot;
-class ZenFSSnapshotOptions;
+class AquaFSSnapshot;
+class AquaFSSnapshotOptions;
 
 class Superblock {
   uint32_t magic_ = 0;
@@ -46,7 +46,7 @@ class Superblock {
   uint32_t nr_zones_ = 0;
   char aux_fs_path_[256] = {0};
   uint32_t finish_treshold_ = 0;
-  char zenfs_version_[64]{0};
+  char aquafs_version_[64]{0};
   char reserved_[123] = {0};
 
  public:
@@ -80,8 +80,8 @@ class Superblock {
 
     strncpy(aux_fs_path_, aux_fs_path.c_str(), sizeof(aux_fs_path_) - 1);
 
-    std::string zenfs_version = ZENFS_VERSION;
-    strncpy(zenfs_version_, zenfs_version.c_str(), sizeof(zenfs_version_) - 1);
+    std::string aquafs_version = AQUAFS_VERSION;
+    strncpy(aquafs_version_, aquafs_version.c_str(), sizeof(aquafs_version_) - 1);
   }
 
   Status DecodeFrom(Slice* input);
@@ -132,7 +132,7 @@ class ZenMetaLog {
   IOStatus Read(Slice* slice);
 };
 
-class ZenFS : public FileSystemWrapper {
+class AquaFS : public FileSystemWrapper {
   ZonedBlockDevice* zbd_;
   std::map<std::string, std::shared_ptr<ZoneFile>> files_;
   std::mutex files_mtx_;
@@ -149,8 +149,8 @@ class ZenFS : public FileSystemWrapper {
   std::unique_ptr<std::thread> gc_worker_ = nullptr;
   bool run_gc_worker_ = false;
 
-  struct ZenFSMetadataWriter : public MetadataWriter {
-    ZenFS* zenFS;
+  struct AquaFSMetadataWriter : public MetadataWriter {
+    AquaFS* zenFS;
     IOStatus Persist(ZoneFile* zoneFile) {
       Debug(zenFS->GetLogger(), "Syncing metadata for: %s",
             zoneFile->GetFilename().c_str());
@@ -158,9 +158,9 @@ class ZenFS : public FileSystemWrapper {
     }
   };
 
-  ZenFSMetadataWriter metadata_writer_;
+  AquaFSMetadataWriter metadata_writer_;
 
-  enum ZenFSTag : uint32_t {
+  enum AquaFSTag : uint32_t {
     kCompleteFilesSnapshot = 1,
     kFileUpdate = 2,
     kFileDeletion = 3,
@@ -205,7 +205,7 @@ class ZenFS : public FileSystemWrapper {
     return superblock_->GetAuxFsPath() + path;
   }
 
-  std::string ToZenFSPath(std::string aux_path) {
+  std::string ToAquaFSPath(std::string aux_path) {
     std::string path = aux_path;
     path.erase(0, superblock_->GetAuxFsPath().length());
     return path;
@@ -214,7 +214,7 @@ class ZenFS : public FileSystemWrapper {
   /* Must hold files_mtx_ */
   std::shared_ptr<ZoneFile> GetFileNoLock(std::string fname);
   /* Must hold files_mtx_ */
-  void GetZenFSChildrenNoLock(const std::string& dir,
+  void GetAquaFSChildrenNoLock(const std::string& dir,
                               bool include_grandchildren,
                               std::vector<std::string>* result);
   /* Must hold files_mtx_ */
@@ -274,9 +274,9 @@ class ZenFS : public FileSystemWrapper {
                             IODebugContext* dbg, bool reopen);
 
  public:
-  explicit ZenFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
+  explicit AquaFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
                  std::shared_ptr<Logger> logger);
-  virtual ~ZenFS();
+  virtual ~AquaFS();
 
   Status Mount(bool readonly);
   Status MkFS(std::string aux_fs_path, uint32_t finish_threshold,
@@ -284,7 +284,7 @@ class ZenFS : public FileSystemWrapper {
   std::map<std::string, Env::WriteLifeTimeHint> GetWriteLifeTimeHints();
 
   const char* Name() const override {
-    return "ZenFS - The Zoned-enabled File System";
+    return "AquaFS - The Zoned-enabled File System";
   }
 
   void EncodeJson(std::ostream& json_stream);
@@ -431,25 +431,25 @@ class ZenFS : public FileSystemWrapper {
   IOStatus Truncate(const std::string& /*fname*/, size_t /*size*/,
                     const IOOptions& /*options*/,
                     IODebugContext* /*dbg*/) override {
-    return IOStatus::NotSupported("Truncate is not implemented in ZenFS");
+    return IOStatus::NotSupported("Truncate is not implemented in AquaFS");
   }
 
   virtual IOStatus NewRandomRWFile(const std::string& /*fname*/,
                                    const FileOptions& /*options*/,
                                    std::unique_ptr<FSRandomRWFile>* /*result*/,
                                    IODebugContext* /*dbg*/) override {
-    return IOStatus::NotSupported("RandomRWFile is not implemented in ZenFS");
+    return IOStatus::NotSupported("RandomRWFile is not implemented in AquaFS");
   }
 
   virtual IOStatus NewMemoryMappedFileBuffer(
       const std::string& /*fname*/,
       std::unique_ptr<MemoryMappedFileBuffer>* /*result*/) override {
     return IOStatus::NotSupported(
-        "MemoryMappedFileBuffer is not implemented in ZenFS");
+        "MemoryMappedFileBuffer is not implemented in AquaFS");
   }
 
-  void GetZenFSSnapshot(ZenFSSnapshot& snapshot,
-                        const ZenFSSnapshotOptions& options);
+  void GetAquaFSSnapshot(AquaFSSnapshot& snapshot,
+                        const AquaFSSnapshotOptions& options);
 
   IOStatus MigrateExtents(const std::vector<ZoneExtentSnapshot*>& extents);
 
@@ -465,13 +465,13 @@ class ZenFS : public FileSystemWrapper {
 };
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)
 
-Status NewZenFS(
+Status NewAquaFS(
     FileSystem** fs, const std::string& bdevname,
-    std::shared_ptr<ZenFSMetrics> metrics = std::make_shared<NoZenFSMetrics>());
-Status NewZenFS(
+    std::shared_ptr<AquaFSMetrics> metrics = std::make_shared<NoAquaFSMetrics>());
+Status NewAquaFS(
     FileSystem** fs, const ZbdBackendType backend_type,
     const std::string& backend_name,
-    std::shared_ptr<ZenFSMetrics> metrics = std::make_shared<NoZenFSMetrics>());
+    std::shared_ptr<AquaFSMetrics> metrics = std::make_shared<NoAquaFSMetrics>());
 Status AppendZenFileSystem(
     std::string path, ZbdBackendType backend,
     std::map<std::string, std::pair<std::string, ZbdBackendType>>& fs_list);

@@ -1,5 +1,5 @@
 #!/bin/bash
-# This script intends to generate a good set of parameters for dbbench to use as a base for zenfs testing
+# This script intends to generate a good set of parameters for dbbench to use as a base for aquafs testing
 
 set -e
 

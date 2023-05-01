@@ -24,11 +24,11 @@ jobs:
           repository: facebook/rocksdb
           ref: v7.0.2
           path: harness/rocksdb-context/rocksdb
-      - name: Checkout zenfs
+      - name: Checkout aquafs
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          path: harness/rocksdb-context/rocksdb/plugin/zenfs
+          path: harness/rocksdb-context/rocksdb/plugin/aquafs
       - name: Run short performance test 1TB
         run: cd harness && st --silent -o logs/make -- sudo with-xfs --disk 1TB -- make NO_VAGRANT=1 results/xfs-short.xml 
       - name: Collect Results

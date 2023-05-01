@@ -1,32 +1,32 @@
-# ZenFS Utilities
+# AquaFS Utilities
 
-This directory contains the ZenFS command line utility.
+This directory contains the AquaFS command line utility.
 
 ## Usage
 
 TODO
 
-## ZenFS Dump Analysis Tool
+## AquaFS Dump Analysis Tool
 
-When ZenFS gets full, users may need to quickly format or recycle the disk,
+When AquaFS gets full, users may need to quickly format or recycle the disk,
 while analyzing why it becomes full later in offline environment. Therefore,
-we added a `dump` command to ZenFS tools to export current file system status
+we added a `dump` command to AquaFS tools to export current file system status
 in JSON format. At the same time, we write a simple script in Python to
 analyze the file system in offline environment.
 
 ### Quick Start
 
-First of all, we need to dump metadata from ZenFS.
+First of all, we need to dump metadata from AquaFS.
 
 ```bash
-./zenfs dump --zbd=nvme3n2 > result.json
+./aquafs dump --zbd=nvme3n2 > result.json
 ```
 
 Pro tips: the json file might be too large for transfer. We could gzip it for
 file transfer.
 
 ```bash
-./zenfs dump --zbd=nvme3n2 | gzip > result.json.gz
+./aquafs dump --zbd=nvme3n2 | gzip > result.json.gz
 ```
 
 Then, we could analyze the json file. Python 3.9+ is required, and we need to

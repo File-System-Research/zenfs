@@ -21,11 +21,11 @@ OK_TESTS=0
 FAILED_TESTS=0
 
 TOOLS_DIR=${TOOLS_DIR:-"../../../"}
-ZENFS_DIR=${ZENFS_DIR:-"../util/"}
+AQUAFS_DIR=${AQUAFS_DIR:-"../util/"}
 STRESS_CMD="../../../db_stress"
 
 export TOOLS_DIR
-export ZENFS_DIR
+export AQUAFS_DIR
 export STRESS_CMD
 
 OUTPUT_DIR=${OUTPUT_DIR:-results}

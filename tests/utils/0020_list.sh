@@ -28,7 +28,7 @@ if [ $RES -ne 0 ]; then
   exit $RES
 fi
 
-$ZENFS_DIR/zenfs list --zbd=$ZDEV --path=rocksdbtest/dbbench > $TEST_OUT
+$AQUAFS_DIR/aquafs list --zbd=$ZDEV --path=rocksdbtest/dbbench > $TEST_OUT
 RES=$?
 if [ $RES -ne 0 ]; then
   exit $RES

@@ -14,7 +14,7 @@
 # Some variables
 #
 bridge="virbr0"
-vmimg="zenfs-ubuntu.qcow2"
+vmimg="aquafs-ubuntu.qcow2"
 znsimg="zns.raw"
 
 #
