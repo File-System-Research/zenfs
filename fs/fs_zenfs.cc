@@ -28,6 +28,7 @@
 #include "snapshot.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
+#include "util/mutexlock.h"
 
 #define DEFAULT_ZENV_LOG_PATH "/tmp/"
 
@@ -1569,7 +1570,7 @@ std::map<std::string, Env::WriteLifeTimeHint> ZenFS::GetWriteLifeTimeHints() {
 }
 
 #if !defined(NDEBUG) || defined(WITH_TERARKDB)
-static std::string GetLogFilename(std::string bdev) {
+__attribute__((__unused__)) static std::string GetLogFilename(std::string bdev) {
   std::ostringstream ss;
   time_t t = time(0);
   struct tm* log_start = std::localtime(&t);
@@ -1587,6 +1588,20 @@ Status NewZenFS(FileSystem** fs, const std::string& bdevname,
   return NewZenFS(fs, ZbdBackendType::kBlockDev, bdevname, metrics);
 }
 
+class MyConsoleLogger : public Logger {
+ public:
+  using Logger::Logv;
+  MyConsoleLogger() : Logger(InfoLogLevel::DEBUG_LEVEL) {}
+
+  void Logv(const char* format, va_list ap) override {
+    MutexLock _(&lock_);
+    vprintf(format, ap);
+    printf("\n");
+  }
+
+  port::Mutex lock_;
+};
+
 Status NewZenFS(FileSystem** fs, const ZbdBackendType backend_type,
                 const std::string& backend_name,
                 std::shared_ptr<ZenFSMetrics> metrics) {
@@ -1599,7 +1614,8 @@ Status NewZenFS(FileSystem** fs, const ZbdBackendType backend_type,
   // TODO(guokuankuan@bytedance.com) We need to figure out how to reuse
   // RocksDB's logger in the future.
 #if !defined(NDEBUG) || defined(WITH_TERARKDB)
-  s = Env::Default()->NewLogger(GetLogFilename(backend_name), &logger);
+  // s = Env::Default()->NewLogger(GetLogFilename(backend_name), &logger);
+  logger = std::make_shared<MyConsoleLogger>();
   if (!s.ok()) {
     fprintf(stderr, "ZenFS: Could not create logger");
   } else {

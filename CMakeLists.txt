@@ -10,9 +10,9 @@ if(ZENFS_STANDALONE)
   file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define ZENFS_VERSION \"v0.0.1-alpha\"\n")
 
   set(zenfs_SOURCES "fs/fs_zenfs.cc" "fs/zbd_zenfs.cc" "fs/io_zenfs.cc" "fs/zonefs_zenfs.cc"
-    "fs/zbdlib_zenfs.cc")
+    "fs/zbdlib_zenfs.cc" "fs/zone_raid.cc")
   set(zenfs_HEADERS "fs/fs_zenfs.h" "fs/zbd_zenfs.h" "fs/io_zenfs.h" "fs/version.h" "fs/metrics.h"
-    "fs/snapshot.h" "fs/filesystem_utility.h" "fs/zonefs_zenfs.h" "fs/zbdlib_zenfs.h")
+    "fs/snapshot.h" "fs/filesystem_utility.h" "fs/zonefs_zenfs.h" "fs/zbdlib_zenfs.h" "fs/zone_raid.h")
   set(zenfs_LIBS "zbd" "gflags" "rocksdb" "uring" "zstd" "lz4" "snappy" "bz2" "z" "numa")
 
 #  file(GLOB_RECURSE port_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/port/*.cc)

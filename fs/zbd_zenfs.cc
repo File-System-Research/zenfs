@@ -43,7 +43,7 @@
  * to roll the metadata log safely. One extra
  * is allocated to cover for one zone going offline.
  */
-#define ZENFS_META_ZONES (3)
+#define ZENFS_META_ZONES (3 + 1)
 
 /* Minimum of number of zones that makes sense */
 #define ZENFS_MIN_ZONES (32)

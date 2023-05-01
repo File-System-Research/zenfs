@@ -16,7 +16,7 @@ RaidZonedBlockDevice::RaidZonedBlockDevice(
     RaidMode mode)
     : main_mode_(mode), devices_(std::move(devices)) {
   assert(!devices_.empty());
-  syncMetaData();
+  syncBackendInfo();
 }
 
 IOStatus RaidZonedBlockDevice::Open(bool readonly, bool exclusive,
@@ -24,11 +24,11 @@ IOStatus RaidZonedBlockDevice::Open(bool readonly, bool exclusive,
                                     unsigned int *max_open_zones) {
   auto r = device_default()->Open(readonly, exclusive, max_active_zones,
                                   max_open_zones);
-  syncMetaData();
+  syncBackendInfo();
   return r;
 }
 
-void RaidZonedBlockDevice::syncMetaData() {
+void RaidZonedBlockDevice::syncBackendInfo() {
   auto total_nr_zones = std::accumulate(
       devices_.begin(), devices_.end(), 0,
       [](int sum, const std::unique_ptr<ZonedBlockDeviceBackend> &dev) {

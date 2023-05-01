@@ -76,7 +76,7 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
 
   const IOStatus unsupported = IOStatus::NotSupported("Raid unsupported");
 
-  void syncMetaData();
+  void syncBackendInfo();
 
   ZonedBlockDeviceBackend *device_default() { return devices_.begin()->get(); }
 
