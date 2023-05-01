@@ -9,11 +9,13 @@
 #include <memory>
 #include <thread>
 
+#include "aquafs_namespace.h"
 #include "metrics.h"
+#include "rocksdb/rocksdb_namespace.h"
 
 class ResettingGauge;
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
 
 using namespace prometheus;
 
@@ -64,7 +66,8 @@ class AquaFSPrometheusMetrics : public rocksdb::AquaFSMetrics {
           {AQUAFS_SYNC_QPS, {"aquafs_sync_qps", AQUAFS_REPORTER_TYPE_QPS}},
           {AQUAFS_META_ALLOC_QPS,
            {"aquafs_meta_alloc_qps", AQUAFS_REPORTER_TYPE_QPS}},
-          {AQUAFS_IO_ALLOC_QPS, {"aquafs_io_alloc_qps", AQUAFS_REPORTER_TYPE_QPS}},
+          {AQUAFS_IO_ALLOC_QPS,
+           {"aquafs_io_alloc_qps", AQUAFS_REPORTER_TYPE_QPS}},
           {AQUAFS_ROLL_QPS, {"aquafs_roll_qps", AQUAFS_REPORTER_TYPE_QPS}},
           {AQUAFS_WRITE_THROUGHPUT,
            {"aquafs_write_throughput", AQUAFS_REPORTER_TYPE_THROUGHPUT}},

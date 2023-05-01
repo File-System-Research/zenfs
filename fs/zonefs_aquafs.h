@@ -17,9 +17,11 @@
 #include <string>
 
 #include "rocksdb/io_status.h"
+#include "rocksdb/rocksdb_namespace.h"
 #include "zbd_aquafs.h"
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 class ZoneFsFile {
  private:
@@ -99,6 +101,6 @@ class ZoneFsBackend : public ZonedBlockDeviceBackend {
   void PutZoneFile(uint64_t start, int flags);
 };
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE
 
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)

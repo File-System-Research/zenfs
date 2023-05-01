@@ -28,8 +28,10 @@
 #include <utility>
 #include <vector>
 
+#include "aquafs_namespace.h"
 #include "rocksdb/env.h"
 #include "rocksdb/io_status.h"
+#include "rocksdb/rocksdb_namespace.h"
 #include "snapshot.h"
 #include "zbdlib_aquafs.h"
 #include "zone_raid.h"
@@ -48,7 +50,8 @@
 /* Minimum of number of zones that makes sense */
 #define AQUAFS_MIN_ZONES (32)
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 Zone::Zone(ZonedBlockDevice *zbd, ZonedBlockDeviceBackend *zbd_be,
            std::unique_ptr<ZoneList> &zones, unsigned int idx)
@@ -128,7 +131,7 @@ IOStatus Zone::Close() {
 
 IOStatus Zone::Append(char *data, uint32_t size) {
   AquaFSMetricsLatencyGuard guard(zbd_->GetMetrics(), AQUAFS_ZONE_WRITE_LATENCY,
-                                 Env::Default());
+                                  Env::Default());
   zbd_->GetMetrics()->ReportThroughput(AQUAFS_ZONE_WRITE_THROUGHPUT, size);
   char *ptr = data;
   uint32_t left = size;
@@ -454,7 +457,7 @@ IOStatus ZonedBlockDevice::AllocateMetaZone(Zone **out_meta_zone) {
   assert(out_meta_zone);
   *out_meta_zone = nullptr;
   AquaFSMetricsLatencyGuard guard(metrics_, AQUAFS_META_ALLOC_LATENCY,
-                                 Env::Default());
+                                  Env::Default());
   metrics_->ReportQPS(AQUAFS_META_ALLOC_QPS, 1);
 
   for (const auto z : meta_zones) {
@@ -919,6 +922,6 @@ void ZonedBlockDevice::GetZoneSnapshot(std::vector<ZoneSnapshot> &snapshot) {
   }
 }
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE
 
 #endif  // !defined(ROCKSDB_LITE) && !defined(OS_WIN)

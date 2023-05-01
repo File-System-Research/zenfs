@@ -17,16 +17,19 @@ namespace fs = std::filesystem;
 #include <memory>
 #include <thread>
 
+#include "aquafs_namespace.h"
 #include "io_aquafs.h"
 #include "metrics.h"
 #include "rocksdb/env.h"
 #include "rocksdb/file_system.h"
+#include "rocksdb/rocksdb_namespace.h"
 #include "rocksdb/status.h"
 #include "snapshot.h"
 #include "version.h"
 #include "zbd_aquafs.h"
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 #if !defined(ROCKSDB_LITE) && defined(OS_LINUX)
 
@@ -81,7 +84,8 @@ class Superblock {
     strncpy(aux_fs_path_, aux_fs_path.c_str(), sizeof(aux_fs_path_) - 1);
 
     std::string aquafs_version = AQUAFS_VERSION;
-    strncpy(aquafs_version_, aquafs_version.c_str(), sizeof(aquafs_version_) - 1);
+    strncpy(aquafs_version_, aquafs_version.c_str(),
+            sizeof(aquafs_version_) - 1);
   }
 
   Status DecodeFrom(Slice* input);
@@ -215,8 +219,8 @@ class AquaFS : public FileSystemWrapper {
   std::shared_ptr<ZoneFile> GetFileNoLock(std::string fname);
   /* Must hold files_mtx_ */
   void GetAquaFSChildrenNoLock(const std::string& dir,
-                              bool include_grandchildren,
-                              std::vector<std::string>* result);
+                               bool include_grandchildren,
+                               std::vector<std::string>* result);
   /* Must hold files_mtx_ */
   IOStatus GetChildrenNoLock(const std::string& dir, const IOOptions& options,
                              std::vector<std::string>* result,
@@ -275,7 +279,7 @@ class AquaFS : public FileSystemWrapper {
 
  public:
   explicit AquaFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
-                 std::shared_ptr<Logger> logger);
+                  std::shared_ptr<Logger> logger);
   virtual ~AquaFS();
 
   Status Mount(bool readonly);
@@ -449,7 +453,7 @@ class AquaFS : public FileSystemWrapper {
   }
 
   void GetAquaFSSnapshot(AquaFSSnapshot& snapshot,
-                        const AquaFSSnapshotOptions& options);
+                         const AquaFSSnapshotOptions& options);
 
   IOStatus MigrateExtents(const std::vector<ZoneExtentSnapshot*>& extents);
 
@@ -465,17 +469,17 @@ class AquaFS : public FileSystemWrapper {
 };
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)
 
-Status NewAquaFS(
-    FileSystem** fs, const std::string& bdevname,
-    std::shared_ptr<AquaFSMetrics> metrics = std::make_shared<NoAquaFSMetrics>());
-Status NewAquaFS(
-    FileSystem** fs, const ZbdBackendType backend_type,
-    const std::string& backend_name,
-    std::shared_ptr<AquaFSMetrics> metrics = std::make_shared<NoAquaFSMetrics>());
+Status NewAquaFS(FileSystem** fs, const std::string& bdevname,
+                 std::shared_ptr<AquaFSMetrics> metrics =
+                     std::make_shared<NoAquaFSMetrics>());
+Status NewAquaFS(FileSystem** fs, const ZbdBackendType backend_type,
+                 const std::string& backend_name,
+                 std::shared_ptr<AquaFSMetrics> metrics =
+                     std::make_shared<NoAquaFSMetrics>());
 Status AppendZenFileSystem(
     std::string path, ZbdBackendType backend,
     std::map<std::string, std::pair<std::string, ZbdBackendType>>& fs_list);
 Status ListZenFileSystems(
     std::map<std::string, std::pair<std::string, ZbdBackendType>>& out_list);
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE

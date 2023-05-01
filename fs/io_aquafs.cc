@@ -24,10 +24,13 @@
 #include <utility>
 #include <vector>
 
+#include "aquafs_namespace.h"
 #include "rocksdb/env.h"
+#include "rocksdb/rocksdb_namespace.h"
 #include "util/coding.h"
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 ZoneExtent::ZoneExtent(uint64_t start, uint64_t length, Zone* zone)
     : start_(start), length_(length), zone_(zone) {}
@@ -361,7 +364,7 @@ IOStatus ZoneFile::InvalidateCache(uint64_t pos, uint64_t size) {
 IOStatus ZoneFile::PositionedRead(uint64_t offset, size_t n, Slice* result,
                                   char* scratch, bool direct) {
   AquaFSMetricsLatencyGuard guard(zbd_->GetMetrics(), AQUAFS_READ_LATENCY,
-                                 Env::Default());
+                                  Env::Default());
   zbd_->GetMetrics()->ReportQPS(AQUAFS_READ_QPS, 1);
 
   ReadLock lck(this);
@@ -876,10 +879,10 @@ IOStatus ZonedWritableFile::Fsync(const IOOptions& /*options*/,
                                   IODebugContext* /*dbg*/) {
   IOStatus s;
   AquaFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
-                                 zoneFile_->GetIOType() == IOType::kWAL
-                                     ? AQUAFS_WAL_SYNC_LATENCY
-                                     : AQUAFS_NON_WAL_SYNC_LATENCY,
-                                 Env::Default());
+                                  zoneFile_->GetIOType() == IOType::kWAL
+                                      ? AQUAFS_WAL_SYNC_LATENCY
+                                      : AQUAFS_NON_WAL_SYNC_LATENCY,
+                                  Env::Default());
   zoneFile_->GetZBDMetrics()->ReportQPS(AQUAFS_SYNC_QPS, 1);
 
   s = DataSync();
@@ -984,10 +987,10 @@ IOStatus ZonedWritableFile::Append(const Slice& data,
                                    IODebugContext* /*dbg*/) {
   IOStatus s;
   AquaFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
-                                 zoneFile_->GetIOType() == IOType::kWAL
-                                     ? AQUAFS_WAL_WRITE_LATENCY
-                                     : AQUAFS_NON_WAL_WRITE_LATENCY,
-                                 Env::Default());
+                                  zoneFile_->GetIOType() == IOType::kWAL
+                                      ? AQUAFS_WAL_WRITE_LATENCY
+                                      : AQUAFS_NON_WAL_WRITE_LATENCY,
+                                  Env::Default());
   zoneFile_->GetZBDMetrics()->ReportQPS(AQUAFS_WRITE_QPS, 1);
   zoneFile_->GetZBDMetrics()->ReportThroughput(AQUAFS_WRITE_THROUGHPUT,
                                                data.size());
@@ -1009,10 +1012,10 @@ IOStatus ZonedWritableFile::PositionedAppend(const Slice& data, uint64_t offset,
                                              IODebugContext* /*dbg*/) {
   IOStatus s;
   AquaFSMetricsLatencyGuard guard(zoneFile_->GetZBDMetrics(),
-                                 zoneFile_->GetIOType() == IOType::kWAL
-                                     ? AQUAFS_WAL_WRITE_LATENCY
-                                     : AQUAFS_NON_WAL_WRITE_LATENCY,
-                                 Env::Default());
+                                  zoneFile_->GetIOType() == IOType::kWAL
+                                      ? AQUAFS_WAL_WRITE_LATENCY
+                                      : AQUAFS_NON_WAL_WRITE_LATENCY,
+                                  Env::Default());
   zoneFile_->GetZBDMetrics()->ReportQPS(AQUAFS_WRITE_QPS, 1);
   zoneFile_->GetZBDMetrics()->ReportThroughput(AQUAFS_WRITE_THROUGHPUT,
                                                data.size());
@@ -1107,6 +1110,6 @@ IOStatus ZoneFile::MigrateData(uint64_t offset, uint32_t length,
   return IOStatus::OK();
 }
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE
 
 #endif  // !defined(ROCKSDB_LITE) && !defined(OS_WIN)

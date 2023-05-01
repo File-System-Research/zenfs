@@ -9,7 +9,7 @@
 #include <memory>
 #include <utility>
 
-using namespace ROCKSDB_NAMESPACE;
+using namespace AQUAFS_NAMESPACE;
 using namespace prometheus;
 
 AquaFSPrometheusMetrics::AquaFSPrometheusMetrics() {

@@ -3,12 +3,15 @@
 #include <iostream>
 #include <unordered_map>
 
+#include "aquafs_namespace.h"
 #include "metrics.h"
 #include "port/port.h"
+#include "rocksdb/rocksdb_namespace.h"
 #include "snapshot.h"
 #include "util/mutexlock.h"
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 const std::unordered_map<uint32_t, std::pair<std::string, uint32_t>>
     AquaFSHistogramsNameMap = {
@@ -39,7 +42,8 @@ struct ReporterSample {
   }
 
  public:
-  ReporterSample(AquaFSMetricsReporterType type) : mu_(), type_(type), hist_() {}
+  ReporterSample(AquaFSMetricsReporterType type)
+      : mu_(), type_(type), hist_() {}
   void Record(const TypeTime& time, TypeValue value) {
     MutexLock guard(&mu_);
     if (ReadyToReport(time)) hist_.push_back(TypeRecord(time, value));
@@ -71,7 +75,8 @@ struct AquaFSMetricsSample : public AquaFSMetrics {
   virtual void AddReporter(uint32_t label_uint,
                            uint32_t type_uint = 0) override {
     auto label = static_cast<AquaFSMetricsHistograms>(label_uint);
-    assert(AquaFSHistogramsNameMap.find(label) != AquaFSHistogramsNameMap.end());
+    assert(AquaFSHistogramsNameMap.find(label) !=
+           AquaFSHistogramsNameMap.end());
 
     auto pair = AquaFSHistogramsNameMap.find(label)->second;
     auto type = pair.second;
@@ -95,7 +100,8 @@ struct AquaFSMetricsSample : public AquaFSMetrics {
   virtual void Report(uint32_t label_uint, size_t value,
                       uint32_t type_uint = 0) override {
     auto label = static_cast<AquaFSMetricsHistograms>(label_uint);
-    assert(AquaFSHistogramsNameMap.find(label) != AquaFSHistogramsNameMap.end());
+    assert(AquaFSHistogramsNameMap.find(label) !=
+           AquaFSHistogramsNameMap.end());
     auto p = reporter_map_.find(static_cast<AquaFSMetricsHistograms>(label));
     assert(p != reporter_map_.end());
     TypeReporter& reporter = p->second;
@@ -165,4 +171,4 @@ struct AquaFSMetricsSample : public AquaFSMetrics {
   uint64_t GetTime() { return env_->NowMicros(); }
 };
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE

@@ -24,6 +24,8 @@
 #ifdef AQUAFS_EXPORT_PROMETHEUS
 #include "metrics_prometheus.h"
 #endif
+#include "aquafs_namespace.h"
+#include "rocksdb/rocksdb_namespace.h"
 #include "rocksdb/utilities/object_registry.h"
 #include "snapshot.h"
 #include "util/coding.h"
@@ -32,7 +34,8 @@
 
 #define DEFAULT_ZENV_LOG_PATH "/tmp/"
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 Status Superblock::DecodeFrom(Slice* input) {
   if (input->size() != ENCODED_SIZE) {
@@ -125,7 +128,8 @@ Status Superblock::CompatibleWith(ZonedBlockDevice* zbd) {
     return Status::Corruption("AquaFS Superblock",
                               "Error: block size missmatch");
   if (zone_size_ != (zbd->GetZoneSize() / block_size_))
-    return Status::Corruption("AquaFS Superblock", "Error: zone size missmatch");
+    return Status::Corruption("AquaFS Superblock",
+                              "Error: zone size missmatch");
   if (nr_zones_ > zbd->GetNrZones())
     return Status::Corruption("AquaFS Superblock",
                               "Error: nr of zones missmatch");
@@ -243,7 +247,7 @@ IOStatus ZenMetaLog::ReadRecord(Slice* record, std::string* scratch) {
 }
 
 AquaFS::AquaFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
-             std::shared_ptr<Logger> logger)
+               std::shared_ptr<Logger> logger)
     : FileSystemWrapper(aux_fs), zbd_(zbd), logger_(logger) {
   Info(logger_, "AquaFS initializing");
   Info(logger_, "AquaFS parameters: block device: %s, aux filesystem: %s",
@@ -402,7 +406,7 @@ IOStatus AquaFS::RollMetaZoneLocked() {
   IOStatus s;
 
   AquaFSMetricsLatencyGuard guard(zbd_->GetMetrics(), AQUAFS_ROLL_LATENCY,
-                                 Env::Default());
+                                  Env::Default());
   zbd_->GetMetrics()->ReportQPS(AQUAFS_ROLL_QPS, 1);
 
   IOStatus status = zbd_->AllocateMetaZone(&new_meta_zone);
@@ -480,7 +484,7 @@ IOStatus AquaFS::PersistRecord(std::string record) {
 }
 
 IOStatus AquaFS::SyncFileExtents(ZoneFile* zoneFile,
-                                std::vector<ZoneExtent*> new_extents) {
+                                 std::vector<ZoneExtent*> new_extents) {
   IOStatus s;
 
   std::vector<ZoneExtent*> old_extents = zoneFile->GetExtents();
@@ -510,7 +514,7 @@ IOStatus AquaFS::SyncFileMetadataNoLock(ZoneFile* zoneFile, bool replace) {
   std::string output;
   IOStatus s;
   AquaFSMetricsLatencyGuard guard(zbd_->GetMetrics(), AQUAFS_META_SYNC_LATENCY,
-                                 Env::Default());
+                                  Env::Default());
 
   if (zoneFile->IsDeleted()) {
     Info(logger_, "File %s has been deleted, skip sync file metadata!",
@@ -557,7 +561,7 @@ std::shared_ptr<ZoneFile> AquaFS::GetFile(std::string fname) {
 
 /* Must hold files_mtx_ */
 IOStatus AquaFS::DeleteFileNoLock(std::string fname, const IOOptions& options,
-                                 IODebugContext* dbg) {
+                                  IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> zoneFile(nullptr);
   IOStatus s;
 
@@ -589,9 +593,9 @@ IOStatus AquaFS::DeleteFileNoLock(std::string fname, const IOOptions& options,
 }
 
 IOStatus AquaFS::NewSequentialFile(const std::string& filename,
-                                  const FileOptions& file_opts,
-                                  std::unique_ptr<FSSequentialFile>* result,
-                                  IODebugContext* dbg) {
+                                   const FileOptions& file_opts,
+                                   std::unique_ptr<FSSequentialFile>* result,
+                                   IODebugContext* dbg) {
   std::string fname = FormatPathLexically(filename);
   std::shared_ptr<ZoneFile> zoneFile = GetFile(fname);
 
@@ -607,10 +611,9 @@ IOStatus AquaFS::NewSequentialFile(const std::string& filename,
   return IOStatus::OK();
 }
 
-IOStatus AquaFS::NewRandomAccessFile(const std::string& filename,
-                                    const FileOptions& file_opts,
-                                    std::unique_ptr<FSRandomAccessFile>* result,
-                                    IODebugContext* dbg) {
+IOStatus AquaFS::NewRandomAccessFile(
+    const std::string& filename, const FileOptions& file_opts,
+    std::unique_ptr<FSRandomAccessFile>* result, IODebugContext* dbg) {
   std::string fname = FormatPathLexically(filename);
   std::shared_ptr<ZoneFile> zoneFile = GetFile(fname);
 
@@ -632,9 +635,9 @@ inline bool ends_with(std::string const& value, std::string const& ending) {
 }
 
 IOStatus AquaFS::NewWritableFile(const std::string& filename,
-                                const FileOptions& file_opts,
-                                std::unique_ptr<FSWritableFile>* result,
-                                IODebugContext* /*dbg*/) {
+                                 const FileOptions& file_opts,
+                                 std::unique_ptr<FSWritableFile>* result,
+                                 IODebugContext* /*dbg*/) {
   std::string fname = FormatPathLexically(filename);
   Debug(logger_, "New writable file: %s direct: %d\n", fname.c_str(),
         file_opts.use_direct_writes);
@@ -643,10 +646,10 @@ IOStatus AquaFS::NewWritableFile(const std::string& filename,
 }
 
 IOStatus AquaFS::ReuseWritableFile(const std::string& filename,
-                                  const std::string& old_filename,
-                                  const FileOptions& file_opts,
-                                  std::unique_ptr<FSWritableFile>* result,
-                                  IODebugContext* dbg) {
+                                   const std::string& old_filename,
+                                   const FileOptions& file_opts,
+                                   std::unique_ptr<FSWritableFile>* result,
+                                   IODebugContext* dbg) {
   IOStatus s;
   std::string fname = FormatPathLexically(filename);
   std::string old_fname = FormatPathLexically(old_filename);
@@ -670,7 +673,7 @@ IOStatus AquaFS::ReuseWritableFile(const std::string& filename,
 }
 
 IOStatus AquaFS::FileExists(const std::string& filename,
-                           const IOOptions& options, IODebugContext* dbg) {
+                            const IOOptions& options, IODebugContext* dbg) {
   std::string fname = FormatPathLexically(filename);
   Debug(logger_, "FileExists: %s \n", fname.c_str());
 
@@ -685,9 +688,9 @@ IOStatus AquaFS::FileExists(const std::string& filename,
  * else return the existing file
  */
 IOStatus AquaFS::ReopenWritableFile(const std::string& filename,
-                                   const FileOptions& file_opts,
-                                   std::unique_ptr<FSWritableFile>* result,
-                                   IODebugContext* dbg) {
+                                    const FileOptions& file_opts,
+                                    std::unique_ptr<FSWritableFile>* result,
+                                    IODebugContext* dbg) {
   std::string fname = FormatPathLexically(filename);
   Debug(logger_, "Reopen writable file: %s \n", fname.c_str());
 
@@ -696,8 +699,8 @@ IOStatus AquaFS::ReopenWritableFile(const std::string& filename,
 
 /* Must hold files_mtx_ */
 void AquaFS::GetAquaFSChildrenNoLock(const std::string& dir,
-                                   bool include_grandchildren,
-                                   std::vector<std::string>* result) {
+                                     bool include_grandchildren,
+                                     std::vector<std::string>* result) {
   auto path_as_string_with_separator_at_end = [](fs::path const& path) {
     fs::path with_sep = path / fs::path("");
     return with_sep.lexically_normal().string();
@@ -734,9 +737,9 @@ void AquaFS::GetAquaFSChildrenNoLock(const std::string& dir,
 
 /* Must hold files_mtx_ */
 IOStatus AquaFS::GetChildrenNoLock(const std::string& dir_path,
-                                  const IOOptions& options,
-                                  std::vector<std::string>* result,
-                                  IODebugContext* dbg) {
+                                   const IOOptions& options,
+                                   std::vector<std::string>* result,
+                                   IODebugContext* dbg) {
   std::vector<std::string> auxfiles;
   std::string dir = FormatPathLexically(dir_path);
   IOStatus s;
@@ -764,16 +767,16 @@ IOStatus AquaFS::GetChildrenNoLock(const std::string& dir_path,
 }
 
 IOStatus AquaFS::GetChildren(const std::string& dir, const IOOptions& options,
-                            std::vector<std::string>* result,
-                            IODebugContext* dbg) {
+                             std::vector<std::string>* result,
+                             IODebugContext* dbg) {
   std::lock_guard<std::mutex> lock(files_mtx_);
   return GetChildrenNoLock(dir, options, result, dbg);
 }
 
 /* Must hold files_mtx_ */
 IOStatus AquaFS::DeleteDirRecursiveNoLock(const std::string& dir,
-                                         const IOOptions& options,
-                                         IODebugContext* dbg) {
+                                          const IOOptions& options,
+                                          IODebugContext* dbg) {
   std::vector<std::string> children;
   std::string d = FormatPathLexically(dir);
   IOStatus s;
@@ -809,8 +812,8 @@ IOStatus AquaFS::DeleteDirRecursiveNoLock(const std::string& dir,
 }
 
 IOStatus AquaFS::DeleteDirRecursive(const std::string& d,
-                                   const IOOptions& options,
-                                   IODebugContext* dbg) {
+                                    const IOOptions& options,
+                                    IODebugContext* dbg) {
   IOStatus s;
   {
     std::lock_guard<std::mutex> lock(files_mtx_);
@@ -821,9 +824,9 @@ IOStatus AquaFS::DeleteDirRecursive(const std::string& d,
 }
 
 IOStatus AquaFS::OpenWritableFile(const std::string& filename,
-                                 const FileOptions& file_opts,
-                                 std::unique_ptr<FSWritableFile>* result,
-                                 IODebugContext* dbg, bool reopen) {
+                                  const FileOptions& file_opts,
+                                  std::unique_ptr<FSWritableFile>* result,
+                                  IODebugContext* dbg, bool reopen) {
   IOStatus s;
   std::string fname = FormatPathLexically(filename);
   bool resetIOZones = false;
@@ -877,7 +880,7 @@ IOStatus AquaFS::OpenWritableFile(const std::string& filename,
 }
 
 IOStatus AquaFS::DeleteFile(const std::string& fname, const IOOptions& options,
-                           IODebugContext* dbg) {
+                            IODebugContext* dbg) {
   IOStatus s;
 
   Debug(logger_, "DeleteFile: %s \n", fname.c_str());
@@ -892,8 +895,8 @@ IOStatus AquaFS::DeleteFile(const std::string& fname, const IOOptions& options,
 }
 
 IOStatus AquaFS::GetFileModificationTime(const std::string& filename,
-                                        const IOOptions& options,
-                                        uint64_t* mtime, IODebugContext* dbg) {
+                                         const IOOptions& options,
+                                         uint64_t* mtime, IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> zoneFile(nullptr);
   std::string f = FormatPathLexically(filename);
   IOStatus s;
@@ -910,8 +913,8 @@ IOStatus AquaFS::GetFileModificationTime(const std::string& filename,
 }
 
 IOStatus AquaFS::GetFileSize(const std::string& filename,
-                            const IOOptions& options, uint64_t* size,
-                            IODebugContext* dbg) {
+                             const IOOptions& options, uint64_t* size,
+                             IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> zoneFile(nullptr);
   std::string f = FormatPathLexically(filename);
   IOStatus s;
@@ -931,10 +934,10 @@ IOStatus AquaFS::GetFileSize(const std::string& filename,
 
 /* Must hold files_mtx_ */
 IOStatus AquaFS::RenameChildNoLock(std::string const& source_dir,
-                                  std::string const& dest_dir,
-                                  std::string const& child,
-                                  const IOOptions& options,
-                                  IODebugContext* dbg) {
+                                   std::string const& dest_dir,
+                                   std::string const& child,
+                                   const IOOptions& options,
+                                   IODebugContext* dbg) {
   std::string source_child = (fs::path(source_dir) / fs::path(child)).string();
   std::string dest_child = (fs::path(dest_dir) / fs::path(child)).string();
   return RenameFileNoLock(source_child, dest_child, options, dbg);
@@ -968,9 +971,9 @@ IOStatus AquaFS::RollbackAuxDirRenameNoLock(
 
 /* Must hold files_mtx_ */
 IOStatus AquaFS::RenameAuxPathNoLock(const std::string& source_path,
-                                    const std::string& dest_path,
-                                    const IOOptions& options,
-                                    IODebugContext* dbg) {
+                                     const std::string& dest_path,
+                                     const IOOptions& options,
+                                     IODebugContext* dbg) {
   IOStatus s;
   std::vector<std::string> children;
   std::vector<std::string> renamed_children;
@@ -1002,9 +1005,9 @@ IOStatus AquaFS::RenameAuxPathNoLock(const std::string& source_path,
 
 /* Must hold files_mtx_ */
 IOStatus AquaFS::RenameFileNoLock(const std::string& src_path,
-                                 const std::string& dst_path,
-                                 const IOOptions& options,
-                                 IODebugContext* dbg) {
+                                  const std::string& dst_path,
+                                  const IOOptions& options,
+                                  IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> source_file(nullptr);
   std::shared_ptr<ZoneFile> existing_dest_file(nullptr);
   std::string source_path = FormatPathLexically(src_path);
@@ -1046,8 +1049,8 @@ IOStatus AquaFS::RenameFileNoLock(const std::string& src_path,
 }
 
 IOStatus AquaFS::RenameFile(const std::string& source_path,
-                           const std::string& dest_path,
-                           const IOOptions& options, IODebugContext* dbg) {
+                            const std::string& dest_path,
+                            const IOOptions& options, IODebugContext* dbg) {
   IOStatus s;
   {
     std::lock_guard<std::mutex> lock(files_mtx_);
@@ -1058,7 +1061,7 @@ IOStatus AquaFS::RenameFile(const std::string& source_path,
 }
 
 IOStatus AquaFS::LinkFile(const std::string& file, const std::string& link,
-                         const IOOptions& options, IODebugContext* dbg) {
+                          const IOOptions& options, IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> src_file(nullptr);
   std::string fname = FormatPathLexically(file);
   std::string lname = FormatPathLexically(link);
@@ -1089,7 +1092,7 @@ IOStatus AquaFS::LinkFile(const std::string& file, const std::string& link,
 }
 
 IOStatus AquaFS::NumFileLinks(const std::string& file, const IOOptions& options,
-                             uint64_t* nr_links, IODebugContext* dbg) {
+                              uint64_t* nr_links, IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> src_file(nullptr);
   std::string fname = FormatPathLexically(file);
   IOStatus s;
@@ -1109,8 +1112,8 @@ IOStatus AquaFS::NumFileLinks(const std::string& file, const IOOptions& options,
 }
 
 IOStatus AquaFS::AreFilesSame(const std::string& file, const std::string& linkf,
-                             const IOOptions& options, bool* res,
-                             IODebugContext* dbg) {
+                              const IOOptions& options, bool* res,
+                              IODebugContext* dbg) {
   std::shared_ptr<ZoneFile> src_file(nullptr);
   std::shared_ptr<ZoneFile> dst_file(nullptr);
   std::string fname = FormatPathLexically(file);
@@ -1226,7 +1229,7 @@ Status AquaFS::DecodeSnapshotFrom(Slice* input) {
 }
 
 void AquaFS::EncodeFileDeletionTo(std::shared_ptr<ZoneFile> zoneFile,
-                                 std::string* output, std::string linkf) {
+                                  std::string* output, std::string linkf) {
   std::string file_string;
 
   PutFixed64(&file_string, zoneFile->GetID());
@@ -1353,7 +1356,9 @@ Status AquaFS::Mount(bool readonly) {
   /* We need a minimum of two non-offline meta data zones */
   if (metazones.size() < 2) {
     Error(logger_,
-          "Need at least two non-offline meta zones to open for write! Now is %zu", metazones.size());
+          "Need at least two non-offline meta zones to open for write! Now is "
+          "%zu",
+          metazones.size());
     return Status::NotSupported();
   }
 
@@ -1495,7 +1500,7 @@ Status AquaFS::Mount(bool readonly) {
 }
 
 Status AquaFS::MkFS(std::string aux_fs_p, uint32_t finish_threshold,
-                   bool enable_gc) {
+                    bool enable_gc) {
   std::vector<Zone*> metazones = zbd_->GetMetaZones();
   std::unique_ptr<ZenMetaLog> log;
   Zone* meta_zone = nullptr;
@@ -1570,7 +1575,8 @@ std::map<std::string, Env::WriteLifeTimeHint> AquaFS::GetWriteLifeTimeHints() {
 }
 
 #if !defined(NDEBUG) || defined(WITH_TERARKDB)
-__attribute__((__unused__)) static std::string GetLogFilename(std::string bdev) {
+__attribute__((__unused__)) static std::string GetLogFilename(
+    std::string bdev) {
   std::ostringstream ss;
   time_t t = time(0);
   struct tm* log_start = std::localtime(&t);
@@ -1584,7 +1590,7 @@ __attribute__((__unused__)) static std::string GetLogFilename(std::string bdev) 
 #endif
 
 Status NewAquaFS(FileSystem** fs, const std::string& bdevname,
-                std::shared_ptr<AquaFSMetrics> metrics) {
+                 std::shared_ptr<AquaFSMetrics> metrics) {
   return NewAquaFS(fs, ZbdBackendType::kBlockDev, bdevname, metrics);
 }
 
@@ -1603,8 +1609,8 @@ class MyConsoleLogger : public Logger {
 };
 
 Status NewAquaFS(FileSystem** fs, const ZbdBackendType backend_type,
-                const std::string& backend_name,
-                std::shared_ptr<AquaFSMetrics> metrics) {
+                 const std::string& backend_name,
+                 std::shared_ptr<AquaFSMetrics> metrics) {
   std::shared_ptr<Logger> logger;
   Status s;
 
@@ -1725,7 +1731,7 @@ Status ListZenFileSystems(
 }
 
 void AquaFS::GetAquaFSSnapshot(AquaFSSnapshot& snapshot,
-                             const AquaFSSnapshotOptions& options) {
+                               const AquaFSSnapshotOptions& options) {
   if (options.zbd_) {
     snapshot.zbd_ = ZBDSnapshot(*zbd_);
   }
@@ -1878,8 +1884,8 @@ extern "C" FactoryFunc<FileSystem> aquafs_filesystem_reg;
 FactoryFunc<FileSystem> aquafs_filesystem_reg =
 #if (ROCKSDB_MAJOR < 6) || (ROCKSDB_MAJOR <= 6 && ROCKSDB_MINOR < 28)
     ObjectLibrary::Default()->Register<FileSystem>(
-        "aquafs://.*", [](const std::string& uri, std::unique_ptr<FileSystem>* f,
-                         std::string* errmsg) {
+        "aquafs://.*", [](const std::string& uri,
+                          std::unique_ptr<FileSystem>* f, std::string* errmsg) {
 #else
     ObjectLibrary::Default()->AddFactory<FileSystem>(
         ObjectLibrary::PatternEntry("aquafs", false)
@@ -1896,7 +1902,7 @@ FactoryFunc<FileSystem> aquafs_filesystem_reg =
             devID.replace(0, strlen("dev:"), "");
 #ifdef AQUAFS_EXPORT_PROMETHEUS
             s = NewAquaFS(&fs, ZbdBackendType::kBlockDev, devID,
-                         std::make_shared<AquaFSPrometheusMetrics>());
+                          std::make_shared<AquaFSPrometheusMetrics>());
 #else
             s = NewAquaFS(&fs, ZbdBackendType::kBlockDev, devID);
 #endif
@@ -1923,11 +1929,11 @@ FactoryFunc<FileSystem> aquafs_filesystem_reg =
 
 #ifdef AQUAFS_EXPORT_PROMETHEUS
                 s = NewAquaFS(&fs, zenFileSystems[devID].second,
-                             zenFileSystems[devID].first,
-                             std::make_shared<AquaFSPrometheusMetrics>());
+                              zenFileSystems[devID].first,
+                              std::make_shared<AquaFSPrometheusMetrics>());
 #else
                 s = NewAquaFS(&fs, zenFileSystems[devID].second,
-                             zenFileSystems[devID].first);
+                              zenFileSystems[devID].first);
 #endif
                 if (!s.ok()) {
                   *errmsg = s.ToString();
@@ -1946,7 +1952,7 @@ FactoryFunc<FileSystem> aquafs_filesystem_reg =
           f->reset(fs);
           return f->get();
         });
-};  // namespace ROCKSDB_NAMESPACE
+};  // namespace AQUAFS_NAMESPACE
 
 #else
 
@@ -1954,8 +1960,8 @@ FactoryFunc<FileSystem> aquafs_filesystem_reg =
 
 namespace ROCKSDB_NAMESPACE {
 Status NewAquaFS(FileSystem** /*fs*/, const ZbdBackendType /*backend_type*/,
-                const std::string& /*backend_name*/,
-                AquaFSMetrics* /*metrics*/) {
+                 const std::string& /*backend_name*/,
+                 AquaFSMetrics* /*metrics*/) {
   return Status::NotSupported("Not built with AquaFS support\n");
 }
 std::map<std::string, std::string> ListZenFileSystems() {

@@ -31,8 +31,11 @@
 //    `NoAquaFSMetrics`)
 
 #pragma once
+#include "aquafs_namespace.h"
 #include "rocksdb/env.h"
-namespace ROCKSDB_NAMESPACE {
+#include "rocksdb/rocksdb_namespace.h"
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 class AquaFSMetricsGuard;
 class AquaFSSnapshot;
@@ -157,7 +160,7 @@ struct AquaFSMetricsLatencyGuard {
   uint64_t begin_time_micro_;
 
   AquaFSMetricsLatencyGuard(std::shared_ptr<AquaFSMetrics> metrics,
-                           uint32_t label, Env* env)
+                            uint32_t label, Env* env)
       : metrics_(metrics),
         label_(label),
         env_(env),
@@ -181,4 +184,4 @@ struct AquaFSMetricsLatencyGuard {
   AQUAFS_##sub_label##_##label##_##type
 // eg : AQUAFS_LABEL(WRITE, WAL, THROUGHPUT) => AQUAFS_WAL_WRITE_THROUGHPUT
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE

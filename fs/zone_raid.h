@@ -3,9 +3,12 @@
 #include <numeric>
 #include <unordered_map>
 
+#include "rocksdb/io_status.h"
+#include "rocksdb/rocksdb_namespace.h"
 #include "zbd_aquafs.h"
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 enum class RaidMode {
   RAID0,
   RAID1,
@@ -113,4 +116,4 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   std::string GetFilename() override;
   ~RaidZonedBlockDevice() override = default;
 };
-};  // namespace ROCKSDB_NAMESPACE
+};  // namespace AQUAFS_NAMESPACE

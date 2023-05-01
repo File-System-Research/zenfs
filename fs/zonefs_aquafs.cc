@@ -28,12 +28,16 @@
 #include "rocksdb/io_status.h"
 
 #define AQUAFS_ZONEFS_ZONE_OFFLINE(_f_mode) \
-  (((_f_mode) &                            \
+  (((_f_mode) &                             \
     (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR | S_IWGRP | S_IWOTH)) == 0)
 #define AQUAFS_ZONEFS_DEFAULT_MAX_LIMIT 14
 #define AQUAFS_ZONEFS_DEFAULT_MAX_RD_LIMIT 100
 
-namespace ROCKSDB_NAMESPACE {
+#include "rocksdb/io_status.h"
+#include "rocksdb/rocksdb_namespace.h"
+
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 ZoneFsFileCache::ZoneFsFileCache(int flags) {
   if (flags & O_RDONLY)
@@ -408,6 +412,6 @@ uint64_t ZoneFsBackend::ZoneWp(std::unique_ptr<ZoneList> &zones,
   return idx * zone_sz_ + z->st_size;
 };
 
-}  // Namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE
 
 #endif  // !defined(ROCKSDB_LITE) && !defined(OS_WIN)

@@ -24,12 +24,15 @@
 #include <utility>
 #include <vector>
 
+#include "aquafs_namespace.h"
 #include "metrics.h"
 #include "rocksdb/env.h"
 #include "rocksdb/file_system.h"
 #include "rocksdb/io_status.h"
+#include "rocksdb/rocksdb_namespace.h"
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 class ZonedBlockDevice;
 class ZonedBlockDeviceBackend;
@@ -239,6 +242,6 @@ class ZonedBlockDevice {
   IOStatus AllocateEmptyZone(Zone **zone_out);
 };
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE
 
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)

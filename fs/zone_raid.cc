@@ -6,7 +6,11 @@
 
 #include <utility>
 
-namespace ROCKSDB_NAMESPACE {
+#include "rocksdb/io_status.h"
+#include "rocksdb/rocksdb_namespace.h"
+
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 /**
  * @brief Construct a new Raid Zoned Block Device object
@@ -373,4 +377,4 @@ std::string RaidZonedBlockDevice::GetFilename() {
   }
   return name;
 }
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE

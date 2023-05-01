@@ -9,10 +9,12 @@
 #include <string>
 #include <vector>
 
+#include "aquafs_namespace.h"
 #include "io_aquafs.h"
+#include "rocksdb/rocksdb_namespace.h"
 #include "zbd_aquafs.h"
-
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
+using namespace ROCKSDB_NAMESPACE;
 
 // Indicate what stats info we want.
 struct AquaFSSnapshotOptions {
@@ -109,4 +111,4 @@ class AquaFSSnapshot {
   std::vector<ZoneExtentSnapshot> extents_;
 };
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE

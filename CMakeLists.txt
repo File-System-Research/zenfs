@@ -4,10 +4,12 @@ if (NOT DEFINED AQUAFS_STANDALONE)
     set(AQUAFS_STANDALONE 1)
 endif ()
 
+set(AQUAFS_VERSION v0.0.1-alpha)
+
 if (AQUAFS_STANDALONE)
     project(aquafs)
 
-    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define AQUAFS_VERSION \"v0.0.1-alpha\"\n")
+    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define AQUAFS_VERSION \"${AQUAFS_VERSION}\"\n")
 
     set(aquafs_SOURCES "fs/fs_aquafs.cc" "fs/zbd_aquafs.cc" "fs/io_aquafs.cc" "fs/zonefs_aquafs.cc"
             "fs/zbdlib_aquafs.cc" "fs/zone_raid.cc")
@@ -74,4 +76,6 @@ else ()
     #  if(GENVER_RESULT AND NOT GENVER_RESULT EQUAL 0)
     #    message(FATAL_ERROR "Generating AquaFS version failed")
     #  endif()
+
+    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define AQUAFS_VERSION \"${AQUAFS_VERSION}\"\n")
 endif ()
