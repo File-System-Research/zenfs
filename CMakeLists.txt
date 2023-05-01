@@ -50,6 +50,9 @@ if(ZENFS_STANDALONE)
   add_test(NAME zenfs-mkfs COMMAND sudo $<TARGET_FILE:zenfs> mkfs --zbd=nullb0 --aux_path=/tmp/aux_path --force)
   add_test(NAME zenfs-list COMMAND sudo $<TARGET_FILE:zenfs> list --zbd=nullb0)
 
+  add_test(NAME zenfs-mkfs-raid0 COMMAND sudo $<TARGET_FILE:zenfs> mkfs --raids=raid0:dev:nullb0,dev:nullb1 --aux_path=/tmp/aux_path --force)
+  add_test(NAME zenfs-mkfs-raid1 COMMAND sudo $<TARGET_FILE:zenfs> mkfs --raids=raid1:dev:nullb0,dev:nullb1 --aux_path=/tmp/aux_path --force)
+
   add_test(NAME zenfs_db_bench COMMAND sudo $<TARGET_FILE:db_bench> --fs_uri=zenfs://dev:nullb0 --benchmarks=fillrandom --use_direct_io_for_flush_and_compaction)
 else()
   set(zenfs_SOURCES "fs/fs_zenfs.cc" "fs/zbd_zenfs.cc" "fs/io_zenfs.cc" "fs/zonefs_zenfs.cc"

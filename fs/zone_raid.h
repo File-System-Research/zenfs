@@ -19,17 +19,17 @@ enum class RaidMode {
 __attribute__((__unused__)) static const char *raid_mode_str(RaidMode mode) {
   switch (mode) {
     case RaidMode::RAID0:
-      return "RAID0";
+      return "0";
     case RaidMode::RAID1:
-      return "RAID1";
+      return "1";
     case RaidMode::RAID5:
-      return "RAID5";
+      return "5";
     case RaidMode::RAID6:
-      return "RAID6";
+      return "6";
     case RaidMode::RAID10:
-      return "RAID10";
+      return "10";
     case RaidMode::RAID_A:
-      return "RAID-A";
+      return "a";
     default:
       return "UNKNOWN";
   }

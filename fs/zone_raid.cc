@@ -366,7 +366,7 @@ uint64_t RaidZonedBlockDevice::ZoneWp(std::unique_ptr<ZoneList> &zones,
 }
 
 std::string RaidZonedBlockDevice::GetFilename() {
-  std::string name = std::string("raid") + raid_mode_str(main_mode_);
+  std::string name = std::string("raid") + raid_mode_str(main_mode_) + ":";
   for (auto p = devices_.begin(); p != devices_.end(); p++) {
     name += (*p)->GetFilename();
     if (p + 1 != devices_.end()) name += ",";

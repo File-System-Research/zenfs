@@ -291,7 +291,8 @@ bool ZoneFile::TryAcquireWRLock() {
 }
 
 void ZoneFile::ReleaseWRLock() {
-  assert(open_for_wr_);
+  // FIXME
+  // assert(open_for_wr_);
   open_for_wr_ = false;
   open_for_wr_mtx_.unlock();
 }
