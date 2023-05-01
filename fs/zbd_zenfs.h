@@ -134,11 +134,7 @@ class ZonedBlockDeviceBackend {
   virtual ~ZonedBlockDeviceBackend(){};
 };
 
-enum class ZbdBackendType {
-  kBlockDev,
-  kZoneFS,
-  kRaid
-};
+enum class ZbdBackendType { kBlockDev, kZoneFS, kRaid };
 
 class ZonedBlockDevice {
  private:

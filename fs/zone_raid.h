@@ -66,6 +66,7 @@ class RaidMapItem {
 
 class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
  private:
+  std::shared_ptr<Logger> logger_;
   RaidMode main_mode_;
   std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices_;
   // use `map` or `unordered_map` to store raid mappings
@@ -83,10 +84,10 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
  public:
   explicit RaidZonedBlockDevice(
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices,
-      RaidMode mode);
+      RaidMode mode, std::shared_ptr<Logger> logger);
   explicit RaidZonedBlockDevice(
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices)
-      : RaidZonedBlockDevice(std::move(devices), RaidMode::RAID_A) {}
+      : RaidZonedBlockDevice(std::move(devices), RaidMode::RAID_A, nullptr) {}
 
   // void load_layout();
 

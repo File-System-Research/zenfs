@@ -4,6 +4,8 @@
 
 #include "zone_raid.h"
 
+#include <utility>
+
 namespace ROCKSDB_NAMESPACE {
 
 /**
@@ -13,19 +15,28 @@ namespace ROCKSDB_NAMESPACE {
  */
 RaidZonedBlockDevice::RaidZonedBlockDevice(
     std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices,
-    RaidMode mode)
-    : main_mode_(mode), devices_(std::move(devices)) {
+    RaidMode mode, std::shared_ptr<Logger> logger)
+    : logger_(std::move(logger)),
+      main_mode_(mode),
+      devices_(std::move(devices)) {
   assert(!devices_.empty());
+  Info(logger_, "RAID Devices: ");
+  for (auto &&d : devices_) {
+    Info(logger_, "  %s", d->GetFilename().c_str());
+  }
   syncBackendInfo();
 }
 
 IOStatus RaidZonedBlockDevice::Open(bool readonly, bool exclusive,
                                     unsigned int *max_active_zones,
                                     unsigned int *max_open_zones) {
-  auto r = device_default()->Open(readonly, exclusive, max_active_zones,
-                                  max_open_zones);
+  IOStatus s;
+  for (auto &&d : devices_) {
+    s = d->Open(readonly, exclusive, max_active_zones, max_open_zones);
+    if (!s.ok()) return s;
+  }
   syncBackendInfo();
-  return r;
+  return s;
 }
 
 void RaidZonedBlockDevice::syncBackendInfo() {
@@ -47,7 +58,25 @@ void RaidZonedBlockDevice::syncBackendInfo() {
 
 std::unique_ptr<ZoneList> RaidZonedBlockDevice::ListZones() {
   if (main_mode_ == RaidMode::RAID0) {
-    return device_default()->ListZones();
+    std::vector<std::unique_ptr<ZoneList>> list;
+    for (auto &&dev : devices_) {
+      auto zones = dev->ListZones();
+      if (zones) {
+        list.emplace_back(std::move(zones));
+      }
+    }
+    // merge zones
+    auto nr_zones = std::accumulate(
+        list.begin(), list.end(), 0,
+        [](int sum, auto &zones) { return sum + zones->ZoneCount(); });
+    auto data = new struct zbd_zone[nr_zones];
+    auto ptr = data;
+    for (auto &&zones : list) {
+      auto nr = zones->ZoneCount();
+      memcpy(ptr, zones->GetData(), sizeof(struct zbd_zone) * nr);
+      ptr += nr;
+    }
+    return std::make_unique<ZoneList>(data, nr_zones);
   } else if (main_mode_ == RaidMode::RAID1) {
     // only half zones available
     auto zones = device_default()->ListZones();
@@ -66,7 +95,15 @@ std::unique_ptr<ZoneList> RaidZonedBlockDevice::ListZones() {
 IOStatus RaidZonedBlockDevice::Reset(uint64_t start, bool *offline,
                                      uint64_t *max_capacity) {
   if (main_mode_ == RaidMode::RAID0) {
-    return device_default()->Reset(start, offline, max_capacity);
+    for (auto &&d : devices_) {
+      auto sz = d->GetNrZones() * d->GetZoneSize();
+      if (sz > start) {
+        return d->Reset(start, offline, max_capacity);
+      } else {
+        start -= sz;
+      }
+    }
+    return IOStatus::IOError();
   } else if (main_mode_ == RaidMode::RAID1) {
     bool offline_a, offline_b;
     uint64_t max_capacity_a, max_capacity_b;
@@ -140,7 +177,17 @@ int RaidZonedBlockDevice::InvalidateCache(uint64_t pos, uint64_t size) {
 
 bool RaidZonedBlockDevice::ZoneIsSwr(std::unique_ptr<ZoneList> &zones,
                                      idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0 || main_mode_ == RaidMode::RAID1) {
+  if (main_mode_ == RaidMode::RAID0) {
+    for (auto &&d : devices_) {
+      if (d->GetNrZones() > idx) {
+        auto z = d->ListZones();
+        return d->ZoneIsSwr(z, idx);
+      } else {
+        idx -= d->GetNrZones();
+      }
+    }
+    return false;
+  } else if (main_mode_ == RaidMode::RAID1) {
     return device_default()->ZoneIsSwr(zones, idx);
   }
   return false;
@@ -203,9 +250,15 @@ uint64_t RaidZonedBlockDevice::ZoneWp(std::unique_ptr<ZoneList> &zones,
 }
 
 std::string RaidZonedBlockDevice::GetFilename() {
-  if (main_mode_ == RaidMode::RAID0 || main_mode_ == RaidMode::RAID1) {
-    return device_default()->GetFilename();
+  std::string name = std::string("raid") + raid_mode_str(main_mode_);
+  // if (main_mode_ == RaidMode::RAID0 || main_mode_ == RaidMode::RAID1) {
+  //   return device_default()->GetFilename();
+  // }
+  // return {};
+  for (auto p = devices_.begin(); p != devices_.end(); p++) {
+    name += (*p)->GetFilename();
+    if (p + 1 != devices_.end()) name += ",";
   }
-  return {};
+  return name;
 }
 }  // namespace ROCKSDB_NAMESPACE

@@ -66,7 +66,7 @@ std::unique_ptr<ZonedBlockDevice> zbd_open(bool readonly, bool exclusive) {
 
   if (!open_status.ok()) {
     fprintf(stderr, "Failed to open zoned block device: %s, error: %s\n",
-            FLAGS_zbd.c_str(), open_status.ToString().c_str());
+            FLAGS_zbd.empty() ? FLAGS_raids.c_str() : FLAGS_zbd.c_str(), open_status.ToString().c_str());
     zbd.reset();
   }
 
