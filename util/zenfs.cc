@@ -139,7 +139,14 @@ int create_aux_dir(const char *path) {
   while ((dent = readdir(aux_dir.get())) != NULL && nfiles <= 2) ++nfiles;
   if (nfiles > 2) {
     fprintf(stderr, "Aux directory %s is not empty.\n", path);
-    return 1;
+    // return 1;
+    // clean aux-path if not empty
+    std::string cmd = "rm -rf " + std::string(path);
+    fprintf(stderr, "Execute: %s\n", cmd.c_str());
+    system(cmd.c_str());
+    cmd = "mkdir -p " + std::string(path);
+    fprintf(stderr, "Execute: %s\n", cmd.c_str());
+    system(cmd.c_str());
   }
 
   if (access(path, R_OK | W_OK | X_OK) < 0) {
