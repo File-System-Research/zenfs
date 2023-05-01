@@ -15,6 +15,8 @@ enum class RaidMode {
   RAID5,
   RAID6,
   RAID10,
+  // AquaFS Concat-RAID
+  RAID_C,
   // AquaFS Auto-RAID
   RAID_A
 };
@@ -33,6 +35,8 @@ __attribute__((__unused__)) static const char *raid_mode_str(RaidMode mode) {
       return "10";
     case RaidMode::RAID_A:
       return "a";
+    case RaidMode::RAID_C:
+      return "c";
     default:
       return "UNKNOWN";
   }
@@ -51,6 +55,8 @@ __attribute__((__unused__)) static RaidMode raid_mode_from_str(
     return RaidMode::RAID10;
   } else if (str == "A" || str == "a" || str == "-a" || str == "-A") {
     return RaidMode::RAID_A;
+  } else if (str == "C" || str == "c" || str == "-c" || str == "-C") {
+    return RaidMode::RAID_C;
   }
   return RaidMode::RAID_A;
 }

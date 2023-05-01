@@ -54,7 +54,7 @@ void RaidZonedBlockDevice::syncBackendInfo() {
       });
   block_sz_ = device_default()->block_sz_;
   zone_sz_ = device_default()->zone_sz_;
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     nr_zones_ = total_nr_zones;
   } else if (main_mode_ == RaidMode::RAID1) {
     nr_zones_ = device_default()->nr_zones_;
@@ -64,7 +64,7 @@ void RaidZonedBlockDevice::syncBackendInfo() {
 }
 
 std::unique_ptr<ZoneList> RaidZonedBlockDevice::ListZones() {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     std::vector<std::unique_ptr<ZoneList>> list;
     for (auto &&dev : devices_) {
       auto zones = dev->ListZones();
@@ -102,7 +102,7 @@ std::unique_ptr<ZoneList> RaidZonedBlockDevice::ListZones() {
 
 IOStatus RaidZonedBlockDevice::Reset(uint64_t start, bool *offline,
                                      uint64_t *max_capacity) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       auto sz = d->GetNrZones() * d->GetZoneSize();
       if (sz > start) {
@@ -127,7 +127,7 @@ IOStatus RaidZonedBlockDevice::Reset(uint64_t start, bool *offline,
 }
 
 IOStatus RaidZonedBlockDevice::Finish(uint64_t start) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       auto sz = d->GetNrZones() * d->GetZoneSize();
       if (sz > start) {
@@ -148,7 +148,7 @@ IOStatus RaidZonedBlockDevice::Finish(uint64_t start) {
 }
 
 IOStatus RaidZonedBlockDevice::Close(uint64_t start) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       auto sz = d->GetNrZones() * d->GetZoneSize();
       if (sz > start) {
@@ -169,7 +169,7 @@ IOStatus RaidZonedBlockDevice::Close(uint64_t start) {
 }
 
 int RaidZonedBlockDevice::Read(char *buf, int size, uint64_t pos, bool direct) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       auto sz = d->GetNrZones() * d->GetZoneSize();
       if (sz > pos) {
@@ -191,7 +191,7 @@ int RaidZonedBlockDevice::Read(char *buf, int size, uint64_t pos, bool direct) {
 }
 
 int RaidZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       auto sz = d->GetNrZones() * d->GetZoneSize();
       if (sz > pos) {
@@ -213,7 +213,7 @@ int RaidZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
 }
 
 int RaidZonedBlockDevice::InvalidateCache(uint64_t pos, uint64_t size) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       auto sz = d->GetNrZones() * d->GetZoneSize();
       if (sz > pos) {
@@ -232,7 +232,7 @@ int RaidZonedBlockDevice::InvalidateCache(uint64_t pos, uint64_t size) {
 
 bool RaidZonedBlockDevice::ZoneIsSwr(std::unique_ptr<ZoneList> &zones,
                                      idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       if (d->GetNrZones() > idx) {
         auto z = d->ListZones();
@@ -250,7 +250,7 @@ bool RaidZonedBlockDevice::ZoneIsSwr(std::unique_ptr<ZoneList> &zones,
 
 bool RaidZonedBlockDevice::ZoneIsOffline(std::unique_ptr<ZoneList> &zones,
                                          idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       if (d->GetNrZones() > idx) {
         // FIXME: optimize list-zones
@@ -269,7 +269,7 @@ bool RaidZonedBlockDevice::ZoneIsOffline(std::unique_ptr<ZoneList> &zones,
 
 bool RaidZonedBlockDevice::ZoneIsWritable(std::unique_ptr<ZoneList> &zones,
                                           idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       if (d->GetNrZones() > idx) {
         auto z = d->ListZones();
@@ -286,7 +286,7 @@ bool RaidZonedBlockDevice::ZoneIsWritable(std::unique_ptr<ZoneList> &zones,
 
 bool RaidZonedBlockDevice::ZoneIsActive(std::unique_ptr<ZoneList> &zones,
                                         idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       if (d->GetNrZones() > idx) {
         auto z = d->ListZones();
@@ -303,7 +303,7 @@ bool RaidZonedBlockDevice::ZoneIsActive(std::unique_ptr<ZoneList> &zones,
 
 bool RaidZonedBlockDevice::ZoneIsOpen(std::unique_ptr<ZoneList> &zones,
                                       idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       if (d->GetNrZones() > idx) {
         auto z = d->ListZones();
@@ -320,7 +320,7 @@ bool RaidZonedBlockDevice::ZoneIsOpen(std::unique_ptr<ZoneList> &zones,
 
 uint64_t RaidZonedBlockDevice::ZoneStart(std::unique_ptr<ZoneList> &zones,
                                          idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       if (d->GetNrZones() > idx) {
         auto z = d->ListZones();
@@ -337,7 +337,7 @@ uint64_t RaidZonedBlockDevice::ZoneStart(std::unique_ptr<ZoneList> &zones,
 
 uint64_t RaidZonedBlockDevice::ZoneMaxCapacity(std::unique_ptr<ZoneList> &zones,
                                                idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       if (d->GetNrZones() > idx) {
         auto z = d->ListZones();
@@ -354,7 +354,7 @@ uint64_t RaidZonedBlockDevice::ZoneMaxCapacity(std::unique_ptr<ZoneList> &zones,
 
 uint64_t RaidZonedBlockDevice::ZoneWp(std::unique_ptr<ZoneList> &zones,
                                       idx_t idx) {
-  if (main_mode_ == RaidMode::RAID0) {
+  if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       if (d->GetNrZones() > idx) {
         auto z = d->ListZones();
