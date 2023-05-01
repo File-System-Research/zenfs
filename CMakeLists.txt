@@ -55,7 +55,7 @@ if (AQUAFS_STANDALONE)
     add_test(NAME aquafs-mkfs-raid0 COMMAND sudo $<TARGET_FILE:aquafs> mkfs --raids=raid0:dev:nullb0,dev:nullb1 --aux_path=/tmp/aux_path --force)
     add_test(NAME aquafs-mkfs-raid1 COMMAND sudo $<TARGET_FILE:aquafs> mkfs --raids=raid1:dev:nullb0,dev:nullb1 --aux_path=/tmp/aux_path --force)
 
-    add_test(NAME aquafs_db_bench COMMAND sudo $<TARGET_FILE:db_bench> --fs_uri=aquafs://dev:nullb0 --benchmarks=fillrandom --use_direct_io_for_flush_and_compaction)
+    add_test(NAME aquafs-db_bench COMMAND sudo $<TARGET_FILE:db_bench> --fs_uri=aquafs://dev:nullb0 --benchmarks=fillrandom --use_direct_io_for_flush_and_compaction)
 else ()
     set(aquafs_SOURCES "fs/fs_aquafs.cc" "fs/zbd_aquafs.cc" "fs/io_aquafs.cc" "fs/zonefs_aquafs.cc"
             "fs/zbdlib_aquafs.cc" "fs/zone_raid.cc" PARENT_SCOPE)
@@ -78,4 +78,16 @@ else ()
     #  endif()
 
     file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define AQUAFS_VERSION \"${AQUAFS_VERSION}\"\n")
+
+    add_executable(aquafs ${CMAKE_CURRENT_SOURCE_DIR}/util/aquafs.cc)
+    target_link_libraries(aquafs rocksdb)
+    target_include_directories(aquafs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+    add_test(NAME aquafs-mkfs COMMAND sudo $<TARGET_FILE:aquafs> mkfs --zbd=nullb0 --aux_path=/tmp/aux_path --force)
+    add_test(NAME aquafs-list COMMAND sudo $<TARGET_FILE:aquafs> list --zbd=nullb0)
+
+    add_test(NAME aquafs-mkfs-raid0 COMMAND sudo $<TARGET_FILE:aquafs> mkfs --raids=raid0:dev:nullb0,dev:nullb1 --aux_path=/tmp/aux_path --force)
+    add_test(NAME aquafs-mkfs-raid1 COMMAND sudo $<TARGET_FILE:aquafs> mkfs --raids=raid1:dev:nullb0,dev:nullb1 --aux_path=/tmp/aux_path --force)
+
+    add_test(NAME aquafs-db_bench COMMAND sudo $<TARGET_FILE:db_bench> --fs_uri=aquafs://raid1:dev:nullb0,dev:nullb1 --benchmarks=fillrandom --use_direct_io_for_flush_and_compaction)
 endif ()
