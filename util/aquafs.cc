@@ -44,7 +44,7 @@ DEFINE_string(src_file, "", "Source file path");
 DEFINE_string(dest_file, "", "Destination file path");
 DEFINE_bool(enable_gc, false, "Enable garbage collection");
 
-namespace ROCKSDB_NAMESPACE {
+namespace AQUAFS_NAMESPACE {
 
 void AddDirSeparatorAtEnd(std::string &path) {
   if (path.empty() || path.back() != '/') path = path + "/";
@@ -813,29 +813,29 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (subcmd == "mkfs") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_mkfs();
+    return AQUAFS_NAMESPACE::aquafs_tool_mkfs();
   } else if (subcmd == "list") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_list();
+    return AQUAFS_NAMESPACE::aquafs_tool_list();
   } else if (subcmd == "ls-uuid") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_lsuuid();
+    return AQUAFS_NAMESPACE::aquafs_tool_lsuuid();
   } else if (subcmd == "df") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_df();
+    return AQUAFS_NAMESPACE::aquafs_tool_df();
   } else if (subcmd == "backup") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_backup();
+    return AQUAFS_NAMESPACE::aquafs_tool_backup();
   } else if (subcmd == "restore") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_restore();
+    return AQUAFS_NAMESPACE::aquafs_tool_restore();
   } else if (subcmd == "dump") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_dump();
+    return AQUAFS_NAMESPACE::aquafs_tool_dump();
   } else if (subcmd == "fs-info") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_fsinfo();
+    return AQUAFS_NAMESPACE::aquafs_tool_fsinfo();
   } else if (subcmd == "link") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_link();
+    return AQUAFS_NAMESPACE::aquafs_tool_link();
   } else if (subcmd == "delete") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_delete_file();
+    return AQUAFS_NAMESPACE::aquafs_tool_delete_file();
   } else if (subcmd == "rename") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_rename_file();
+    return AQUAFS_NAMESPACE::aquafs_tool_rename_file();
   } else if (subcmd == "rmdir") {
-    return ROCKSDB_NAMESPACE::aquafs_tool_remove_directory();
+    return AQUAFS_NAMESPACE::aquafs_tool_remove_directory();
   } else {
     fprintf(stderr, "Subcommand not recognized: %s\n", subcmd.c_str());
     return 1;
