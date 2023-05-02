@@ -544,4 +544,5 @@ std::string RaidZonedBlockDevice::GetFilename() {
   return name;
 }
 bool RaidZonedBlockDevice::IsRAIDEnabled() const { return true; }
+RaidMode RaidZonedBlockDevice::getMainMode() const { return main_mode_; }
 }  // namespace AQUAFS_NAMESPACE

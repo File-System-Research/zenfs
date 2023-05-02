@@ -170,6 +170,8 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   }
   bool IsRAIDEnabled() const override;
 
+  RaidMode getMainMode() const;
+
   ~RaidZonedBlockDevice() override = default;
 };
 
@@ -187,6 +189,7 @@ class RaidInfoBasic {
     if (zbd->IsRAIDEnabled()) {
       auto be = dynamic_cast<RaidZonedBlockDevice *>(zbd->getBackend().get());
       if (!be) return;
+      main_mode = be->getMainMode();
       nr_devices = be->nr_dev();
       dev_block_size = be->def_dev()->GetBlockSize();
       dev_zone_size = be->def_dev()->GetZoneSize();
@@ -198,6 +201,11 @@ class RaidInfoBasic {
     if (!zbd->IsRAIDEnabled()) return Status::OK();
     auto be = dynamic_cast<RaidZonedBlockDevice *>(zbd->getBackend().get());
     if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");
+    if (main_mode != be->getMainMode())
+      return Status::Corruption(
+          "RAID Error", "main_mode mismatch: superblock-raid" +
+                            std::string(raid_mode_str(main_mode)) +
+                            " != disk-raid" + raid_mode_str(be->getMainMode()));
     if (nr_devices != be->nr_dev())
       return Status::Corruption("RAID Error", "nr_devices mismatch");
     if (dev_block_size != be->def_dev()->GetBlockSize())
