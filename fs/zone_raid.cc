@@ -15,7 +15,7 @@ using namespace ROCKSDB_NAMESPACE;
 /**
  * @brief Construct a new Raid Zoned Block Device object
  * @param mode main mode. RAID_A for auto-raid
- * @param devices
+ * @param devices all devices under management
  */
 RaidZonedBlockDevice::RaidZonedBlockDevice(
     std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices,
@@ -30,6 +30,14 @@ RaidZonedBlockDevice::RaidZonedBlockDevice(
     assert(d->GetNrZones() == device_default()->GetNrZones());
     assert(d->GetZoneSize() == device_default()->GetZoneSize());
     assert(d->GetBlockSize() == device_default()->GetBlockSize());
+  }
+  // create temporal device map: AQUAFS_META_ZONES in the first device is used
+  // as meta zones, and marked as RAID_NONE; others are marked as RAID0
+  idx_t idx;
+  for (idx = 0; idx < AQUAFS_META_ZONES; idx++) {
+    for (size_t i = 0; i < devices_.size(); i++)
+      device_zone_map_[idx + i] = {0, idx, 0};
+    mode_map_[idx] = {RaidMode::RAID_NONE, 0};
   }
   syncBackendInfo();
 }
@@ -47,17 +55,19 @@ IOStatus RaidZonedBlockDevice::Open(bool readonly, bool exclusive,
 }
 
 void RaidZonedBlockDevice::syncBackendInfo() {
-  auto total_nr_zones = std::accumulate(
+  total_nr_devices_zones_ = std::accumulate(
       devices_.begin(), devices_.end(), 0,
       [](int sum, const std::unique_ptr<ZonedBlockDeviceBackend> &dev) {
         return sum + dev->nr_zones_;
       });
-  block_sz_ = device_default()->block_sz_;
-  zone_sz_ = device_default()->zone_sz_;
+  block_sz_ = device_default()->GetBlockSize();
+  zone_sz_ = device_default()->GetZoneSize();
+  nr_zones_ = device_default()->GetNrZones();
   if (main_mode_ == RaidMode::RAID_C) {
-    nr_zones_ = total_nr_zones;
+    nr_zones_ = total_nr_devices_zones_;
   } else if (main_mode_ == RaidMode::RAID1) {
-    nr_zones_ = device_default()->nr_zones_;
+  } else if (main_mode_ == RaidMode::RAID_A) {
+    zone_sz_ *= devices_.size();
   } else {
     nr_zones_ = 0;
   }

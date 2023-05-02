@@ -31,6 +31,27 @@
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"
 
+#ifndef KB
+#define KB (1024)
+#endif
+#ifndef MB
+#define MB (1024 * KB)
+#endif
+
+#ifndef AQUAFS_META_ZONES
+/* Number of reserved zones for metadata
+ * Two non-offline meta zones are needed to be able
+ * to roll the metadata log safely. One extra
+ * is allocated to cover for one zone going offline.
+ */
+#define AQUAFS_META_ZONES (3 + 1)
+#endif
+
+#ifndef AQUAFS_MIN_ZONES
+/* Minimum of number of zones that makes sense */
+#define AQUAFS_MIN_ZONES (32)
+#endif
+
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
 

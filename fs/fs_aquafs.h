@@ -27,6 +27,7 @@ namespace fs = std::filesystem;
 #include "snapshot.h"
 #include "version.h"
 #include "zbd_aquafs.h"
+#include "zone_raid.h"
 
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
@@ -50,6 +51,11 @@ class Superblock {
   char aux_fs_path_[256] = {0};
   uint32_t finish_treshold_ = 0;
   char aquafs_version_[64]{0};
+
+  // raid info
+  RaidMode raid_main_mode_ = RaidMode::RAID_NONE;
+  uint32_t raid_nr_devices_ = 0;
+  // todo
   char reserved_[123] = {0};
 
  public:
@@ -136,6 +142,17 @@ class ZenMetaLog {
   IOStatus Read(Slice* slice);
 };
 
+class RaidInfoBasic {
+ public:
+  uint32_t nr_devices;
+};
+
+class RaidInfoAppend {
+ public:
+  RaidZonedBlockDevice::device_zone_map_t device_zone_map;
+  RaidZonedBlockDevice::mode_map_t mode_map;
+};
+
 class AquaFS : public FileSystemWrapper {
   ZonedBlockDevice* zbd_;
   std::map<std::string, std::shared_ptr<ZoneFile>> files_;
@@ -170,6 +187,7 @@ class AquaFS : public FileSystemWrapper {
     kFileDeletion = 3,
     kEndRecord = 4,
     kFileReplace = 5,
+    kRaidInfoAppend = 6,
   };
 
   void LogFiles();
@@ -202,6 +220,8 @@ class AquaFS : public FileSystemWrapper {
   Status DecodeSnapshotFrom(Slice* input);
   Status DecodeFileUpdateFrom(Slice* slice, bool replace = false);
   Status DecodeFileDeletionFrom(Slice* slice);
+
+  Status DecodeRaidAppendFrom(Slice* slice);
 
   Status RecoverFrom(ZenMetaLog* log);
 

@@ -9,7 +9,9 @@
 
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
-enum class RaidMode {
+enum class RaidMode : uint32_t {
+  // AquaFS No RAID
+  RAID_NONE = 0,
   RAID0,
   RAID1,
   RAID5,
@@ -73,16 +75,29 @@ class RaidMapItem {
   uint8_t invalid;
 };
 
+class RaidModeItem {
+ public:
+  RaidMode mode;
+  // extra option for raid mode, for example: n extra zones for raid5
+  uint32_t option;
+};
+
 class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
+ public:
+  // use `map` or `unordered_map` to store raid mappings
+  template <typename K, typename V>
+  using map_use = std::unordered_map<K, V>;
+  using device_zone_map_t = map_use<idx_t, RaidMapItem>;
+  using mode_map_t = map_use<idx_t, RaidModeItem>;
  private:
   std::shared_ptr<Logger> logger_;
   RaidMode main_mode_;
   std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices_;
-  // use `map` or `unordered_map` to store raid mappings
-  template <typename K, typename V>
-  using map_use = std::unordered_map<K, V>;
-  // map: raid zone idx -> device idx, device zone idx
-  map_use<idx_t, RaidMapItem> raid_map_;
+  // map: raid zone idx (* sz) -> device idx, device zone idx
+  device_zone_map_t device_zone_map_;
+  // map: raid zone idx -> raid mode, option
+  mode_map_t mode_map_;
+  uint32_t total_nr_devices_zones_;
 
   const IOStatus unsupported = IOStatus::NotSupported("Raid unsupported");
 
@@ -98,7 +113,12 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices)
       : RaidZonedBlockDevice(std::move(devices), RaidMode::RAID_A, nullptr) {}
 
-  // void load_layout();
+  void load_layout(device_zone_map_t &&device_zone, mode_map_t &&mode_map) {
+    device_zone_map_ = std::move(device_zone);
+    mode_map_ = std::move(mode_map);
+  }
+  const device_zone_map_t &getDeviceZoneMap() const { return device_zone_map_; }
+  const mode_map_t &getModeMap() const { return mode_map_; }
 
   IOStatus Open(bool readonly, bool exclusive, unsigned int *max_active_zones,
                 unsigned int *max_open_zones) override;

@@ -1267,6 +1267,21 @@ Status AquaFS::DecodeFileDeletionFrom(Slice* input) {
   return Status::OK();
 }
 
+Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
+  // on disk, map format is:
+  // <uint32_t> nr_device_zone_map
+  // <nr_device_zone_map> {
+  //    <uint32_t> raid zone idx (* sz),
+  //    <RaidMapItem> item
+  // }
+  // <uint32_t> nr_mode_map
+  // <nr_mode_map> {
+  //    <uint32_t> raid zone idx,
+  //    <RaidMapItem>
+  // }
+  return {};
+}
+
 Status AquaFS::RecoverFrom(ZenMetaLog* log) {
   bool at_least_one_snapshot = false;
   std::string scratch;
@@ -1329,6 +1344,10 @@ Status AquaFS::RecoverFrom(ZenMetaLog* log) {
                s.ToString().c_str());
           return s;
         }
+        break;
+
+      case kRaidInfoAppend:
+        DecodeRaidAppendFrom(&data);
         break;
 
       default:

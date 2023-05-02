@@ -37,19 +37,6 @@
 #include "zone_raid.h"
 #include "zonefs_aquafs.h"
 
-#define KB (1024)
-#define MB (1024 * KB)
-
-/* Number of reserved zones for metadata
- * Two non-offline meta zones are needed to be able
- * to roll the metadata log safely. One extra
- * is allocated to cover for one zone going offline.
- */
-#define AQUAFS_META_ZONES (3 + 1)
-
-/* Minimum of number of zones that makes sense */
-#define AQUAFS_MIN_ZONES (32)
-
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
 
