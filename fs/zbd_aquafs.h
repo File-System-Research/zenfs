@@ -152,9 +152,9 @@ class ZonedBlockDeviceBackend {
   virtual uint64_t ZoneWp(std::unique_ptr<ZoneList> &zones,
                           unsigned int idx) = 0;
   virtual std::string GetFilename() = 0;
-  uint32_t GetBlockSize() const { return block_sz_; };
-  uint64_t GetZoneSize() const { return zone_sz_; };
-  uint32_t GetNrZones() const { return nr_zones_; };
+  [[nodiscard]] uint32_t GetBlockSize() const { return block_sz_; };
+  [[nodiscard]] uint64_t GetZoneSize() const { return zone_sz_; };
+  [[nodiscard]] uint32_t GetNrZones() const { return nr_zones_; };
   template <typename T>
   auto get_idx_block(T pos) const {
     return pos / static_cast<T>(GetBlockSize());

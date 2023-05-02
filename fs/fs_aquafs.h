@@ -38,6 +38,7 @@ class ZoneSnapshot;
 class ZoneFileSnapshot;
 class AquaFSSnapshot;
 class AquaFSSnapshotOptions;
+class AquaFSConsoleLogger;
 
 class Superblock {
   uint32_t magic_ = 0;

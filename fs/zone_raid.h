@@ -9,6 +9,9 @@
 
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
+
+class RaidConsoleLogger;
+
 enum class RaidMode : uint32_t {
   // AquaFS No RAID
   RAID_NONE = 0,
@@ -158,7 +161,8 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   template <typename T>
   auto req_pos(T pos) const {
     auto blk_offset = pos % static_cast<T>(GetBlockSize());
-    return blk_offset + (pos - blk_offset) / nr_dev();
+    return blk_offset +
+           ((pos - blk_offset) / GetBlockSize()) / nr_dev() * GetBlockSize();
   }
 
   ~RaidZonedBlockDevice() override = default;

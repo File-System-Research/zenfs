@@ -139,9 +139,15 @@ Status Superblock::CompatibleWith(ZonedBlockDevice* zbd) {
   if (block_size_ != zbd->GetBlockSize())
     return Status::Corruption("AquaFS Superblock",
                               "Error: block size missmatch");
-  if (zone_size_ != (zbd->GetZoneSize() / block_size_))
+  if (zone_size_ != (zbd->GetZoneSize() / block_size_)) {
+    printf(
+        "zone size missmatch! zone_size_=%x, zbd->GetZoneSize()=%lx, "
+        "block_size_=%x, right=%lx\n",
+        zone_size_, zbd->GetZoneSize(), block_size_,
+        (zbd->GetZoneSize() / block_size_));
     return Status::Corruption("AquaFS Superblock",
                               "Error: zone size missmatch");
+  }
   if (nr_zones_ > zbd->GetNrZones())
     return Status::Corruption("AquaFS Superblock",
                               "Error: nr of zones missmatch");
@@ -258,9 +264,25 @@ IOStatus AquaMetaLog::ReadRecord(Slice* record, std::string* scratch) {
   return IOStatus::OK();
 }
 
+class AquaFSConsoleLogger : public Logger {
+ public:
+  using Logger::Logv;
+  AquaFSConsoleLogger() : Logger(InfoLogLevel::DEBUG_LEVEL) {}
+
+  void Logv(const char* format, va_list ap) override {
+    MutexLock _(&lock_);
+    vprintf(format, ap);
+    printf("\n");
+    fflush(stdout);
+  }
+
+  port::Mutex lock_;
+};
+
 AquaFS::AquaFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
                std::shared_ptr<Logger> logger)
     : FileSystemWrapper(aux_fs), zbd_(zbd), logger_(logger) {
+  if (!logger_) logger_.reset(new AquaFSConsoleLogger());
   Info(logger_, "AquaFS initializing");
   Info(logger_, "AquaFS parameters: block device: %s, aux filesystem: %s",
        zbd_->GetFilename().c_str(), target()->Name());
@@ -437,9 +459,9 @@ IOStatus AquaFS::RollMetaZoneLocked() {
   meta_log_.swap(new_meta_log);
 
   /* Write an end record and finish the meta data zone if there is space left */
-  if (old_meta_log->GetZone()->GetCapacityLeft())
+  if (old_meta_log && old_meta_log->GetZone()->GetCapacityLeft())
     WriteEndRecord(old_meta_log.get());
-  if (old_meta_log->GetZone()->GetCapacityLeft())
+  if (old_meta_log && old_meta_log->GetZone()->GetCapacityLeft())
     old_meta_log->GetZone()->Finish();
 
   std::string super_string;
@@ -455,7 +477,7 @@ IOStatus AquaFS::RollMetaZoneLocked() {
   s = WriteSnapshotLocked(meta_log_.get());
 
   /* We've rolled successfully, we can reset the old zone now */
-  if (s.ok()) old_meta_log->GetZone()->Reset();
+  if (s.ok() && old_meta_log) old_meta_log->GetZone()->Reset();
 
   return s;
 }
@@ -1503,7 +1525,7 @@ Status AquaFS::Mount(bool readonly) {
     std::lock_guard<std::mutex> lock(files_mtx_);
     s = RollMetaZoneLocked();
     if (!s.ok()) {
-      Error(logger_, "Failed to roll metadata zone.");
+      Error(logger_, "Failed to roll metadata zone: %s", s.getState());
       return s;
     }
   }
@@ -1625,20 +1647,6 @@ Status NewAquaFS(FileSystem** fs, const std::string& bdevname,
   return NewAquaFS(fs, ZbdBackendType::kBlockDev, bdevname, metrics);
 }
 
-class MyConsoleLogger : public Logger {
- public:
-  using Logger::Logv;
-  MyConsoleLogger() : Logger(InfoLogLevel::DEBUG_LEVEL) {}
-
-  void Logv(const char* format, va_list ap) override {
-    MutexLock _(&lock_);
-    vprintf(format, ap);
-    printf("\n");
-  }
-
-  port::Mutex lock_;
-};
-
 Status NewAquaFS(FileSystem** fs, const ZbdBackendType backend_type,
                  const std::string& backend_name,
                  std::shared_ptr<AquaFSMetrics> metrics) {
@@ -1652,7 +1660,7 @@ Status NewAquaFS(FileSystem** fs, const ZbdBackendType backend_type,
   // RocksDB's logger in the future.
 #if !defined(NDEBUG) || defined(WITH_TERARKDB)
   // s = Env::Default()->NewLogger(GetLogFilename(backend_name), &logger);
-  logger = std::make_shared<MyConsoleLogger>();
+  logger = std::make_shared<AquaFSConsoleLogger>();
   if (!s.ok()) {
     fprintf(stderr, "AquaFS: Could not create logger");
   } else {
