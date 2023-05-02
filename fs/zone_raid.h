@@ -104,7 +104,7 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
 
   void syncBackendInfo();
 
-  ZonedBlockDeviceBackend *device_default() { return devices_.begin()->get(); }
+  ZonedBlockDeviceBackend *def_dev() { return devices_.begin()->get(); }
 
  public:
   explicit RaidZonedBlockDevice(
@@ -141,6 +141,26 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
                            idx_t idx) override;
   uint64_t ZoneWp(std::unique_ptr<ZoneList> &zones, idx_t idx) override;
   std::string GetFilename() override;
+
+  template <class T>
+  T nr_dev_t() const {
+    return static_cast<T>(devices_.size());
+  }
+  auto nr_dev() const { return devices_.size(); }
+  template <typename T>
+  auto get_idx_dev(T pos) const {
+    return get_idx_dev(pos, nr_dev_t<T>());
+  }
+  template <typename T>
+  auto get_idx_dev(T pos, T m) const {
+    return get_idx_block(pos) % m;
+  }
+  template <typename T>
+  auto req_pos(T pos) const {
+    auto blk_offset = pos % static_cast<T>(GetBlockSize());
+    return blk_offset + (pos - blk_offset) / nr_dev();
+  }
+
   ~RaidZonedBlockDevice() override = default;
 };
 
@@ -151,7 +171,7 @@ class RaidInfoBasic {
   // assert all devices are same in these fields
   uint32_t dev_block_size = 0; /* in bytes */
   uint32_t dev_zone_size = 0;  /* in blocks */
-  uint32_t dev_nr_zones = 0; /* in one device */
+  uint32_t dev_nr_zones = 0;   /* in one device */
 };
 
 class RaidInfoAppend {
