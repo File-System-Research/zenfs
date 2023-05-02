@@ -93,6 +93,8 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   using device_zone_map_t = map_use<idx_t, RaidMapItem>;
   using mode_map_t = map_use<idx_t, RaidModeItem>;
 
+  ZonedBlockDeviceBackend *def_dev() { return devices_.begin()->get(); }
+
  private:
   std::shared_ptr<Logger> logger_;
   RaidMode main_mode_;
@@ -106,8 +108,6 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   const IOStatus unsupported = IOStatus::NotSupported("Raid unsupported");
 
   void syncBackendInfo();
-
-  ZonedBlockDeviceBackend *def_dev() { return devices_.begin()->get(); }
 
  public:
   explicit RaidZonedBlockDevice(
@@ -151,6 +151,10 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   }
   auto nr_dev() const { return devices_.size(); }
   template <typename T>
+  auto get_idx_block(T pos) const {
+    return pos / static_cast<T>(GetBlockSize());
+  }
+  template <typename T>
   auto get_idx_dev(T pos) const {
     return get_idx_dev(pos, nr_dev_t<T>());
   }
@@ -164,6 +168,7 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
     return blk_offset +
            ((pos - blk_offset) / GetBlockSize()) / nr_dev() * GetBlockSize();
   }
+  bool IsRAIDEnabled() const override;
 
   ~RaidZonedBlockDevice() override = default;
 };
@@ -176,6 +181,33 @@ class RaidInfoBasic {
   uint32_t dev_block_size = 0; /* in bytes */
   uint32_t dev_zone_size = 0;  /* in blocks */
   uint32_t dev_nr_zones = 0;   /* in one device */
+
+  void load(ZonedBlockDevice *zbd) {
+    assert(sizeof(RaidInfoBasic) == sizeof(uint32_t) * 5);
+    if (zbd->IsRAIDEnabled()) {
+      auto be = dynamic_cast<RaidZonedBlockDevice *>(zbd->getBackend().get());
+      if (!be) return;
+      nr_devices = be->nr_dev();
+      dev_block_size = be->def_dev()->GetBlockSize();
+      dev_zone_size = be->def_dev()->GetZoneSize();
+      dev_nr_zones = be->def_dev()->GetNrZones();
+    }
+  }
+
+  Status compatible(ZonedBlockDevice *zbd) const {
+    if (!zbd->IsRAIDEnabled()) return Status::OK();
+    auto be = dynamic_cast<RaidZonedBlockDevice *>(zbd->getBackend().get());
+    if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");
+    if (nr_devices != be->nr_dev())
+      return Status::Corruption("RAID Error", "nr_devices mismatch");
+    if (dev_block_size != be->def_dev()->GetBlockSize())
+      return Status::Corruption("RAID Error", "dev_block_size mismatch");
+    if (dev_zone_size != be->def_dev()->GetZoneSize())
+      return Status::Corruption("RAID Error", "dev_zone_size mismatch");
+    if (dev_nr_zones != be->def_dev()->GetNrZones())
+      return Status::Corruption("RAID Error", "dev_nr_zones mismatch");
+    return Status::OK();
+  }
 };
 
 class RaidInfoAppend {

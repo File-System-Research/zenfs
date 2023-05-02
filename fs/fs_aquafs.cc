@@ -151,6 +151,8 @@ Status Superblock::CompatibleWith(ZonedBlockDevice* zbd) {
   if (nr_zones_ > zbd->GetNrZones())
     return Status::Corruption("AquaFS Superblock",
                               "Error: nr of zones missmatch");
+  auto s = raid_info_.compatible(zbd);
+  if (!s.ok()) return s;
 
   return Status::OK();
 }

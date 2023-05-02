@@ -93,11 +93,11 @@ void RaidZonedBlockDevice::syncBackendInfo() {
     case RaidMode::RAID_C:
       nr_zones_ = total_nr_devices_zones_;
       break;
+    case RaidMode::RAID_A:
     case RaidMode::RAID0:
       zone_sz_ *= nr_dev();
       break;
     case RaidMode::RAID1:
-    case RaidMode::RAID_A:
       break;
     default:
       nr_zones_ = 0;
@@ -543,4 +543,5 @@ std::string RaidZonedBlockDevice::GetFilename() {
   }
   return name;
 }
+bool RaidZonedBlockDevice::IsRAIDEnabled() const { return true; }
 }  // namespace AQUAFS_NAMESPACE

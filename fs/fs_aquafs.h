@@ -94,6 +94,10 @@ class Superblock {
     std::string aquafs_version = AQUAFS_VERSION;
     strncpy(aquafs_version_, aquafs_version.c_str(),
             sizeof(aquafs_version_) - 1);
+
+    if (zbd->IsRAIDEnabled()) {
+      raid_info_.load(zbd);
+    }
   }
 
   Status DecodeFrom(Slice* input);

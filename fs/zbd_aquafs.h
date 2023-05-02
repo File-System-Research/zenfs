@@ -155,11 +155,8 @@ class ZonedBlockDeviceBackend {
   [[nodiscard]] uint32_t GetBlockSize() const { return block_sz_; };
   [[nodiscard]] uint64_t GetZoneSize() const { return zone_sz_; };
   [[nodiscard]] uint32_t GetNrZones() const { return nr_zones_; };
-  template <typename T>
-  auto get_idx_block(T pos) const {
-    return pos / static_cast<T>(GetBlockSize());
-  }
-  virtual ~ZonedBlockDeviceBackend(){};
+  [[nodiscard]] virtual bool IsRAIDEnabled() const { return false; };
+  virtual ~ZonedBlockDeviceBackend() = default;
 };
 
 enum class ZbdBackendType { kBlockDev, kZoneFS, kRaid };
@@ -254,6 +251,12 @@ class ZonedBlockDevice {
     return bytes_written_.load() - gc_bytes_written_.load();
   };
   uint64_t GetTotalBytesWritten() { return bytes_written_.load(); };
+
+  [[nodiscard]] bool IsRAIDEnabled() const { return zbd_be_->IsRAIDEnabled(); }
+  [[nodiscard]] const std::unique_ptr<ZonedBlockDeviceBackend> &getBackend()
+      const {
+    return zbd_be_;
+  }
 
  private:
   IOStatus GetZoneDeferredStatus();
