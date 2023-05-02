@@ -4,6 +4,7 @@
 
 #include "zone_raid.h"
 
+#include <memory>
 #include <utility>
 
 #include "rocksdb/io_status.h"
@@ -77,6 +78,8 @@ IOStatus RaidZonedBlockDevice::Open(bool readonly, bool exclusive,
     assert(d->GetBlockSize() == def_dev()->GetBlockSize());
   }
   syncBackendInfo();
+  a_zones_.reset(new raid_zone_t[nr_zones_]);
+  memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
   return s;
 }
 
@@ -148,6 +151,10 @@ std::unique_ptr<ZoneList> RaidZonedBlockDevice::ListZones() {
       }
       return std::make_unique<ZoneList>(data, nr_zones);
     }
+  } else if (main_mode_ == RaidMode::RAID_A) {
+    auto data = new raid_zone_t[nr_zones_];
+    memcpy(data, a_zones_.get(), sizeof(raid_zone_t) * nr_zones_);
+    return std::make_unique<ZoneList>(data, nr_zones_);
   }
   return {};
 }
@@ -230,6 +237,20 @@ IOStatus RaidZonedBlockDevice::Close(uint64_t start) {
       if (!s.ok()) return s;
     }
     return s;
+  } else if (main_mode_ == RaidMode::RAID0) {
+    assert(start % GetBlockSize() == 0);
+    assert(start % GetZoneSize() == 0);
+    // auto idx_dev = get_idx_dev(start);
+    auto s = start / nr_dev();
+    // auto r = devices_[idx_dev]->Close(s);
+    IOStatus r{};
+    for (auto &&d : devices_) {
+      r = d->Close(s);
+      if (!r.ok()) {
+        return r;
+      }
+    }
+    return r;
   }
   return unsupported;
 }

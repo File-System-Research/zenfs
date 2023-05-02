@@ -92,6 +92,7 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   using map_use = std::unordered_map<K, V>;
   using device_zone_map_t = map_use<idx_t, RaidMapItem>;
   using mode_map_t = map_use<idx_t, RaidModeItem>;
+  using raid_zone_t = struct zbd_zone;
 
   ZonedBlockDeviceBackend *def_dev() { return devices_.begin()->get(); }
 
@@ -104,6 +105,8 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   // map: raid zone idx -> raid mode, option
   mode_map_t mode_map_;
   uint32_t total_nr_devices_zones_;
+  // auto-raid: manually managed zone info
+  std::unique_ptr<raid_zone_t> a_zones_{};
 
   const IOStatus unsupported = IOStatus::NotSupported("Raid unsupported");
 
