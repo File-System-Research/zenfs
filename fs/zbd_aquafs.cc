@@ -229,9 +229,9 @@ IOStatus ZonedBlockDevice::Open(bool readonly, bool exclusive) {
   if (ios != IOStatus::OK()) return ios;
 
   if (zbd_be_->GetNrZones() < AQUAFS_MIN_ZONES) {
-    return IOStatus::NotSupported("To few zones on zoned backend (" +
-                                  std::to_string(AQUAFS_MIN_ZONES) +
-                                  " required)");
+    return IOStatus::NotSupported(
+        "To few zones on zoned backend (" + std::to_string(AQUAFS_MIN_ZONES) +
+        " required), now is " + std::to_string(zbd_be_->GetNrZones()));
   }
 
   if (max_nr_active_zones == 0)

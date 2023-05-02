@@ -17,16 +17,17 @@ namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
 
 // Indicate what stats info we want.
-struct AquaFSSnapshotOptions {
+class AquaFSSnapshotOptions {
+ public:
   // Global zoned device stats info
-  bool zbd_ = 0;
+  bool zbd_ = false;
   // Per zone stats info
-  bool zone_ = 0;
+  bool zone_ = false;
   // Get all file->extents & extent->file mappings
-  bool zone_file_ = 0;
-  bool trigger_report_ = 0;
-  bool log_garbage_ = 0;
-  bool as_lock_free_as_possible_ = 1;
+  bool zone_file_ = false;
+  bool trigger_report_ = false;
+  bool log_garbage_ = false;
+  bool as_lock_free_as_possible_ = true;
 };
 
 class ZBDSnapshot {
@@ -96,7 +97,7 @@ class AquaFSSnapshot {
  public:
   AquaFSSnapshot() {}
 
-  AquaFSSnapshot& operator=(AquaFSSnapshot&& snapshot) {
+  AquaFSSnapshot& operator=(AquaFSSnapshot&& snapshot) noexcept {
     zbd_ = snapshot.zbd_;
     zones_ = std::move(snapshot.zones_);
     zone_files_ = std::move(snapshot.zone_files_);

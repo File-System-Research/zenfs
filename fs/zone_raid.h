@@ -89,6 +89,7 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   using map_use = std::unordered_map<K, V>;
   using device_zone_map_t = map_use<idx_t, RaidMapItem>;
   using mode_map_t = map_use<idx_t, RaidModeItem>;
+
  private:
   std::shared_ptr<Logger> logger_;
   RaidMode main_mode_;
@@ -141,5 +142,21 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   uint64_t ZoneWp(std::unique_ptr<ZoneList> &zones, idx_t idx) override;
   std::string GetFilename() override;
   ~RaidZonedBlockDevice() override = default;
+};
+
+class RaidInfoBasic {
+ public:
+  RaidMode main_mode = RaidMode::RAID_NONE;
+  uint32_t nr_devices = 0;
+  // assert all devices are same in these fields
+  uint32_t dev_block_size = 0; /* in bytes */
+  uint32_t dev_zone_size = 0;  /* in blocks */
+  uint32_t dev_nr_zones = 0; /* in one device */
+};
+
+class RaidInfoAppend {
+ public:
+  RaidZonedBlockDevice::device_zone_map_t device_zone_map;
+  RaidZonedBlockDevice::mode_map_t mode_map;
 };
 };  // namespace AQUAFS_NAMESPACE

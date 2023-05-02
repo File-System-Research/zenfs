@@ -53,24 +53,24 @@ class Superblock {
   char aquafs_version_[64]{0};
 
   // raid info
-  RaidMode raid_main_mode_ = RaidMode::RAID_NONE;
-  uint32_t raid_nr_devices_ = 0;
-  // todo
-  char reserved_[123] = {0};
+  RaidInfoBasic raid_info_;
+  char reserved_[123 - sizeof(raid_info_)] = {0};
 
  public:
-  const uint32_t MAGIC = 0x5a454e46; /* ZENF */
+  const uint32_t MAGIC = 0x41515541; /* AQUA */
   const uint32_t ENCODED_SIZE = 512;
   const uint32_t CURRENT_SUPERBLOCK_VERSION = 2;
   const uint32_t DEFAULT_FLAGS = 0;
   const uint32_t FLAGS_ENABLE_GC = 1 << 0;
+  const uint32_t FLAGS_ENABLE_RAID = 1 << 1;
 
   Superblock() {}
 
   /* Create a superblock for a filesystem covering the entire zoned block device
    */
   Superblock(ZonedBlockDevice* zbd, std::string aux_fs_path = "",
-             uint32_t finish_threshold = 0, bool enable_gc = false) {
+             uint32_t finish_threshold = 0, bool enable_gc = false,
+             bool enable_raid = false) {
     std::string uuid = Env::Default()->GenerateUniqueId();
     int uuid_len =
         std::min(uuid.length(),
@@ -80,6 +80,7 @@ class Superblock {
     superblock_version_ = CURRENT_SUPERBLOCK_VERSION;
     flags_ = DEFAULT_FLAGS;
     if (enable_gc) flags_ |= FLAGS_ENABLE_GC;
+    if (enable_raid) flags_ |= FLAGS_ENABLE_RAID;
 
     finish_treshold_ = finish_threshold;
 
@@ -105,6 +106,7 @@ class Superblock {
   uint32_t GetFinishTreshold() { return finish_treshold_; }
   std::string GetUUID() { return std::string(uuid_); }
   bool IsGCEnabled() { return flags_ & FLAGS_ENABLE_GC; };
+  bool IsRAIDEnabled() { return flags_ & FLAGS_ENABLE_RAID; };
 };
 
 class ZenMetaLog {
@@ -140,17 +142,6 @@ class ZenMetaLog {
 
  private:
   IOStatus Read(Slice* slice);
-};
-
-class RaidInfoBasic {
- public:
-  uint32_t nr_devices;
-};
-
-class RaidInfoAppend {
- public:
-  RaidZonedBlockDevice::device_zone_map_t device_zone_map;
-  RaidZonedBlockDevice::mode_map_t mode_map;
 };
 
 class AquaFS : public FileSystemWrapper {

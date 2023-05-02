@@ -57,6 +57,8 @@ Status Superblock::DecodeFrom(Slice* input) {
   input->remove_prefix(sizeof(aux_fs_path_));
   memcpy(&aquafs_version_, input->data(), sizeof(aquafs_version_));
   input->remove_prefix(sizeof(aquafs_version_));
+  memcpy(&raid_info_, input->data(), sizeof(raid_info_));
+  input->remove_prefix(sizeof(raid_info_));
   memcpy(&reserved_, input->data(), sizeof(reserved_));
   input->remove_prefix(sizeof(reserved_));
   assert(input->size() == 0);
@@ -88,6 +90,7 @@ void Superblock::EncodeTo(std::string* output) {
   PutFixed32(output, finish_treshold_);
   output->append(aux_fs_path_, sizeof(aux_fs_path_));
   output->append(aquafs_version_, sizeof(aquafs_version_));
+  output->append(reinterpret_cast<char*>(&raid_info_), sizeof(raid_info_));
   output->append(reserved_, sizeof(reserved_));
   assert(output->length() == ENCODED_SIZE);
 }
@@ -121,6 +124,15 @@ void Superblock::GetReport(std::string* reportString) {
     aquafs_version = "Not Available";
   }
   reportString->append(aquafs_version);
+  reportString->append("\nAquaFS RAID Enabled:\t");
+  auto raid_enabled = IsRAIDEnabled();
+  reportString->append(std::to_string(raid_enabled));
+  if (raid_enabled) {
+    reportString->append("\nAquaFS Raid Mode:\t\t");
+    reportString->append(raid_mode_str(raid_info_.main_mode));
+    reportString->append("\nAquaFS Raid Number of Devices:\t");
+    reportString->append(std::to_string(raid_info_.nr_devices));
+  }
 }
 
 Status Superblock::CompatibleWith(ZonedBlockDevice* zbd) {
@@ -286,9 +298,9 @@ void AquaFS::GCWorker() {
 
     if (free_percent > GC_START_LEVEL) continue;
 
-    options.zone_ = 1;
-    options.zone_file_ = 1;
-    options.log_garbage_ = 1;
+    options.zone_ = true;
+    options.zone_file_ = true;
+    options.log_garbage_ = true;
 
     GetAquaFSSnapshot(snapshot, options);
 
