@@ -72,9 +72,9 @@ std::unique_ptr<ZonedBlockDevice> zbd_open(bool readonly, bool exclusive) {
 }
 
 // Here we pass 'zbd' by non-const reference to be able to pass its ownership
-// to 'zenFS'
+// to 'aquaFS'
 Status aquafs_mount(std::unique_ptr<ZonedBlockDevice> &zbd,
-                    std::unique_ptr<AquaFS> *zenFS, bool readonly) {
+                    std::unique_ptr<AquaFS> *aquaFS, bool readonly) {
   Status s;
 
   std::unique_ptr<AquaFS> localAquaFS{
@@ -83,7 +83,7 @@ Status aquafs_mount(std::unique_ptr<ZonedBlockDevice> &zbd,
   if (!s.ok()) {
     localAquaFS.reset();
   }
-  *zenFS = std::move(localAquaFS);
+  *aquaFS = std::move(localAquaFS);
 
   return s;
 }
@@ -171,8 +171,8 @@ int aquafs_tool_mkfs() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, false);
   if ((s.ok() || !s.IsNotFound()) && !FLAGS_force) {
     fprintf(
         stderr,
@@ -180,15 +180,15 @@ int aquafs_tool_mkfs() {
     return 1;
   }
 
-  zenFS.reset();
+  aquaFS.reset();
 
   zbd = zbd_open(false, true);
   ZonedBlockDevice *zbdRaw = zbd.get();
-  zenFS.reset(new AquaFS(zbd.release(), FileSystem::Default(), nullptr));
+  aquaFS.reset(new AquaFS(zbd.release(), FileSystem::Default(), nullptr));
 
   AddDirSeparatorAtEnd(FLAGS_aux_path);
 
-  s = zenFS->MkFS(FLAGS_aux_path, FLAGS_finish_threshold, FLAGS_enable_gc);
+  s = aquaFS->MkFS(FLAGS_aux_path, FLAGS_finish_threshold, FLAGS_enable_gc);
   if (!s.ok()) {
     fprintf(stderr, "Failed to create file system, error: %s\n",
             s.ToString().c_str());
@@ -201,13 +201,13 @@ int aquafs_tool_mkfs() {
   return 0;
 }
 
-void list_children(const std::unique_ptr<AquaFS> &zenFS,
+void list_children(const std::unique_ptr<AquaFS> &aquaFS,
                    const std::string &path) {
   IOOptions opts;
   IODebugContext dbg;
   std::vector<std::string> result;
   uint64_t size;
-  IOStatus io_status = zenFS->GetChildren(path, opts, &result, &dbg);
+  IOStatus io_status = aquaFS->GetChildren(path, opts, &result, &dbg);
 
   if (!io_status.ok()) {
     fprintf(stderr, "Error: %s %s\n", io_status.ToString().c_str(),
@@ -216,13 +216,13 @@ void list_children(const std::unique_ptr<AquaFS> &zenFS,
   }
 
   for (const auto &f : result) {
-    io_status = zenFS->GetFileSize(path + f, opts, &size, &dbg);
+    io_status = aquaFS->GetFileSize(path + f, opts, &size, &dbg);
     if (!io_status.ok()) {
       fprintf(stderr, "Failed to get size of file %s\n", f.c_str());
       return;
     }
     uint64_t mtime;
-    io_status = zenFS->GetFileModificationTime(path + f, opts, &mtime, &dbg);
+    io_status = aquaFS->GetFileModificationTime(path + f, opts, &mtime, &dbg);
     if (!io_status.ok()) {
       fprintf(stderr,
               "Failed to get modification time of file %s, error = %s\n",
@@ -245,15 +245,15 @@ int aquafs_tool_list() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(true, false);
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, true);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
     return 1;
   }
   AddDirSeparatorAtEnd(FLAGS_path);
-  list_children(zenFS, FLAGS_path);
+  list_children(aquaFS, FLAGS_path);
 
   return 0;
 }
@@ -264,8 +264,8 @@ int aquafs_tool_df() {
   if (!zbd) return 1;
   ZonedBlockDevice *zbdRaw = zbd.get();
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, true);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -288,15 +288,15 @@ int aquafs_tool_df() {
 }
 
 int aquafs_tool_lsuuid() {
-  std::map<std::string, std::pair<std::string, ZbdBackendType>> zenFileSystems;
-  Status s = ListZenFileSystems(zenFileSystems);
+  std::map<std::string, std::pair<std::string, ZbdBackendType>> aquaFileSystems;
+  Status s = ListAquaFileSystems(aquaFileSystems);
   if (!s.ok()) {
     fprintf(stderr, "Failed to enumerate file systems: %s",
             s.ToString().c_str());
     return 1;
   }
 
-  for (const auto &p : zenFileSystems)
+  for (const auto &p : aquaFileSystems)
     fprintf(stdout, "%s\t%s\n", p.first.c_str(), p.second.first.c_str());
 
   return 0;
@@ -493,8 +493,8 @@ int aquafs_tool_backup() {
 
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  status = aquafs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> aquaFS;
+  status = aquafs_mount(zbd, &aquaFS, true);
   if (!status.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             status.ToString().c_str());
@@ -502,7 +502,7 @@ int aquafs_tool_backup() {
   }
 
   bool is_dir;
-  io_status = zenFS->IsDirectory(FLAGS_backup_path, opts, &is_dir, &dbg);
+  io_status = aquaFS->IsDirectory(FLAGS_backup_path, opts, &is_dir, &dbg);
   if (!io_status.ok()) {
     fprintf(stderr, "IsDirectory failed, error: %s\n",
             io_status.ToString().c_str());
@@ -514,7 +514,7 @@ int aquafs_tool_backup() {
         FLAGS_path + "/" +
         FLAGS_backup_path.substr(FLAGS_backup_path.find_last_of('/') + 1);
     io_status =
-        aquafs_tool_copy_file(zenFS.get(), FLAGS_backup_path,
+        aquafs_tool_copy_file(aquaFS.get(), FLAGS_backup_path,
                               FileSystem::Default().get(), dest_filename);
   } else {
     io_status =
@@ -527,7 +527,7 @@ int aquafs_tool_backup() {
 
     std::string backup_path = FLAGS_backup_path;
     AddDirSeparatorAtEnd(backup_path);
-    io_status = aquafs_tool_copy_dir(zenFS.get(), backup_path,
+    io_status = aquafs_tool_copy_dir(aquaFS.get(), backup_path,
                                      FileSystem::Default().get(), FLAGS_path);
   }
   if (!io_status.ok()) {
@@ -535,7 +535,7 @@ int aquafs_tool_backup() {
     return 1;
   }
 
-  wlth_map = zenFS->GetWriteLifeTimeHints();
+  wlth_map = aquaFS->GetWriteLifeTimeHints();
   return SaveWriteLifeTimeHints();
 }
 
@@ -552,15 +552,15 @@ int aquafs_tool_link() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, false);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
     return 1;
   }
 
-  io_s = zenFS->LinkFile(FLAGS_src_file, FLAGS_dest_file, iopts, &dbg);
+  io_s = aquaFS->LinkFile(FLAGS_src_file, FLAGS_dest_file, iopts, &dbg);
   if (!io_s.ok()) {
     fprintf(stderr, "Link failed, error: %s\n", io_s.ToString().c_str());
     return 1;
@@ -584,15 +584,15 @@ int aquafs_tool_delete_file() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, false);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
     return 1;
   }
 
-  io_s = zenFS->DeleteFile(FLAGS_path, iopts, &dbg);
+  io_s = aquaFS->DeleteFile(FLAGS_path, iopts, &dbg);
   if (!io_s.ok()) {
     fprintf(stderr, "Delete failed with error: %s\n", io_s.ToString().c_str());
     return 1;
@@ -616,15 +616,15 @@ int aquafs_tool_rename_file() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, false);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
     return 1;
   }
 
-  io_s = zenFS->RenameFile(FLAGS_src_file, FLAGS_dest_file, iopts, &dbg);
+  io_s = aquaFS->RenameFile(FLAGS_src_file, FLAGS_dest_file, iopts, &dbg);
   if (!io_s.ok()) {
     fprintf(stderr, "Rename failed, error: %s\n", io_s.ToString().c_str());
     return 1;
@@ -648,8 +648,8 @@ int aquafs_tool_remove_directory() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, false);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -657,7 +657,7 @@ int aquafs_tool_remove_directory() {
   }
 
   if (FLAGS_force) {
-    io_s = zenFS->DeleteDirRecursive(FLAGS_path, iopts, &dbg);
+    io_s = aquaFS->DeleteDirRecursive(FLAGS_path, iopts, &dbg);
     if (!io_s.ok()) {
       fprintf(stderr,
               "Force delete for given directory failed with error: %s\n",
@@ -666,7 +666,7 @@ int aquafs_tool_remove_directory() {
     }
     fprintf(stdout, "Force deleted directory %s\n", FLAGS_path.c_str());
   } else {
-    io_s = zenFS->DeleteDir(FLAGS_path, iopts, &dbg);
+    io_s = aquaFS->DeleteDir(FLAGS_path, iopts, &dbg);
     if (!io_s.ok()) {
       fprintf(stderr, "Delete for given directory failed with error: %s\n",
               io_s.ToString().c_str());
@@ -704,15 +704,15 @@ int aquafs_tool_restore() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(false, true);
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  status = aquafs_mount(zbd, &zenFS, false);
+  std::unique_ptr<AquaFS> aquaFS;
+  status = aquafs_mount(zbd, &aquaFS, false);
   if (!status.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             status.ToString().c_str());
     return 1;
   }
 
-  io_status = aquafs_create_directories(zenFS.get(), FLAGS_restore_path);
+  io_status = aquafs_create_directories(aquaFS.get(), FLAGS_restore_path);
   if (!io_status.ok()) {
     fprintf(stderr, "Create directory failed, error: %s\n",
             io_status.ToString().c_str());
@@ -722,12 +722,12 @@ int aquafs_tool_restore() {
   if (!is_dir) {
     std::string dest_file =
         FLAGS_restore_path + fpath.lexically_normal().filename().string();
-    io_status = aquafs_tool_copy_file(f_fs, FLAGS_path, zenFS.get(), dest_file);
+    io_status = aquafs_tool_copy_file(f_fs, FLAGS_path, aquaFS.get(), dest_file);
   } else {
     AddDirSeparatorAtEnd(FLAGS_path);
     ReadWriteLifeTimeHints();
     io_status =
-        aquafs_tool_copy_dir(f_fs, FLAGS_path, zenFS.get(), FLAGS_restore_path);
+        aquafs_tool_copy_dir(f_fs, FLAGS_path, aquaFS.get(), FLAGS_restore_path);
   }
 
   if (!io_status.ok()) {
@@ -744,8 +744,8 @@ int aquafs_tool_dump() {
   if (!zbd) return 1;
   ZonedBlockDevice *zbdRaw = zbd.get();
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, true);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
@@ -756,7 +756,7 @@ int aquafs_tool_dump() {
   json_stream << "{\"zones\":";
   zbdRaw->EncodeJson(json_stream);
   json_stream << ",\"files\":";
-  zenFS->EncodeJson(json_stream);
+  aquaFS->EncodeJson(json_stream);
   json_stream << "}";
 
   return 0;
@@ -767,20 +767,20 @@ int aquafs_tool_fsinfo() {
   std::unique_ptr<ZonedBlockDevice> zbd = zbd_open(true, false);
   if (!zbd) return 1;
 
-  std::unique_ptr<AquaFS> zenFS;
-  s = aquafs_mount(zbd, &zenFS, true);
+  std::unique_ptr<AquaFS> aquaFS;
+  s = aquafs_mount(zbd, &aquaFS, true);
   if (!s.ok()) {
     fprintf(stderr, "Failed to mount filesystem, error: %s\n",
             s.ToString().c_str());
     return 1;
   }
   std::string superblock_report;
-  zenFS->ReportSuperblock(&superblock_report);
+  aquaFS->ReportSuperblock(&superblock_report);
   fprintf(stdout, "%s\n", superblock_report.c_str());
   return 0;
 }
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace AQUAFS_NAMESPACE
 
 int main(int argc, char **argv) {
   gflags::SetUsageMessage(

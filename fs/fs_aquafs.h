@@ -109,7 +109,7 @@ class Superblock {
   bool IsRAIDEnabled() { return flags_ & FLAGS_ENABLE_RAID; };
 };
 
-class ZenMetaLog {
+class AquaMetaLog {
   uint64_t read_pos_;
   Zone* zone_;
   ZonedBlockDevice* zbd_;
@@ -120,7 +120,7 @@ class ZenMetaLog {
   const size_t zMetaHeaderSize = sizeof(uint32_t) * 2;
 
  public:
-  ZenMetaLog(ZonedBlockDevice* zbd, Zone* zone) {
+  AquaMetaLog(ZonedBlockDevice* zbd, Zone* zone) {
     assert(zone->IsBusy());
     zbd_ = zbd;
     zone_ = zone;
@@ -128,7 +128,7 @@ class ZenMetaLog {
     read_pos_ = zone->start_;
   }
 
-  virtual ~ZenMetaLog() {
+  virtual ~AquaMetaLog() {
     // TODO: report async error status
     bool ok = zone_->Release();
     assert(ok);
@@ -152,7 +152,7 @@ class AquaFS : public FileSystemWrapper {
   std::atomic<uint64_t> next_file_id_;
 
   Zone* cur_meta_zone_ = nullptr;
-  std::unique_ptr<ZenMetaLog> meta_log_;
+  std::unique_ptr<AquaMetaLog> meta_log_;
   std::mutex metadata_sync_mtx_;
   std::unique_ptr<Superblock> superblock_;
 
@@ -162,11 +162,11 @@ class AquaFS : public FileSystemWrapper {
   bool run_gc_worker_ = false;
 
   struct AquaFSMetadataWriter : public MetadataWriter {
-    AquaFS* zenFS;
+    AquaFS* aquaFS;
     IOStatus Persist(ZoneFile* zoneFile) {
-      Debug(zenFS->GetLogger(), "Syncing metadata for: %s",
+      Debug(aquaFS->GetLogger(), "Syncing metadata for: %s",
             zoneFile->GetFilename().c_str());
-      return zenFS->SyncFileMetadata(zoneFile);
+      return aquaFS->SyncFileMetadata(zoneFile);
     }
   };
 
@@ -184,10 +184,10 @@ class AquaFS : public FileSystemWrapper {
   void LogFiles();
   void ClearFiles();
   std::string FormatPathLexically(fs::path filepath);
-  IOStatus WriteSnapshotLocked(ZenMetaLog* meta_log);
-  IOStatus WriteEndRecord(ZenMetaLog* meta_log);
+  IOStatus WriteSnapshotLocked(AquaMetaLog* meta_log);
+  IOStatus WriteEndRecord(AquaMetaLog* meta_log);
   IOStatus RollMetaZoneLocked();
-  IOStatus PersistSnapshot(ZenMetaLog* meta_writer);
+  IOStatus PersistSnapshot(AquaMetaLog* meta_writer);
   IOStatus PersistRecord(std::string record);
   IOStatus SyncFileExtents(ZoneFile* zoneFile,
                            std::vector<ZoneExtent*> new_extents);
@@ -214,7 +214,7 @@ class AquaFS : public FileSystemWrapper {
 
   Status DecodeRaidAppendFrom(Slice* slice);
 
-  Status RecoverFrom(ZenMetaLog* log);
+  Status RecoverFrom(AquaMetaLog* log);
 
   std::string ToAuxPath(std::string path) {
     return superblock_->GetAuxFsPath() + path;
@@ -487,10 +487,10 @@ Status NewAquaFS(FileSystem** fs, const ZbdBackendType backend_type,
                  const std::string& backend_name,
                  std::shared_ptr<AquaFSMetrics> metrics =
                      std::make_shared<NoAquaFSMetrics>());
-Status AppendZenFileSystem(
+Status AppendAquaFileSystem(
     std::string path, ZbdBackendType backend,
     std::map<std::string, std::pair<std::string, ZbdBackendType>>& fs_list);
-Status ListZenFileSystems(
+Status ListAquaFileSystems(
     std::map<std::string, std::pair<std::string, ZbdBackendType>>& out_list);
 
 }  // namespace AQUAFS_NAMESPACE

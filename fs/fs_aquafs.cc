@@ -32,7 +32,7 @@
 #include "util/crc32c.h"
 #include "util/mutexlock.h"
 
-#define DEFAULT_ZENV_LOG_PATH "/tmp/"
+#define DEFAULT_AQUAV_LOG_PATH "/tmp/"
 
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
@@ -149,7 +149,7 @@ Status Superblock::CompatibleWith(ZonedBlockDevice* zbd) {
   return Status::OK();
 }
 
-IOStatus ZenMetaLog::AddRecord(const Slice& slice) {
+IOStatus AquaMetaLog::AddRecord(const Slice& slice) {
   uint32_t record_sz = slice.size();
   const char* data = slice.data();
   size_t phys_sz;
@@ -184,7 +184,7 @@ IOStatus ZenMetaLog::AddRecord(const Slice& slice) {
   return s;
 }
 
-IOStatus ZenMetaLog::Read(Slice* slice) {
+IOStatus AquaMetaLog::Read(Slice* slice) {
   char* data = (char*)slice->data();
   size_t read = 0;
   size_t to_read = slice->size();
@@ -213,7 +213,7 @@ IOStatus ZenMetaLog::Read(Slice* slice) {
   return IOStatus::OK();
 }
 
-IOStatus ZenMetaLog::ReadRecord(Slice* record, std::string* scratch) {
+IOStatus AquaMetaLog::ReadRecord(Slice* record, std::string* scratch) {
   Slice header;
   uint32_t record_sz = 0;
   uint32_t record_crc = 0;
@@ -267,7 +267,7 @@ AquaFS::AquaFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
 
   Info(logger_, "AquaFS initializing");
   next_file_id_ = 1;
-  metadata_writer_.zenFS = this;
+  metadata_writer_.aquaFS = this;
 }
 
 AquaFS::~AquaFS() {
@@ -389,7 +389,7 @@ void AquaFS::ClearFiles() {
 }
 
 /* Assumes that files_mutex_ is held */
-IOStatus AquaFS::WriteSnapshotLocked(ZenMetaLog* meta_log) {
+IOStatus AquaFS::WriteSnapshotLocked(AquaMetaLog* meta_log) {
   IOStatus s;
   std::string snapshot;
 
@@ -404,7 +404,7 @@ IOStatus AquaFS::WriteSnapshotLocked(ZenMetaLog* meta_log) {
   return s;
 }
 
-IOStatus AquaFS::WriteEndRecord(ZenMetaLog* meta_log) {
+IOStatus AquaFS::WriteEndRecord(AquaMetaLog* meta_log) {
   std::string endRecord;
 
   PutFixed32(&endRecord, kEndRecord);
@@ -413,7 +413,7 @@ IOStatus AquaFS::WriteEndRecord(ZenMetaLog* meta_log) {
 
 /* Assumes the files_mtx_ is held */
 IOStatus AquaFS::RollMetaZoneLocked() {
-  std::unique_ptr<ZenMetaLog> new_meta_log, old_meta_log;
+  std::unique_ptr<AquaMetaLog> new_meta_log, old_meta_log;
   Zone* new_meta_zone = nullptr;
   IOStatus s;
 
@@ -431,7 +431,7 @@ IOStatus AquaFS::RollMetaZoneLocked() {
   }
 
   Info(logger_, "Rolling to metazone %d\n", (int)new_meta_zone->GetZoneNr());
-  new_meta_log.reset(new ZenMetaLog(zbd_, new_meta_zone));
+  new_meta_log.reset(new AquaMetaLog(zbd_, new_meta_zone));
 
   old_meta_log.swap(meta_log_);
   meta_log_.swap(new_meta_log);
@@ -460,7 +460,7 @@ IOStatus AquaFS::RollMetaZoneLocked() {
   return s;
 }
 
-IOStatus AquaFS::PersistSnapshot(ZenMetaLog* meta_writer) {
+IOStatus AquaFS::PersistSnapshot(AquaMetaLog* meta_writer) {
   IOStatus s;
 
   std::lock_guard<std::mutex> file_lock(files_mtx_);
@@ -1294,7 +1294,7 @@ Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
   return {};
 }
 
-Status AquaFS::RecoverFrom(ZenMetaLog* log) {
+Status AquaFS::RecoverFrom(AquaMetaLog* log) {
   bool at_least_one_snapshot = false;
   std::string scratch;
   uint32_t tag = 0;
@@ -1378,7 +1378,7 @@ Status AquaFS::RecoverFrom(ZenMetaLog* log) {
 Status AquaFS::Mount(bool readonly) {
   std::vector<Zone*> metazones = zbd_->GetMetaZones();
   std::vector<std::unique_ptr<Superblock>> valid_superblocks;
-  std::vector<std::unique_ptr<ZenMetaLog>> valid_logs;
+  std::vector<std::unique_ptr<AquaMetaLog>> valid_logs;
   std::vector<Zone*> valid_zones;
   std::vector<std::pair<uint32_t, uint32_t>> seq_map;
 
@@ -1395,7 +1395,7 @@ Status AquaFS::Mount(bool readonly) {
 
   /* Find all valid superblocks */
   for (const auto z : metazones) {
-    std::unique_ptr<ZenMetaLog> log;
+    std::unique_ptr<AquaMetaLog> log;
     std::string scratch;
     Slice super_record;
 
@@ -1406,7 +1406,7 @@ Status AquaFS::Mount(bool readonly) {
     }
 
     // log takes the ownership of z's busy flag.
-    log.reset(new ZenMetaLog(zbd_, z));
+    log.reset(new AquaMetaLog(zbd_, z));
 
     if (!log->ReadRecord(&super_record, &scratch).ok()) continue;
 
@@ -1444,7 +1444,7 @@ Status AquaFS::Mount(bool readonly) {
   for (const auto& sm : seq_map) {
     uint32_t i = sm.second;
     std::string scratch;
-    std::unique_ptr<ZenMetaLog> log = std::move(valid_logs[i]);
+    std::unique_ptr<AquaMetaLog> log = std::move(valid_logs[i]);
 
     s = RecoverFrom(log.get());
     if (!s.ok()) {
@@ -1533,7 +1533,7 @@ Status AquaFS::Mount(bool readonly) {
 Status AquaFS::MkFS(std::string aux_fs_p, uint32_t finish_threshold,
                     bool enable_gc) {
   std::vector<Zone*> metazones = zbd_->GetMetaZones();
-  std::unique_ptr<ZenMetaLog> log;
+  std::unique_ptr<AquaMetaLog> log;
   Zone* meta_zone = nullptr;
   std::string aux_fs_path = FormatPathLexically(aux_fs_p);
   IOStatus s;
@@ -1573,7 +1573,7 @@ Status AquaFS::MkFS(std::string aux_fs_p, uint32_t finish_threshold,
     return Status::IOError("Not available meta zones\n");
   }
 
-  log.reset(new ZenMetaLog(zbd_, meta_zone));
+  log.reset(new AquaMetaLog(zbd_, meta_zone));
 
   Superblock super(zbd_, aux_fs_path, finish_threshold, enable_gc);
   std::string super_string;
@@ -1614,7 +1614,7 @@ __attribute__((__unused__)) static std::string GetLogFilename(
   char buf[40];
 
   std::strftime(buf, sizeof(buf), "%Y-%m-%d_%H:%M:%S.log", log_start);
-  ss << DEFAULT_ZENV_LOG_PATH << std::string("aquafs_") << bdev << "_" << buf;
+  ss << DEFAULT_AQUAV_LOG_PATH << std::string("aquafs_") << bdev << "_" << buf;
 
   return ss.str();
 }
@@ -1672,18 +1672,18 @@ Status NewAquaFS(FileSystem** fs, const ZbdBackendType backend_type,
     return Status::IOError(zbd_status.ToString());
   }
 
-  AquaFS* zenFS = new AquaFS(zbd, FileSystem::Default(), logger);
-  s = zenFS->Mount(false);
+  AquaFS* aquaFS = new AquaFS(zbd, FileSystem::Default(), logger);
+  s = aquaFS->Mount(false);
   if (!s.ok()) {
-    delete zenFS;
+    delete aquaFS;
     return s;
   }
 
-  *fs = zenFS;
+  *fs = aquaFS;
   return Status::OK();
 }
 
-Status AppendZenFileSystem(
+Status AppendAquaFileSystem(
     std::string path, ZbdBackendType backend,
     std::map<std::string, std::pair<std::string, ZbdBackendType>>& fs_map) {
   std::unique_ptr<ZonedBlockDevice> zbd{
@@ -1698,12 +1698,12 @@ Status AppendZenFileSystem(
 
     for (const auto z : metazones) {
       Superblock super_block;
-      std::unique_ptr<ZenMetaLog> log;
+      std::unique_ptr<AquaMetaLog> log;
       if (!z->Acquire()) {
         return Status::Aborted("Could not aquire busy flag of zone" +
                                std::to_string(z->GetZoneNr()));
       }
-      log.reset(new ZenMetaLog(zbd.get(), z));
+      log.reset(new AquaMetaLog(zbd.get(), z));
 
       if (!log->ReadRecord(&super_record, &scratch).ok()) continue;
       s = super_block.DecodeFrom(&super_record);
@@ -1723,9 +1723,9 @@ Status AppendZenFileSystem(
   return Status::OK();
 }
 
-Status ListZenFileSystems(
+Status ListAquaFileSystems(
     std::map<std::string, std::pair<std::string, ZbdBackendType>>& out_list) {
-  std::map<std::string, std::pair<std::string, ZbdBackendType>> zenFileSystems;
+  std::map<std::string, std::pair<std::string, ZbdBackendType>> aquaFileSystems;
 
   auto closedirDeleter = [](DIR* d) {
     if (d != nullptr) closedir(d);
@@ -1737,8 +1737,8 @@ Status ListZenFileSystems(
   while (NULL != (entry = readdir(dir.get()))) {
     if (entry->d_type == DT_LNK) {
       Status status =
-          AppendZenFileSystem(std::string(entry->d_name),
-                              ZbdBackendType::kBlockDev, zenFileSystems);
+          AppendAquaFileSystem(std::string(entry->d_name),
+                               ZbdBackendType::kBlockDev, aquaFileSystems);
       if (!status.ok()) return status;
     }
   }
@@ -1750,14 +1750,15 @@ Status ListZenFileSystems(
   if (file != NULL) {
     while ((mnt = getmntent(file)) != NULL) {
       if (!strcmp(mnt->mnt_type, "zonefs")) {
-        Status status = AppendZenFileSystem(
-            std::string(mnt->mnt_dir), ZbdBackendType::kZoneFS, zenFileSystems);
+        Status status =
+            AppendAquaFileSystem(std::string(mnt->mnt_dir),
+                                 ZbdBackendType::kZoneFS, aquaFileSystems);
         if (!status.ok()) return status;
       }
     }
   }
 
-  out_list = std::move(zenFileSystems);
+  out_list = std::move(aquaFileSystems);
   return Status::OK();
 }
 
@@ -1947,24 +1948,24 @@ FactoryFunc<FileSystem> aquafs_filesystem_reg =
             }
           } else if (devID.rfind("uuid:") == 0) {
             std::map<std::string, std::pair<std::string, ZbdBackendType>>
-                zenFileSystems;
-            s = ListZenFileSystems(zenFileSystems);
+                aquaFileSystems;
+            s = ListAquaFileSystems(aquaFileSystems);
             if (!s.ok()) {
               *errmsg = s.ToString();
             } else {
               devID.replace(0, strlen("uuid:"), "");
 
-              if (zenFileSystems.find(devID) == zenFileSystems.end()) {
+              if (aquaFileSystems.find(devID) == aquaFileSystems.end()) {
                 *errmsg = "UUID not found";
               } else {
 
 #ifdef AQUAFS_EXPORT_PROMETHEUS
-                s = NewAquaFS(&fs, zenFileSystems[devID].second,
-                              zenFileSystems[devID].first,
+                s = NewAquaFS(&fs, aquaFileSystems[devID].second,
+                              aquaFileSystems[devID].first,
                               std::make_shared<AquaFSPrometheusMetrics>());
 #else
-                s = NewAquaFS(&fs, zenFileSystems[devID].second,
-                              zenFileSystems[devID].first);
+                s = NewAquaFS(&fs, aquaFileSystems[devID].second,
+                              aquaFileSystems[devID].first);
 #endif
                 if (!s.ok()) {
                   *errmsg = s.ToString();
@@ -1995,9 +1996,9 @@ Status NewAquaFS(FileSystem** /*fs*/, const ZbdBackendType /*backend_type*/,
                  AquaFSMetrics* /*metrics*/) {
   return Status::NotSupported("Not built with AquaFS support\n");
 }
-std::map<std::string, std::string> ListZenFileSystems() {
-  std::map<std::string, std::pair<std::string, ZbdBackendType>> zenFileSystems;
-  return zenFileSystems;
+std::map<std::string, std::string> ListAquaFileSystems() {
+  std::map<std::string, std::pair<std::string, ZbdBackendType>> aquaFileSystems;
+  return aquaFileSystems;
 }
 }  // namespace ROCKSDB_NAMESPACE
 
