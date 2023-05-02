@@ -267,7 +267,7 @@ IOStatus AquaMetaLog::ReadRecord(Slice* record, std::string* scratch) {
 class AquaFSConsoleLogger : public Logger {
  public:
   using Logger::Logv;
-  AquaFSConsoleLogger() : Logger(InfoLogLevel::DEBUG_LEVEL) {}
+  AquaFSConsoleLogger() : Logger(InfoLogLevel::INFO_LEVEL) {}
 
   void Logv(const char* format, va_list ap) override {
     MutexLock _(&lock_);
