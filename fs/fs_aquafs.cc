@@ -136,23 +136,17 @@ void Superblock::GetReport(std::string* reportString) {
 }
 
 Status Superblock::CompatibleWith(ZonedBlockDevice* zbd) {
+  auto s = raid_info_.compatible(zbd);
+  if (!s.ok()) return s;
   if (block_size_ != zbd->GetBlockSize())
     return Status::Corruption("AquaFS Superblock",
                               "Error: block size missmatch");
-  if (zone_size_ != (zbd->GetZoneSize() / block_size_)) {
-    printf(
-        "zone size missmatch! zone_size_=%x, zbd->GetZoneSize()=%lx, "
-        "block_size_=%x, right=%lx\n",
-        zone_size_, zbd->GetZoneSize(), block_size_,
-        (zbd->GetZoneSize() / block_size_));
+  if (zone_size_ != (zbd->GetZoneSize() / block_size_))
     return Status::Corruption("AquaFS Superblock",
                               "Error: zone size missmatch");
-  }
   if (nr_zones_ > zbd->GetNrZones())
     return Status::Corruption("AquaFS Superblock",
                               "Error: nr of zones missmatch");
-  auto s = raid_info_.compatible(zbd);
-  if (!s.ok()) return s;
 
   return Status::OK();
 }
