@@ -190,6 +190,8 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   template <class T>
   RaidMapItem getAutoDeviceZone(T pos);
   template <class T>
+  idx_t getAutoDeviceZoneIdx(T pos);
+  template <class T>
   T getAutoMappedDevicePos(T pos);
 
   ~RaidZonedBlockDevice() override = default;
