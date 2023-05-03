@@ -98,7 +98,7 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   using mode_map_t = map_use<idx_t, RaidModeItem>;
   using raid_zone_t = struct zbd_zone;
 
-  ZonedBlockDeviceBackend *def_dev() { return devices_.begin()->get(); }
+  ZonedBlockDeviceBackend *def_dev() const { return devices_.begin()->get(); }
 
  private:
   std::shared_ptr<Logger> logger_;
@@ -129,10 +129,12 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   void layout_update(device_zone_map_t &&device_zone, mode_map_t &&mode_map) {
     for (auto &&p : device_zone) device_zone_map_.insert(p);
     for (auto &&p : mode_map) mode_map_.insert(p);
+    flush_zone_info();
   }
   void layout_setup(device_zone_map_t &&device_zone, mode_map_t &&mode_map) {
     device_zone_map_ = std::move(device_zone);
     mode_map_ = std::move(mode_map);
+    flush_zone_info();
   }
   const device_zone_map_t &getDeviceZoneMap() const { return device_zone_map_; }
   const mode_map_t &getModeMap() const { return mode_map_; }
@@ -182,8 +184,11 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
            ((pos - blk_offset) / GetBlockSize()) / nr_dev() * GetBlockSize();
   }
   bool IsRAIDEnabled() const override;
-
   RaidMode getMainMode() const;
+  template <class T>
+  RaidMapItem getAutoDeviceZone(T pos);
+  template <class T>
+  T getAutoMappedDevicePos(T pos);
 
   ~RaidZonedBlockDevice() override = default;
 };
