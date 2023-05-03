@@ -42,6 +42,8 @@ __attribute__((__unused__)) static const char *raid_mode_str(RaidMode mode) {
       return "a";
     case RaidMode::RAID_C:
       return "c";
+    case RaidMode::RAID_NONE:
+      return "n";
     default:
       return "UNKNOWN";
   }
