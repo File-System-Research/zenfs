@@ -417,11 +417,11 @@ int RaidZonedBlockDevice::Read(char *buf, int size, uint64_t pos, bool direct) {
       if (mode_item.mode == RaidMode::RAID_C ||
           mode_item.mode == RaidMode::RAID1 ||
           mode_item.mode == RaidMode::RAID_NONE) {
-        Info(logger_,
-             "RAID-A: READ raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x, "
-             "zone=%x",
-             raid_mode_str(mode_item.mode), pos, mapped_pos, m.device_idx,
-             m.zone_idx);
+        // Info(logger_,
+        //      "RAID-A: READ raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x, "
+        //      "zone=%x",
+        //      raid_mode_str(mode_item.mode), pos, mapped_pos, m.device_idx,
+        //      m.zone_idx);
         return devices_[m.device_idx]->Read(buf, size, mapped_pos, direct);
       } else if (mode_item.mode == RaidMode::RAID0) {
         // split read range as blocks
@@ -435,11 +435,11 @@ int RaidZonedBlockDevice::Read(char *buf, int size, uint64_t pos, bool direct) {
               size,
               static_cast<int>(GetBlockSize() - mapped_pos % GetBlockSize()));
           r = devices_[m.device_idx]->Read(buf, req_size, mapped_pos, direct);
-          Info(
-              logger_,
-              "RAID-A: [read=%x] READ raid0 mapping pos=%lx to mapped_pos=%lx, "
-              "dev=%x, zone=%x; r=%x",
-              sz_read, pos, mapped_pos, m.device_idx, m.zone_idx, r);
+          // Info(
+          //     logger_,
+          //     "RAID-A: [read=%x] READ raid0 mapping pos=%lx to mapped_pos=%lx, "
+          //     "dev=%x, zone=%x; r=%x",
+          //     sz_read, pos, mapped_pos, m.device_idx, m.zone_idx, r);
           if (r > 0) {
             size -= r;
             sz_read += r;
@@ -460,7 +460,7 @@ int RaidZonedBlockDevice::Read(char *buf, int size, uint64_t pos, bool direct) {
 }
 
 int RaidZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
-  Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
+  // Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
   if (main_mode_ == RaidMode::RAID_C) {
     for (auto &&d : devices_) {
       auto sz = d->GetNrZones() * d->GetZoneSize();
@@ -548,14 +548,14 @@ int RaidZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
           auto z = devices_[m.device_idx]->ListZones();
           auto p = reinterpret_cast<raid_zone_t *>(z->GetData());
           auto pp = p[m.zone_idx];
-          if (pos == 0x10001000 || pos == 0x10000000 ||
-              (m.device_idx == 1 && m.zone_idx == 0)) {
-            Info(logger_,
-                 "[DBG] RAID-A-0: dev_zone_info: st=%llx, cap=%llx, "
-                 "wp=%llx, sz=%llx; to write: dev=%x, zone=%x, pos=%lx, sz=%x",
-                 pp.start, pp.capacity, pp.wp, pp.capacity, m.device_idx,
-                 m.zone_idx, mapped_pos, size);
-          }
+          // if (pos == 0x10001000 || pos == 0x10000000 ||
+          //     (m.device_idx == 1 && m.zone_idx == 0)) {
+          //   Info(logger_,
+          //        "[DBG] RAID-A-0: dev_zone_info: st=%llx, cap=%llx, "
+          //        "wp=%llx, sz=%llx; to write: dev=%x, zone=%x, pos=%lx, sz=%x",
+          //        pp.start, pp.capacity, pp.wp, pp.capacity, m.device_idx,
+          //        m.zone_idx, mapped_pos, size);
+          // }
           auto req_size =
               std::min(size, static_cast<uint32_t>(
                                  GetBlockSize() - mapped_pos % GetBlockSize()));
