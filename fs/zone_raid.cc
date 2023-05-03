@@ -542,12 +542,12 @@ int RaidZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
         // TODO: Write blocks in multi-threads
         int r;
         while (size > 0) {
-          auto mi = getAutoDeviceZoneIdx(pos);
           m = getAutoDeviceZone(pos);
           mapped_pos = getAutoMappedDevicePos(pos);
-          auto z = devices_[m.device_idx]->ListZones();
-          auto p = reinterpret_cast<raid_zone_t *>(z->GetData());
-          auto pp = p[m.zone_idx];
+          // auto mi = getAutoDeviceZoneIdx(pos);
+          // auto z = devices_[m.device_idx]->ListZones();
+          // auto p = reinterpret_cast<raid_zone_t *>(z->GetData());
+          // auto pp = p[m.zone_idx];
           // if (pos == 0x10001000 || pos == 0x10000000 ||
           //     (m.device_idx == 1 && m.zone_idx == 0)) {
           //   Info(logger_,
