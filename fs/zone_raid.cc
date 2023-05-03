@@ -5,10 +5,12 @@
 #include "zone_raid.h"
 
 #include <memory>
+#include <queue>
 #include <utility>
 
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"
+#include "util/coding.h"
 #include "util/mutexlock.h"
 
 namespace AQUAFS_NAMESPACE {
@@ -43,16 +45,13 @@ RaidZonedBlockDevice::RaidZonedBlockDevice(
       devices_(std::move(devices)) {
   if (!logger_) logger_.reset(new RaidConsoleLogger());
   assert(!devices_.empty());
-  // Debug(logger_, "RAID Devices: ");
-  for (auto &&d : devices_) {
-    // Debug(logger_, "  %s", d->GetFilename().c_str());
-  }
+  Info(logger_, "RAID Devices: ");
+  for (auto &&d : devices_) Info(logger_, "  %s", d->GetFilename().c_str());
   // create temporal device map: AQUAFS_META_ZONES in the first device is used
-  // as meta zones, and marked as RAID_NONE; others are marked as RAID0
-  idx_t idx;
-  for (idx = 0; idx < AQUAFS_META_ZONES; idx++) {
+  // as meta zones, and marked as RAID_NONE; others are marked as RAID_C
+  for (idx_t idx = 0; idx < AQUAFS_META_ZONES; idx++) {
     for (size_t i = 0; i < nr_dev(); i++)
-      device_zone_map_[idx + i] = {0, idx, 0};
+      device_zone_map_[idx + i] = {0, static_cast<idx_t>(idx + i), 0};
     mode_map_[idx] = {RaidMode::RAID_NONE, 0};
   }
   syncBackendInfo();
@@ -78,8 +77,34 @@ IOStatus RaidZonedBlockDevice::Open(bool readonly, bool exclusive,
     assert(d->GetBlockSize() == def_dev()->GetBlockSize());
   }
   syncBackendInfo();
-  a_zones_.reset(new raid_zone_t[nr_zones_]);
-  memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
+  if (main_mode_ == RaidMode::RAID_A) {
+    // allocate default layout
+    a_zones_.reset(new raid_zone_t[nr_zones_]);
+    memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
+    std::queue<size_t> available_devices;
+    std::vector<std::queue<idx_t>> available_zones(nr_dev());
+    for (size_t i = 0; i < nr_dev(); i++) {
+      available_devices.push(i);
+      for (idx_t idx = (i ? 0 : AQUAFS_META_ZONES); idx < nr_zones_; idx++)
+        available_zones[i].push(idx);
+    }
+    for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_; idx++) {
+      for (size_t i = 0; i < nr_dev(); i++) {
+        idx_t d = available_devices.front();
+        auto d_next = (d == nr_dev() - 1) ? 0 : d + 1;
+        available_devices.pop();
+        idx_t ti;
+        if (available_zones[d].empty()) {
+          ti = available_zones[d_next].front();
+        } else {
+          ti = available_zones[d].front();
+          available_devices.push(d_next);
+        }
+        device_zone_map_[idx + i] = {d, ti, 0};
+      }
+      mode_map_[idx] = {RaidMode::RAID0, 0};
+    }
+  }
   return s;
 }
 
@@ -566,4 +591,19 @@ std::string RaidZonedBlockDevice::GetFilename() {
 }
 bool RaidZonedBlockDevice::IsRAIDEnabled() const { return true; }
 RaidMode RaidZonedBlockDevice::getMainMode() const { return main_mode_; }
+void RaidZonedBlockDevice::flush_zone_info() {
+  for (idx_t idx = 0; idx < nr_zones_; idx++) {
+  }
+}
+Status RaidMapItem::DecodeFrom(Slice *input) {
+  GetFixed32(input, &device_idx);
+  GetFixed32(input, &zone_idx);
+  GetFixed16(input, &invalid);
+  return Status::OK();
+}
+Status RaidModeItem::DecodeFrom(Slice *input) {
+  GetFixed32(input, reinterpret_cast<uint32_t *>(&mode));
+  GetFixed32(input, &option);
+  return Status::OK();
+}
 }  // namespace AQUAFS_NAMESPACE

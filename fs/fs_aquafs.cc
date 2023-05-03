@@ -1309,6 +1309,30 @@ Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
   //    <uint32_t> raid zone idx,
   //    <RaidMapItem>
   // }
+  uint32_t nr_device_zone_map;
+  RaidZonedBlockDevice::device_zone_map_t device_zone;
+  RaidZonedBlockDevice::mode_map_t mode_map;
+  GetFixed32(slice, &nr_device_zone_map);
+  for (uint32_t i = 0; i < nr_device_zone_map; i++) {
+    uint32_t raid_zone_idx;
+    GetFixed32(slice, &raid_zone_idx);
+    RaidMapItem item;
+    auto s = item.DecodeFrom(slice);
+    if (!s.ok()) return s;
+    device_zone[raid_zone_idx] = item;
+  }
+  uint32_t nr_mode_map;
+  GetFixed32(slice, &nr_mode_map);
+  for (uint32_t i = 0; i < nr_mode_map; i++) {
+    uint32_t raid_zone_idx;
+    GetFixed32(slice, &raid_zone_idx);
+    RaidModeItem item;
+    auto s = item.DecodeFrom(slice);
+    if (!s.ok()) return s;
+    mode_map[raid_zone_idx] = item;
+  }
+  auto be = dynamic_cast<RaidZonedBlockDevice*>(zbd_->getBackend().get());
+  be->layout_update(std::move(device_zone), std::move(mode_map));
   return {};
 }
 
@@ -1377,7 +1401,12 @@ Status AquaFS::RecoverFrom(AquaMetaLog* log) {
         break;
 
       case kRaidInfoAppend:
-        DecodeRaidAppendFrom(&data);
+        s = DecodeRaidAppendFrom(&data);
+        if (!s.ok()) {
+          Warn(logger_, "Could not decode RAID append info: %s",
+               s.ToString().c_str());
+          return s;
+        }
         break;
 
       default:
@@ -1424,15 +1453,13 @@ Status AquaFS::Mount(bool readonly) {
     }
 
     // log takes the ownership of z's busy flag.
-    log.reset(new AquaMetaLog(zbd_, z));
+    log = std::make_unique<AquaMetaLog>(zbd_, z);
 
     if (!log->ReadRecord(&super_record, &scratch).ok()) continue;
 
-    if (super_record.size() == 0) continue;
+    if (super_record.empty()) continue;
 
-    std::unique_ptr<Superblock> super_block;
-
-    super_block.reset(new Superblock());
+    std::unique_ptr<Superblock> super_block = std::make_unique<Superblock>();
     s = super_block->DecodeFrom(&super_record);
     if (s.ok()) s = super_block->CompatibleWith(zbd_);
     if (!s.ok()) return s;
@@ -1440,17 +1467,16 @@ Status AquaFS::Mount(bool readonly) {
     Info(logger_, "Found OK superblock in zone %lu seq: %u\n", z->GetZoneNr(),
          super_block->GetSeq());
 
-    seq_map.push_back(std::make_pair(super_block->GetSeq(), seq_map.size()));
+    seq_map.emplace_back(super_block->GetSeq(), seq_map.size());
     valid_superblocks.push_back(std::move(super_block));
     valid_logs.push_back(std::move(log));
     valid_zones.push_back(z);
   }
 
-  if (!seq_map.size()) return Status::NotFound("No valid superblock found");
+  if (seq_map.empty()) return Status::NotFound("No valid superblock found");
 
   /* Sort superblocks by descending sequence number */
-  std::sort(seq_map.begin(), seq_map.end(),
-            std::greater<std::pair<uint32_t, uint32_t>>());
+  std::sort(seq_map.begin(), seq_map.end(), std::greater<>());
 
   bool recovery_ok = false;
   unsigned int r = 0;

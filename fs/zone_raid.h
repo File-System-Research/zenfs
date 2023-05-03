@@ -13,16 +13,16 @@ using namespace ROCKSDB_NAMESPACE;
 class RaidConsoleLogger;
 
 enum class RaidMode : uint32_t {
-  // AquaFS No RAID
+  // AquaFS: No RAID, just use the first backend device
   RAID_NONE = 0,
   RAID0,
   RAID1,
   RAID5,
   RAID6,
   RAID10,
-  // AquaFS Concat-RAID
+  // AquaFS: Concat-RAID
   RAID_C,
-  // AquaFS Auto-RAID
+  // AquaFS: Auto-RAID
   RAID_A
 };
 
@@ -71,18 +71,22 @@ using idx_t = unsigned int;
 class RaidMapItem {
  public:
   // device index
-  idx_t device_idx;
+  idx_t device_idx{};
   // zone index on this device
-  idx_t zone_idx;
+  idx_t zone_idx{};
   // when invalid, ignore this <device_idx, zone_idx> in the early record
-  uint8_t invalid;
+  uint16_t invalid{};
+
+  Status DecodeFrom(Slice *input);
 };
 
 class RaidModeItem {
  public:
-  RaidMode mode;
+  RaidMode mode = RaidMode::RAID_NONE;
   // extra option for raid mode, for example: n extra zones for raid5
-  uint32_t option;
+  uint32_t option{};
+
+  Status DecodeFrom(Slice *input);
 };
 
 class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
@@ -112,6 +116,8 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
 
   void syncBackendInfo();
 
+  void flush_zone_info();
+
  public:
   explicit RaidZonedBlockDevice(
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices,
@@ -120,7 +126,11 @@ class RaidZonedBlockDevice : public ZonedBlockDeviceBackend {
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices)
       : RaidZonedBlockDevice(std::move(devices), RaidMode::RAID_A, nullptr) {}
 
-  void load_layout(device_zone_map_t &&device_zone, mode_map_t &&mode_map) {
+  void layout_update(device_zone_map_t &&device_zone, mode_map_t &&mode_map) {
+    for (auto &&p : device_zone) device_zone_map_.insert(p);
+    for (auto &&p : mode_map) mode_map_.insert(p);
+  }
+  void layout_setup(device_zone_map_t &&device_zone, mode_map_t &&mode_map) {
     device_zone_map_ = std::move(device_zone);
     mode_map_ = std::move(mode_map);
   }
