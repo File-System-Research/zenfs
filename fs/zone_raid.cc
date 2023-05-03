@@ -522,11 +522,11 @@ int RaidZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
           mode_item.mode == RaidMode::RAID1 ||
           mode_item.mode == RaidMode::RAID_NONE) {
         auto r = devices_[m.device_idx]->Write(data, size, mapped_pos);
-        Info(logger_,
-             "RAID-A: WRITE raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x, "
-             "zone=%x; r=%x",
-             raid_mode_str(mode_item.mode), pos, mapped_pos, m.device_idx,
-             m.zone_idx, r);
+        // Info(logger_,
+        //      "RAID-A: WRITE raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x, "
+        //      "zone=%x; r=%x",
+        //      raid_mode_str(mode_item.mode), pos, mapped_pos, m.device_idx,
+        //      m.zone_idx, r);
         return r;
       } else if (mode_item.mode == RaidMode::RAID0) {
         // split write range as blocks
@@ -541,11 +541,11 @@ int RaidZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
                                  GetBlockSize() - mapped_pos % GetBlockSize()));
           r = devices_[m.device_idx]->Write(data, req_size,
                                             req_pos(mapped_pos));
-          Info(logger_,
-               "RAID-A: [written=%x] WRITE raid0 mapping pos=%lx to "
-               "mapped_pos=%lx, "
-               "dev=%x, zone=%x; r=%x",
-               sz_written, pos, mapped_pos, m.device_idx, m.zone_idx, r);
+          // Info(logger_,
+          //      "RAID-A: [written=%x] WRITE raid0 mapping pos=%lx to "
+          //      "mapped_pos=%lx, "
+          //      "dev=%x, zone=%x; r=%x",
+          //      sz_written, pos, mapped_pos, m.device_idx, m.zone_idx, r);
           if (r > 0) {
             size -= r;
             sz_written += r;
