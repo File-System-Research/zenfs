@@ -117,4 +117,13 @@ void AbstractRaidZonedBlockDevice::syncBackendInfo() {
   zone_sz_ = def_dev()->GetZoneSize();
   nr_zones_ = def_dev()->GetNrZones();
 }
+std::string AbstractRaidZonedBlockDevice::GetFilename() {
+  std::string name = std::string("raid") + raid_mode_str(main_mode_) + ":";
+  for (auto p = devices_.begin(); p != devices_.end(); p++) {
+    name += (*p)->GetFilename();
+    if (p + 1 != devices_.end()) name += ",";
+  }
+  return name;
+}
+bool AbstractRaidZonedBlockDevice::IsRAIDEnabled() const { return true; }
 }  // namespace AQUAFS_NAMESPACE

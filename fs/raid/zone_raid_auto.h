@@ -35,7 +35,8 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
       RaidMode mode, const std::shared_ptr<Logger> &logger);
   explicit RaidAutoZonedBlockDevice(
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices)
-      : RaidAutoZonedBlockDevice(std::move(devices), RaidMode::RAID_A, nullptr) {}
+      : RaidAutoZonedBlockDevice(std::move(devices), RaidMode::RAID_A,
+                                 nullptr) {}
 
   void layout_update(device_zone_map_t &&device_zone, mode_map_t &&mode_map);
   void layout_setup(device_zone_map_t &&device_zone, mode_map_t &&mode_map);
@@ -61,9 +62,7 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
   uint64_t ZoneMaxCapacity(std::unique_ptr<ZoneList> &zones,
                            idx_t idx) override;
   uint64_t ZoneWp(std::unique_ptr<ZoneList> &zones, idx_t idx) override;
-  std::string GetFilename() override;
 
-  bool IsRAIDEnabled() const override;
   RaidMode getMainMode() const;
   template <class T>
   RaidMapItem getAutoDeviceZone(T pos);
@@ -87,7 +86,8 @@ class RaidInfoBasic {
   void load(ZonedBlockDevice *zbd) {
     assert(sizeof(RaidInfoBasic) == sizeof(uint32_t) * 5);
     if (zbd->IsRAIDEnabled()) {
-      auto be = dynamic_cast<RaidAutoZonedBlockDevice *>(zbd->getBackend().get());
+      auto be =
+          dynamic_cast<RaidAutoZonedBlockDevice *>(zbd->getBackend().get());
       if (!be) return;
       main_mode = be->getMainMode();
       nr_devices = be->nr_dev();
@@ -123,6 +123,6 @@ class RaidInfoAppend {
   RaidAutoZonedBlockDevice::device_zone_map_t device_zone_map;
   RaidAutoZonedBlockDevice::mode_map_t mode_map;
 };
-}
+}  // namespace AQUAFS_NAMESPACE
 
 #endif  // ROCKSDB_ZONE_RAID_AUTO_H

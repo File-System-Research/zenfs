@@ -654,15 +654,6 @@ uint64_t RaidAutoZonedBlockDevice::ZoneWp(std::unique_ptr<ZoneList> &zones,
   return 0;
 }
 
-std::string RaidAutoZonedBlockDevice::GetFilename() {
-  std::string name = std::string("raid") + raid_mode_str(main_mode_) + ":";
-  for (auto p = devices_.begin(); p != devices_.end(); p++) {
-    name += (*p)->GetFilename();
-    if (p + 1 != devices_.end()) name += ",";
-  }
-  return name;
-}
-bool RaidAutoZonedBlockDevice::IsRAIDEnabled() const { return true; }
 RaidMode RaidAutoZonedBlockDevice::getMainMode() const { return main_mode_; }
 void RaidAutoZonedBlockDevice::flush_zone_info() {
   // TODO
