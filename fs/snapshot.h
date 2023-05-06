@@ -38,8 +38,9 @@ class ZBDSnapshot {
 
  public:
   ZBDSnapshot() = default;
-  ZBDSnapshot(const ZBDSnapshot&) = default;
-  ZBDSnapshot(ZonedBlockDevice& zbd)
+  // ZBDSnapshot& operator=(const ZBDSnapshot&) = delete;
+  // ZBDSnapshot(const ZBDSnapshot&) = default;
+  explicit ZBDSnapshot(ZonedBlockDevice& zbd)
       : free_space(zbd.GetFreeSpace()),
         used_space(zbd.GetUsedSpace()),
         reclaimable_space(zbd.GetReclaimableSpace()) {}
@@ -95,7 +96,7 @@ class ZoneFileSnapshot {
 
 class AquaFSSnapshot {
  public:
-  AquaFSSnapshot() {}
+  AquaFSSnapshot() = default;
 
   AquaFSSnapshot& operator=(AquaFSSnapshot&& snapshot) noexcept {
     zbd_ = snapshot.zbd_;
@@ -106,7 +107,7 @@ class AquaFSSnapshot {
   }
 
  public:
-  ZBDSnapshot zbd_;
+  ZBDSnapshot zbd_{};
   std::vector<ZoneSnapshot> zones_;
   std::vector<ZoneFileSnapshot> zone_files_;
   std::vector<ZoneExtentSnapshot> extents_;
