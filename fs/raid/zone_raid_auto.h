@@ -63,9 +63,10 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
                            idx_t idx) override;
   uint64_t ZoneWp(std::unique_ptr<ZoneList> &zones, idx_t idx) override;
 
-  RaidMode getMainMode() const;
   template <class T>
   RaidMapItem getAutoDeviceZone(T pos);
+  template <class T>
+  RaidMapItem getAutoDeviceZoneFromIdx(T idx);
   template <class T>
   idx_t getAutoDeviceZoneIdx(T pos);
   template <class T>

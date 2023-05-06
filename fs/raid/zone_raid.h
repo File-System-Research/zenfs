@@ -72,7 +72,8 @@ class AbstractRaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   [[nodiscard]] auto nr_dev() const { return devices_.size(); }
 
   std::string GetFilename() override;
-  bool IsRAIDEnabled() const override;
+  [[nodiscard]] bool IsRAIDEnabled() const override;
+  [[nodiscard]] RaidMode getMainMode() const;
 
  protected:
   std::shared_ptr<Logger> logger_{};

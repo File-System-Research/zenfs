@@ -38,244 +38,172 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
                                         unsigned int *max_open_zones) {
   auto s = AbstractRaidZonedBlockDevice::Open(readonly, exclusive,
                                               max_active_zones, max_open_zones);
-  if (main_mode_ == RaidMode::RAID_A) {
-    // allocate default layout
-    a_zones_.reset(new raid_zone_t[nr_zones_]);
-    memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
-    std::queue<size_t> available_devices;
-    std::vector<std::queue<idx_t>> available_zones(nr_dev());
-    for (size_t i = 0; i < nr_dev(); i++) {
-      available_devices.push(i);
-      for (idx_t idx = (i ? 0 : AQUAFS_META_ZONES); idx < nr_zones_; idx++)
-        available_zones[i].push(idx);
-    }
-    for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_; idx++) {
-      for (size_t i = 0; i < nr_dev(); i++) {
-        idx_t d = available_devices.front();
-        auto d_next = (d == nr_dev() - 1) ? 0 : d + 1;
-        available_devices.pop();
-        idx_t ti;
-        if (available_zones[d].empty()) {
-          assert(!available_zones[d_next].empty());
-          ti = available_zones[d_next].front();
-          available_zones[d_next].pop();
-        } else {
-          assert(!available_zones[d].empty());
-          ti = available_zones[d].front();
-          available_zones[d].pop();
-          available_devices.push(d_next);
-        }
-        device_zone_map_[idx * nr_dev() + i] = {d, ti, 0};
-        // Info(logger_,
-        //      "RAID-A: pre-allocate raid zone %x device_zone_map_[(idx*nr_dev
-        //      + " "i)=%zx] = "
-        //      "{d=%x, ti=%x, 0}",
-        //      idx, idx * nr_dev() + i, d, ti);
-      }
-      mode_map_[idx] = {RaidMode::RAID0, 0};
-      // mode_map_[idx] = {RaidMode::RAID1, 0};
-      // mode_map_[idx] = {RaidMode::RAID_C, 0};
-      // mode_map_[idx] = {RaidMode::RAID_NONE, 0};
-    }
-    flush_zone_info();
+  // allocate default layout
+  a_zones_.reset(new raid_zone_t[nr_zones_]);
+  memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
+  std::queue<size_t> available_devices;
+  std::vector<std::queue<idx_t>> available_zones(nr_dev());
+  for (size_t i = 0; i < nr_dev(); i++) {
+    available_devices.push(i);
+    for (idx_t idx = (i ? 0 : AQUAFS_META_ZONES); idx < nr_zones_; idx++)
+      available_zones[i].push(idx);
   }
+  for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_; idx++) {
+    for (size_t i = 0; i < nr_dev(); i++) {
+      idx_t d = available_devices.front();
+      auto d_next = (d == nr_dev() - 1) ? 0 : d + 1;
+      available_devices.pop();
+      idx_t ti;
+      if (available_zones[d].empty()) {
+        assert(!available_zones[d_next].empty());
+        ti = available_zones[d_next].front();
+        available_zones[d_next].pop();
+      } else {
+        assert(!available_zones[d].empty());
+        ti = available_zones[d].front();
+        available_zones[d].pop();
+        available_devices.push(d_next);
+      }
+      device_zone_map_[idx * nr_dev() + i] = {d, ti, 0};
+      // Info(logger_,
+      //      "RAID-A: pre-allocate raid zone %x device_zone_map_[(idx*nr_dev
+      //      + " "i)=%zx] = "
+      //      "{d=%x, ti=%x, 0}",
+      //      idx, idx * nr_dev() + i, d, ti);
+    }
+    mode_map_[idx] = {RaidMode::RAID0, 0};
+    // mode_map_[idx] = {RaidMode::RAID1, 0};
+    // mode_map_[idx] = {RaidMode::RAID_C, 0};
+    // mode_map_[idx] = {RaidMode::RAID_NONE, 0};
+  }
+  flush_zone_info();
   return s;
 }
 
 void RaidAutoZonedBlockDevice::syncBackendInfo() {
   AbstractRaidZonedBlockDevice::syncBackendInfo();
-  switch (main_mode_) {
-    case RaidMode::RAID_C:
-      nr_zones_ = total_nr_devices_zones_;
-      break;
-    case RaidMode::RAID_A:
-    case RaidMode::RAID1:
-      break;
-    default:
-      nr_zones_ = 0;
-      break;
-  }
   // Debug(logger_, "syncBackendInfo(): blksz=%x, zone_sz=%lx, nr_zones=%x",
   //       block_sz_, zone_sz_, nr_zones_);
 }
 
 std::unique_ptr<ZoneList> RaidAutoZonedBlockDevice::ListZones() {
   // Debug(logger_, "ListZones()");
-  if (main_mode_ == RaidMode::RAID_C) {
-    std::vector<std::unique_ptr<ZoneList>> list;
-    for (auto &&dev : devices_) {
-      auto zones = dev->ListZones();
-      if (zones) {
-        list.emplace_back(std::move(zones));
-      }
-    }
-    // merge zones
-    auto nr_zones = std::accumulate(
-        list.begin(), list.end(), 0,
-        [](int sum, auto &zones) { return sum + zones->ZoneCount(); });
-    auto data = new struct zbd_zone[nr_zones];
-    auto ptr = data;
-    for (auto &&zones : list) {
-      auto nr = zones->ZoneCount();
-      memcpy(ptr, zones->GetData(), sizeof(struct zbd_zone) * nr);
-      ptr += nr;
-    }
-    return std::make_unique<ZoneList>(data, nr_zones);
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ListZones();
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    auto data = new raid_zone_t[nr_zones_];
-    memcpy(data, a_zones_.get(), sizeof(raid_zone_t) * nr_zones_);
-    return std::make_unique<ZoneList>(data, nr_zones_);
-  }
+  auto data = new raid_zone_t[nr_zones_];
+  memcpy(data, a_zones_.get(), sizeof(raid_zone_t) * nr_zones_);
+  return std::make_unique<ZoneList>(data, nr_zones_);
   return {};
 }
 
 IOStatus RaidAutoZonedBlockDevice::Reset(uint64_t start, bool *offline,
                                          uint64_t *max_capacity) {
   Info(logger_, "Reset(start=%lx)", start);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      auto sz = d->GetNrZones() * d->GetZoneSize();
-      if (sz > start) {
-        return d->Reset(start, offline, max_capacity);
-      } else {
-        start -= sz;
-      }
-    }
-    return IOStatus::IOError();
-  } else if (main_mode_ == RaidMode::RAID1) {
-    IOStatus s;
-    for (auto &&d : devices_) {
-      s = d->Reset(start, offline, max_capacity);
-      if (!s.ok()) return s;
-    }
-    return s;
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    assert(start % GetZoneSize() == 0);
-    IOStatus r{};
-    auto zone_idx = start / zone_sz_;
-    for (size_t i = 0; i < nr_dev(); i++) {
-      auto m = device_zone_map_[i + zone_idx * nr_dev()];
-      r = devices_[m.device_idx]->Reset(m.zone_idx * def_dev()->GetZoneSize(),
-                                        offline, max_capacity);
-      Info(logger_, "RAID-A: do reset for device %d, zone %d", m.device_idx,
-           m.zone_idx);
-      if (!r.ok())
-        return r;
-      else
-        *max_capacity *= nr_dev();
-    }
-    flush_zone_info();
-    return r;
+  assert(start % GetZoneSize() == 0);
+  IOStatus r{};
+  auto zone_idx = start / zone_sz_;
+  for (size_t i = 0; i < nr_dev(); i++) {
+    auto m = device_zone_map_[i + zone_idx * nr_dev()];
+    r = devices_[m.device_idx]->Reset(m.zone_idx * def_dev()->GetZoneSize(),
+                                      offline, max_capacity);
+    Info(logger_, "RAID-A: do reset for device %d, zone %d", m.device_idx,
+         m.zone_idx);
+    if (!r.ok())
+      return r;
+    else
+      *max_capacity *= nr_dev();
   }
-  return unsupported;
+  flush_zone_info();
+  return r;
 }
 
 IOStatus RaidAutoZonedBlockDevice::Finish(uint64_t start) {
   Info(logger_, "Finish(%lx)", start);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      auto sz = d->GetNrZones() * d->GetZoneSize();
-      if (sz > start) {
-        return d->Finish(start);
-      } else {
-        start -= sz;
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    IOStatus s;
-    for (auto &&d : devices_) {
-      s = d->Finish(start);
-      if (!s.ok()) return s;
-    }
-    return s;
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    assert(start % GetZoneSize() == 0);
-    IOStatus r{};
-    auto zone_idx = start / zone_sz_;
-    for (size_t i = 0; i < nr_dev(); i++) {
-      auto m = device_zone_map_[i + zone_idx * nr_dev()];
-      r = devices_[m.device_idx]->Finish(m.zone_idx * def_dev()->GetZoneSize());
-      Info(logger_, "RAID-A: do finish for device %d, zone %d", m.device_idx,
-           m.zone_idx);
-      if (!r.ok()) return r;
-    }
-    flush_zone_info();
-    return r;
+  assert(start % GetZoneSize() == 0);
+  IOStatus r{};
+  auto zone_idx = start / zone_sz_;
+  for (size_t i = 0; i < nr_dev(); i++) {
+    auto m = device_zone_map_[i + zone_idx * nr_dev()];
+    r = devices_[m.device_idx]->Finish(m.zone_idx * def_dev()->GetZoneSize());
+    Info(logger_, "RAID-A: do finish for device %d, zone %d", m.device_idx,
+         m.zone_idx);
+    if (!r.ok()) return r;
   }
-  return unsupported;
+  flush_zone_info();
+  return r;
 }
 
 IOStatus RaidAutoZonedBlockDevice::Close(uint64_t start) {
   Info(logger_, "Close(start=%lx)", start);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      auto sz = d->GetNrZones() * d->GetZoneSize();
-      if (sz > start) {
-        return d->Close(start);
-      } else {
-        start -= sz;
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    IOStatus s;
-    for (auto &&d : devices_) {
-      s = d->Close(start);
-      if (!s.ok()) return s;
-    }
-    return s;
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    IOStatus r{};
-    auto zone_idx = start / zone_sz_;
-    for (size_t i = 0; i < nr_dev(); i++) {
-      auto m = device_zone_map_[i + zone_idx * nr_dev()];
-      r = devices_[m.device_idx]->Close(m.zone_idx * def_dev()->GetZoneSize());
-      Info(logger_, "RAID-A: do close for device %d, zone %d", m.device_idx,
-           m.zone_idx);
-      if (!r.ok()) return r;
-    }
-    flush_zone_info();
-    return r;
+  IOStatus r{};
+  auto zone_idx = start / zone_sz_;
+  for (size_t i = 0; i < nr_dev(); i++) {
+    auto m = device_zone_map_[i + zone_idx * nr_dev()];
+    r = devices_[m.device_idx]->Close(m.zone_idx * def_dev()->GetZoneSize());
+    Info(logger_, "RAID-A: do close for device %d, zone %d", m.device_idx,
+         m.zone_idx);
+    if (!r.ok()) return r;
   }
-  return unsupported;
+  flush_zone_info();
+  return r;
 }
 
 int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
                                    bool direct) {
   // Debug(logger_, "Read(sz=%x, pos=%lx, direct=%s)", size, pos,
   //       std::to_string(direct).c_str());
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      auto sz = d->GetNrZones() * d->GetZoneSize();
-      if (sz > pos) {
-        return d->Read(buf, size, pos, direct);
+  if (static_cast<decltype(zone_sz_)>(size) > zone_sz_) {
+    // may cross raid zone, split read range as zones
+    int sz_read = 0;
+    int r;
+    while (size > 0) {
+      auto req_size =
+          std::min(size, static_cast<int>(zone_sz_ - pos % zone_sz_));
+      r = Read(buf, req_size, pos, direct);
+      if (r > 0) {
+        buf += r;
+        pos += r;
+        sz_read += r;
+        size -= r;
       } else {
-        pos -= sz;
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    int r = 0;
-    for (auto &&d : devices_) {
-      if ((r = d->Read(buf, size, pos, direct))) {
         return r;
       }
     }
-    return r;
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    if (static_cast<decltype(zone_sz_)>(size) > zone_sz_) {
-      // may cross raid zone, split read range as zones
+    flush_zone_info();
+    return sz_read;
+  } else {
+    assert(static_cast<decltype(zone_sz_)>(size) <= zone_sz_);
+    auto mode_item = mode_map_[pos / zone_sz_];
+    auto m = getAutoDeviceZone(pos);
+    auto mapped_pos = getAutoMappedDevicePos(pos);
+    if (mode_item.mode == RaidMode::RAID_C ||
+        mode_item.mode == RaidMode::RAID1 ||
+        mode_item.mode == RaidMode::RAID_NONE) {
+      // Info(logger_,
+      //      "RAID-A: READ raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x,
+      //      " "zone=%x", raid_mode_str(mode_item.mode), pos, mapped_pos,
+      //      m.device_idx, m.zone_idx);
+      return devices_[m.device_idx]->Read(buf, size, mapped_pos, direct);
+    } else if (mode_item.mode == RaidMode::RAID0) {
+      // split read range as blocks
       int sz_read = 0;
+      // TODO: Read blocks in multi-threads
       int r;
       while (size > 0) {
-        auto req_size =
-            std::min(size, static_cast<int>(zone_sz_ - pos % zone_sz_));
-        r = Read(buf, req_size, pos, direct);
+        m = getAutoDeviceZone(pos);
+        mapped_pos = getAutoMappedDevicePos(pos);
+        auto req_size = std::min(
+            size,
+            static_cast<int>(GetBlockSize() - mapped_pos % GetBlockSize()));
+        r = devices_[m.device_idx]->Read(buf, req_size, mapped_pos, direct);
+        // Info(
+        //     logger_,
+        //     "RAID-A: [read=%x] READ raid0 mapping pos=%lx to
+        //     mapped_pos=%lx, " "dev=%x, zone=%x; r=%x", sz_read, pos,
+        //     mapped_pos, m.device_idx, m.zone_idx, r);
         if (r > 0) {
+          size -= r;
+          sz_read += r;
           buf += r;
           pos += r;
-          sz_read += r;
-          size -= r;
         } else {
           return r;
         }
@@ -283,378 +211,183 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       flush_zone_info();
       return sz_read;
     } else {
-      assert(static_cast<decltype(zone_sz_)>(size) <= zone_sz_);
-      auto mode_item = mode_map_[pos / zone_sz_];
-      auto m = getAutoDeviceZone(pos);
-      auto mapped_pos = getAutoMappedDevicePos(pos);
-      if (mode_item.mode == RaidMode::RAID_C ||
-          mode_item.mode == RaidMode::RAID1 ||
-          mode_item.mode == RaidMode::RAID_NONE) {
-        // Info(logger_,
-        //      "RAID-A: READ raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x,
-        //      " "zone=%x", raid_mode_str(mode_item.mode), pos, mapped_pos,
-        //      m.device_idx, m.zone_idx);
-        return devices_[m.device_idx]->Read(buf, size, mapped_pos, direct);
-      } else if (mode_item.mode == RaidMode::RAID0) {
-        // split read range as blocks
-        int sz_read = 0;
-        // TODO: Read blocks in multi-threads
-        int r;
-        while (size > 0) {
-          m = getAutoDeviceZone(pos);
-          mapped_pos = getAutoMappedDevicePos(pos);
-          auto req_size = std::min(
-              size,
-              static_cast<int>(GetBlockSize() - mapped_pos % GetBlockSize()));
-          r = devices_[m.device_idx]->Read(buf, req_size, mapped_pos, direct);
-          // Info(
-          //     logger_,
-          //     "RAID-A: [read=%x] READ raid0 mapping pos=%lx to
-          //     mapped_pos=%lx, " "dev=%x, zone=%x; r=%x", sz_read, pos,
-          //     mapped_pos, m.device_idx, m.zone_idx, r);
-          if (r > 0) {
-            size -= r;
-            sz_read += r;
-            buf += r;
-            pos += r;
-          } else {
-            return r;
-          }
-        }
-        flush_zone_info();
-        return sz_read;
-      } else {
-        assert(false);
-      }
+      assert(false);
+      return 0;
     }
   }
-  return 0;
 }
 
 int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
   // Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      auto sz = d->GetNrZones() * d->GetZoneSize();
-      if (sz > pos) {
-        return d->Write(data, size, pos);
+  if (static_cast<decltype(zone_sz_)>(size) > zone_sz_) {
+    // may cross raid zone, split write range as zones
+    int sz_written = 0;
+    int r;
+    while (size > 0) {
+      auto req_size =
+          std::min(size, static_cast<uint32_t>(zone_sz_ - pos % zone_sz_));
+      r = Write(data, req_size, pos);
+      if (r > 0) {
+        data += r;
+        pos += r;
+        sz_written += r;
+        size -= r;
       } else {
-        pos -= sz;
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    int r = 0;
-    for (auto &&d : devices_) {
-      if ((r = d->Write(data, size, pos))) {
         return r;
       }
     }
-    return r;
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    if (static_cast<decltype(zone_sz_)>(size) > zone_sz_) {
-      // may cross raid zone, split write range as zones
+    return sz_written;
+  } else {
+    assert(static_cast<decltype(zone_sz_)>(size) <= zone_sz_);
+    auto mode_item = mode_map_[pos / zone_sz_];
+    auto m = getAutoDeviceZone(pos);
+    auto mapped_pos = getAutoMappedDevicePos(pos);
+    if (mode_item.mode == RaidMode::RAID_C ||
+        mode_item.mode == RaidMode::RAID1 ||
+        mode_item.mode == RaidMode::RAID_NONE) {
+      auto r = devices_[m.device_idx]->Write(data, size, mapped_pos);
+      // Info(logger_,
+      //      "RAID-A: WRITE raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x,
+      //      " "zone=%x; r=%x", raid_mode_str(mode_item.mode), pos,
+      //      mapped_pos, m.device_idx, m.zone_idx, r);
+      return r;
+    } else if (mode_item.mode == RaidMode::RAID0) {
+      // split write range as blocks
       int sz_written = 0;
+      // TODO: Write blocks in multi-threads
       int r;
       while (size > 0) {
+        m = getAutoDeviceZone(pos);
+        mapped_pos = getAutoMappedDevicePos(pos);
+        // auto mi = getAutoDeviceZoneIdx(pos);
+        // auto z = devices_[m.device_idx]->ListZones();
+        // auto p = reinterpret_cast<raid_zone_t *>(z->GetData());
+        // auto pp = p[m.zone_idx];
+        // if (pos == 0x10001000 || pos == 0x10000000 ||
+        //     (m.device_idx == 1 && m.zone_idx == 0)) {
+        //   Info(logger_,
+        //        "[DBG] RAID-A-0: dev_zone_info: st=%llx, cap=%llx, "
+        //        "wp=%llx, sz=%llx; to write: dev=%x, zone=%x, pos=%lx,
+        //        sz=%x", pp.start, pp.capacity, pp.wp, pp.capacity,
+        //        m.device_idx, m.zone_idx, mapped_pos, size);
+        // }
         auto req_size =
-            std::min(size, static_cast<uint32_t>(zone_sz_ - pos % zone_sz_));
-        r = Write(data, req_size, pos);
+            std::min(size, static_cast<uint32_t>(GetBlockSize() -
+                                                 mapped_pos % GetBlockSize()));
+        r = devices_[m.device_idx]->Write(data, req_size, mapped_pos);
+        // Info(logger_,
+        //      "RAID-A: [written=%x] WRITE raid0 mapping pos=%lx to "
+        //      "mapped_pos=%lx, "
+        //      "dev=%x, zone=%x; r=%x",
+        //      sz_written, pos, mapped_pos, m.device_idx, m.zone_idx, r);
         if (r > 0) {
+          size -= r;
+          sz_written += r;
           data += r;
           pos += r;
-          sz_written += r;
-          size -= r;
         } else {
           return r;
         }
       }
+      flush_zone_info();
       return sz_written;
-    } else {
-      assert(static_cast<decltype(zone_sz_)>(size) <= zone_sz_);
-      auto mode_item = mode_map_[pos / zone_sz_];
-      auto m = getAutoDeviceZone(pos);
-      auto mapped_pos = getAutoMappedDevicePos(pos);
-      if (mode_item.mode == RaidMode::RAID_C ||
-          mode_item.mode == RaidMode::RAID1 ||
-          mode_item.mode == RaidMode::RAID_NONE) {
-        auto r = devices_[m.device_idx]->Write(data, size, mapped_pos);
-        // Info(logger_,
-        //      "RAID-A: WRITE raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x,
-        //      " "zone=%x; r=%x", raid_mode_str(mode_item.mode), pos,
-        //      mapped_pos, m.device_idx, m.zone_idx, r);
-        return r;
-      } else if (mode_item.mode == RaidMode::RAID0) {
-        // split write range as blocks
-        int sz_written = 0;
-        // TODO: Write blocks in multi-threads
-        int r;
-        while (size > 0) {
-          m = getAutoDeviceZone(pos);
-          mapped_pos = getAutoMappedDevicePos(pos);
-          // auto mi = getAutoDeviceZoneIdx(pos);
-          // auto z = devices_[m.device_idx]->ListZones();
-          // auto p = reinterpret_cast<raid_zone_t *>(z->GetData());
-          // auto pp = p[m.zone_idx];
-          // if (pos == 0x10001000 || pos == 0x10000000 ||
-          //     (m.device_idx == 1 && m.zone_idx == 0)) {
-          //   Info(logger_,
-          //        "[DBG] RAID-A-0: dev_zone_info: st=%llx, cap=%llx, "
-          //        "wp=%llx, sz=%llx; to write: dev=%x, zone=%x, pos=%lx,
-          //        sz=%x", pp.start, pp.capacity, pp.wp, pp.capacity,
-          //        m.device_idx, m.zone_idx, mapped_pos, size);
-          // }
-          auto req_size =
-              std::min(size, static_cast<uint32_t>(
-                                 GetBlockSize() - mapped_pos % GetBlockSize()));
-          r = devices_[m.device_idx]->Write(data, req_size, mapped_pos);
-          // Info(logger_,
-          //      "RAID-A: [written=%x] WRITE raid0 mapping pos=%lx to "
-          //      "mapped_pos=%lx, "
-          //      "dev=%x, zone=%x; r=%x",
-          //      sz_written, pos, mapped_pos, m.device_idx, m.zone_idx, r);
-          if (r > 0) {
-            size -= r;
-            sz_written += r;
-            data += r;
-            pos += r;
-          } else {
-            return r;
-          }
-        }
-        flush_zone_info();
-        return sz_written;
-      }
     }
   }
-  return 0;
+  return -1;
 }
 
 int RaidAutoZonedBlockDevice::InvalidateCache(uint64_t pos, uint64_t size) {
   // Debug(logger_, "InvalidateCache(pos=%lx, sz=%lx)", pos, size);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      auto sz = d->GetNrZones() * d->GetZoneSize();
-      if (sz > pos) {
-        return d->InvalidateCache(pos, size);
+  assert(size % zone_sz_ == 0);
+  if (static_cast<decltype(zone_sz_)>(size) > zone_sz_) {
+    // may cross raid zone, split range as zones
+    int r;
+    while (size > 0) {
+      auto req_size = std::min(
+          size, static_cast<decltype(size)>(zone_sz_ - pos % zone_sz_));
+      r = InvalidateCache(pos, req_size);
+      if (!r) {
+        pos += zone_sz_;
+        size -= zone_sz_;
       } else {
-        pos -= sz;
+        return r;
       }
     }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    int r = 0;
-    for (auto &&d : devices_) r = d->InvalidateCache(pos, size);
+    return 0;
+  } else {
+    assert(pos % GetZoneSize() == 0);
+    assert(static_cast<decltype(zone_sz_)>(size) <= zone_sz_);
+    auto m = getAutoDeviceZone(pos);
+    auto mapped_pos = getAutoMappedDevicePos(pos);
+    auto r = devices_[m.device_idx]->InvalidateCache(mapped_pos, size);
+    flush_zone_info();
     return r;
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    assert(size % zone_sz_ == 0);
-    if (static_cast<decltype(zone_sz_)>(size) > zone_sz_) {
-      // may cross raid zone, split range as zones
-      int r;
-      while (size > 0) {
-        auto req_size = std::min(
-            size, static_cast<decltype(size)>(zone_sz_ - pos % zone_sz_));
-        r = InvalidateCache(pos, req_size);
-        if (!r) {
-          pos += zone_sz_;
-          size -= zone_sz_;
-        } else {
-          return r;
-        }
-      }
-      return 0;
-    } else {
-      assert(pos % GetZoneSize() == 0);
-      assert(static_cast<decltype(zone_sz_)>(size) <= zone_sz_);
-      auto m = getAutoDeviceZone(pos);
-      auto mapped_pos = getAutoMappedDevicePos(pos);
-      auto r = devices_[m.device_idx]->InvalidateCache(mapped_pos, size);
-      flush_zone_info();
-      return r;
-    }
   }
-  // default OK
-  return 0;
 }
 
 bool RaidAutoZonedBlockDevice::ZoneIsSwr(std::unique_ptr<ZoneList> &zones,
                                          idx_t idx) {
   // Debug(logger_, "ZoneIsSwr(idx=%x)", idx);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      if (d->GetNrZones() > idx) {
-        auto z = d->ListZones();
-        return d->ZoneIsSwr(z, idx);
-      } else {
-        idx -= d->GetNrZones();
-      }
-    }
-    return false;
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ZoneIsSwr(zones, idx);
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    auto m = getAutoDeviceZone(idx);
-    auto z = devices_[m.device_idx]->ListZones();
-    return devices_[m.device_idx]->ZoneIsSwr(z, m.zone_idx);
-  }
-  return false;
+  auto m = getAutoDeviceZoneFromIdx(idx);
+  auto z = devices_[m.device_idx]->ListZones();
+  return devices_[m.device_idx]->ZoneIsSwr(z, m.zone_idx);
 }
 
 bool RaidAutoZonedBlockDevice::ZoneIsOffline(std::unique_ptr<ZoneList> &zones,
                                              idx_t idx) {
   // Debug(logger_, "ZoneIsOffline(idx=%x)", idx);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      if (d->GetNrZones() > idx) {
-        // FIXME: optimize list-zones
-        auto z = d->ListZones();
-        return d->ZoneIsOffline(z, idx);
-      } else {
-        idx -= d->GetNrZones();
-      }
-    }
-    return false;
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ZoneIsOffline(zones, idx);
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    auto m = getAutoDeviceZone(idx);
-    auto z = devices_[m.device_idx]->ListZones();
-    return devices_[m.device_idx]->ZoneIsOffline(z, m.zone_idx);
-  }
-  return false;
+  auto m = getAutoDeviceZoneFromIdx(idx);
+  auto z = devices_[m.device_idx]->ListZones();
+  return devices_[m.device_idx]->ZoneIsOffline(z, m.zone_idx);
 }
 
 bool RaidAutoZonedBlockDevice::ZoneIsWritable(std::unique_ptr<ZoneList> &zones,
                                               idx_t idx) {
   // Debug(logger_, "ZoneIsWriteable(idx=%x)", idx);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      if (d->GetNrZones() > idx) {
-        auto z = d->ListZones();
-        return d->ZoneIsWritable(z, idx);
-      } else {
-        idx -= d->GetNrZones();
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ZoneIsWritable(zones, idx);
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    auto m = getAutoDeviceZone(idx);
-    auto z = devices_[m.device_idx]->ListZones();
-    return devices_[m.device_idx]->ZoneIsWritable(z, m.zone_idx);
-  }
-  return false;
+  auto m = getAutoDeviceZoneFromIdx(idx);
+  auto z = devices_[m.device_idx]->ListZones();
+  return devices_[m.device_idx]->ZoneIsWritable(z, m.zone_idx);
 }
 
 bool RaidAutoZonedBlockDevice::ZoneIsActive(std::unique_ptr<ZoneList> &zones,
                                             idx_t idx) {
   // Debug(logger_, "ZoneIsActive(idx=%x)", idx);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      if (d->GetNrZones() > idx) {
-        auto z = d->ListZones();
-        return d->ZoneIsActive(z, idx);
-      } else {
-        idx -= d->GetNrZones();
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ZoneIsActive(zones, idx);
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    auto m = getAutoDeviceZone(idx);
-    auto z = devices_[m.device_idx]->ListZones();
-    return devices_[m.device_idx]->ZoneIsActive(z, m.zone_idx);
-  }
-  return false;
+  auto m = getAutoDeviceZoneFromIdx(idx);
+  auto z = devices_[m.device_idx]->ListZones();
+  return devices_[m.device_idx]->ZoneIsActive(z, m.zone_idx);
 }
 
 bool RaidAutoZonedBlockDevice::ZoneIsOpen(std::unique_ptr<ZoneList> &zones,
                                           idx_t idx) {
   // Debug(logger_, "ZoneIsOpen(idx=%x)", idx);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      if (d->GetNrZones() > idx) {
-        auto z = d->ListZones();
-        return d->ZoneIsOpen(z, idx);
-      } else {
-        idx -= d->GetNrZones();
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ZoneIsOpen(zones, idx);
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    auto m = getAutoDeviceZone(idx);
-    auto z = devices_[m.device_idx]->ListZones();
-    return devices_[m.device_idx]->ZoneIsOpen(z, m.zone_idx);
-  }
-  return false;
+  auto m = getAutoDeviceZoneFromIdx(idx);
+  auto z = devices_[m.device_idx]->ListZones();
+  return devices_[m.device_idx]->ZoneIsOpen(z, m.zone_idx);
 }
 
 uint64_t RaidAutoZonedBlockDevice::ZoneStart(std::unique_ptr<ZoneList> &zones,
                                              idx_t idx) {
   // Debug(logger_, "ZoneStart(idx=%x)", idx);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      if (d->GetNrZones() > idx) {
-        auto z = d->ListZones();
-        return d->ZoneStart(z, idx);
-      } else {
-        idx -= d->GetNrZones();
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ZoneStart(zones, idx);
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    // FIXME?
-    return reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx].start;
-  }
-  return 0;
+  // FIXME?
+  return reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx].start;
 }
 
 uint64_t RaidAutoZonedBlockDevice::ZoneMaxCapacity(
     std::unique_ptr<ZoneList> &zones, idx_t idx) {
   // Debug(logger_, "ZoneMaxCapacity(idx=%x)", idx);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      if (d->GetNrZones() > idx) {
-        auto z = d->ListZones();
-        return d->ZoneMaxCapacity(z, idx);
-      } else {
-        idx -= d->GetNrZones();
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ZoneMaxCapacity(zones, idx);
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    // FIXME: capacity == max_capacity ?
-    return reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx]
-        .capacity;
-  }
-  return 0;
+  // FIXME: capacity == max_capacity ?
+  return reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx].capacity;
 }
 
 uint64_t RaidAutoZonedBlockDevice::ZoneWp(std::unique_ptr<ZoneList> &zones,
                                           idx_t idx) {
   // Debug(logger_, "ZoneWp(idx=%x)", idx);
-  if (main_mode_ == RaidMode::RAID_C) {
-    for (auto &&d : devices_) {
-      if (d->GetNrZones() > idx) {
-        auto z = d->ListZones();
-        return d->ZoneWp(z, idx);
-      } else {
-        idx -= d->GetNrZones();
-      }
-    }
-  } else if (main_mode_ == RaidMode::RAID1) {
-    return def_dev()->ZoneWp(zones, idx);
-  } else if (main_mode_ == RaidMode::RAID_A) {
-    flush_zone_info();
-    auto r = reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx].wp;
-    // Info(logger_, "RAID-A: ZoneWp=%llx", r);
-    return r;
-  }
-  return 0;
+  flush_zone_info();
+  auto r = reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx].wp;
+  // Info(logger_, "RAID-A: ZoneWp=%llx", r);
+  return r;
 }
 
-RaidMode RaidAutoZonedBlockDevice::getMainMode() const { return main_mode_; }
 void RaidAutoZonedBlockDevice::flush_zone_info() {
   // TODO
   // std::vector<std::unique_ptr<ZoneList>> dev_zone_list(nr_dev());
@@ -717,6 +450,10 @@ void RaidAutoZonedBlockDevice::layout_setup(
   device_zone_map_ = std::move(device_zone);
   mode_map_ = std::move(mode_map);
   flush_zone_info();
+}
+template <class T>
+RaidMapItem RaidAutoZonedBlockDevice::getAutoDeviceZoneFromIdx(T idx) {
+  return device_zone_map_[idx * nr_dev()];
 }
 template <class T>
 T RaidAutoZonedBlockDevice::getAutoMappedDevicePos(T pos) {
