@@ -20,6 +20,8 @@ namespace fs = std::filesystem;
 #include "aquafs_namespace.h"
 #include "io_aquafs.h"
 #include "metrics.h"
+#include "raid/zone_raid.h"
+#include "raid/zone_raid_auto.h"
 #include "rocksdb/env.h"
 #include "rocksdb/file_system.h"
 #include "rocksdb/rocksdb_namespace.h"
@@ -27,8 +29,6 @@ namespace fs = std::filesystem;
 #include "snapshot.h"
 #include "version.h"
 #include "zbd_aquafs.h"
-#include "raid/zone_raid.h"
-#include "raid/zone_raid_auto.h"
 
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
@@ -66,13 +66,13 @@ class Superblock {
   const uint32_t FLAGS_ENABLE_GC = 1 << 0;
   const uint32_t FLAGS_ENABLE_RAID = 1 << 1;
 
-  Superblock() {}
+  Superblock() = default;
 
   /* Create a superblock for a filesystem covering the entire zoned block device
    */
-  Superblock(ZonedBlockDevice* zbd, std::string aux_fs_path = "",
-             uint32_t finish_threshold = 0, bool enable_gc = false,
-             bool enable_raid = false) {
+  explicit Superblock(ZonedBlockDevice* zbd, std::string aux_fs_path = "",
+                      uint32_t finish_threshold = 0, bool enable_gc = false,
+                      bool enable_raid = false) {
     std::string uuid = Env::Default()->GenerateUniqueId();
     int uuid_len =
         std::min(uuid.length(),

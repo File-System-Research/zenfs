@@ -59,7 +59,7 @@ class AbstractRaidZonedBlockDevice : public ZonedBlockDeviceBackend {
  public:
   explicit AbstractRaidZonedBlockDevice(
       const std::shared_ptr<Logger> &logger, RaidMode main_mode,
-      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &devices);
+      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices);
   IOStatus Open(bool readonly, bool exclusive, unsigned int *max_active_zones,
                 unsigned int *max_open_zones) override;
 

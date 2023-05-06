@@ -10,9 +10,10 @@ void Raid0ZonedBlockDevice::syncBackendInfo() {
   zone_sz_ *= nr_dev();
 }
 Raid0ZonedBlockDevice::Raid0ZonedBlockDevice(
-    const std::shared_ptr<Logger> &logger, RaidMode mainMode,
-    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &devices)
-    : AbstractRaidZonedBlockDevice(logger, mainMode, devices) {
+    const std::shared_ptr<Logger> &logger,
+    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices)
+    : AbstractRaidZonedBlockDevice(logger, RaidMode::RAID0,
+                                   std::move(devices)) {
   syncBackendInfo();
 }
 std::unique_ptr<ZoneList> Raid0ZonedBlockDevice::ListZones() {

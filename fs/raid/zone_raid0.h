@@ -33,8 +33,8 @@ class Raid0ZonedBlockDevice : public AbstractRaidZonedBlockDevice {
 
  public:
   Raid0ZonedBlockDevice(
-      const std::shared_ptr<Logger> &logger, RaidMode mainMode,
-      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &devices);
+      const std::shared_ptr<Logger> &logger,
+      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices);
 
   std::unique_ptr<ZoneList> ListZones() override;
   IOStatus Reset(uint64_t start, bool *offline,

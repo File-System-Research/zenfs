@@ -13,8 +13,8 @@ namespace AQUAFS_NAMESPACE {
 class RaidCZonedBlockDevice : public AbstractRaidZonedBlockDevice {
  public:
   RaidCZonedBlockDevice(
-      const std::shared_ptr<Logger>& logger, RaidMode mainMode,
-      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>>& devices);
+      const std::shared_ptr<Logger> &logger,
+      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices);
   std::unique_ptr<ZoneList> ListZones() override;
   IOStatus Reset(uint64_t start, bool *offline,
                  uint64_t *max_capacity) override;

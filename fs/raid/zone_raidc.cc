@@ -7,9 +7,10 @@
 #include <cstdint>
 namespace AQUAFS_NAMESPACE {
 RaidCZonedBlockDevice::RaidCZonedBlockDevice(
-    const std::shared_ptr<Logger> &logger, aquafs::RaidMode mainMode,
-    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &devices)
-    : AbstractRaidZonedBlockDevice(logger, mainMode, devices) {}
+    const std::shared_ptr<Logger> &logger,
+    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices)
+    : AbstractRaidZonedBlockDevice(logger, RaidMode::RAID_C,
+                                   std::move(devices)) {}
 void RaidCZonedBlockDevice::syncBackendInfo() {
   AbstractRaidZonedBlockDevice::syncBackendInfo();
   nr_zones_ = total_nr_devices_zones_;

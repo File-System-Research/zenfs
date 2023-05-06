@@ -22,6 +22,9 @@
 #include <vector>
 
 #include "aquafs_namespace.h"
+#include "plugin/aquafs/fs/raid/zone_raid0.h"
+#include "plugin/aquafs/fs/raid/zone_raid1.h"
+#include "plugin/aquafs/fs/raid/zone_raidc.h"
 #include "raid/zone_raid.h"
 #include "raid/zone_raid_auto.h"
 #include "rocksdb/env.h"
@@ -193,8 +196,28 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
         } else
           raid_devices.emplace_back(std::make_unique<ZoneFsBackend>(p));
       }
-      zbd_be_ = std::make_unique<RaidAutoZonedBlockDevice>(
-          std::move(raid_devices), raid_mode_from_str(raid_num_str), logger_);
+      auto mode = raid_mode_from_str(raid_num_str);
+      switch (mode) {
+        case RaidMode::RAID0:
+          zbd_be_ = std::make_unique<Raid0ZonedBlockDevice>(
+              logger_, std::move(raid_devices));
+          break;
+        case RaidMode::RAID1:
+          zbd_be_ = std::make_unique<Raid1ZonedBlockDevice>(
+              logger_, std::move(raid_devices));
+          break;
+        case RaidMode::RAID_C:
+          zbd_be_ = std::make_unique<RaidCZonedBlockDevice>(
+              logger_, std::move(raid_devices));
+          break;
+        case RaidMode::RAID_A:
+          zbd_be_ = std::make_unique<RaidAutoZonedBlockDevice>(
+              logger_, std::move(raid_devices));
+          break;
+        default:
+          assert(false);
+          break;
+      }
     } else {
       zbd_be_ = nullptr;
       Error(logger_,

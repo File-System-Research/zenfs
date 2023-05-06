@@ -75,11 +75,12 @@ class RaidConsoleLogger : public Logger {
 
 AbstractRaidZonedBlockDevice::AbstractRaidZonedBlockDevice(
     const std::shared_ptr<Logger> &logger, RaidMode main_mode,
-    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &devices)
+    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices)
     : logger_(logger), main_mode_(main_mode), devices_(std::move(devices)) {
   if (!logger_) logger_.reset(new RaidConsoleLogger());
   assert(!devices_.empty());
-  Info(logger_, "RAID Devices: ");
+  Info(logger_, "RAID Mode: raid%s Devices: ", raid_mode_str(main_mode_));
+  assert(this->IsRAIDEnabled());
   for (auto &&d : devices_) Info(logger_, "  %s", d->GetFilename().c_str());
 }
 

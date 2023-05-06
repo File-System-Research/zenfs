@@ -31,12 +31,8 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
 
  public:
   explicit RaidAutoZonedBlockDevice(
-      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices,
-      RaidMode mode, const std::shared_ptr<Logger> &logger);
-  explicit RaidAutoZonedBlockDevice(
-      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices)
-      : RaidAutoZonedBlockDevice(std::move(devices), RaidMode::RAID_A,
-                                 nullptr) {}
+      const std::shared_ptr<Logger> &logger,
+      std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices);
 
   void layout_update(device_zone_map_t &&device_zone, mode_map_t &&mode_map);
   void layout_setup(device_zone_map_t &&device_zone, mode_map_t &&mode_map);
@@ -88,7 +84,7 @@ class RaidInfoBasic {
     assert(sizeof(RaidInfoBasic) == sizeof(uint32_t) * 5);
     if (zbd->IsRAIDEnabled()) {
       auto be =
-          dynamic_cast<RaidAutoZonedBlockDevice *>(zbd->getBackend().get());
+          dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
       if (!be) return;
       main_mode = be->getMainMode();
       nr_devices = be->nr_dev();
@@ -100,7 +96,8 @@ class RaidInfoBasic {
 
   Status compatible(ZonedBlockDevice *zbd) const {
     if (!zbd->IsRAIDEnabled()) return Status::OK();
-    auto be = dynamic_cast<RaidAutoZonedBlockDevice *>(zbd->getBackend().get());
+    auto be =
+        dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
     if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");
     if (main_mode != be->getMainMode())
       return Status::Corruption(

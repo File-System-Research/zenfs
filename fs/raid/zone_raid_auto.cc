@@ -19,9 +19,10 @@ namespace AQUAFS_NAMESPACE {
  * @param devices all devices under management
  */
 RaidAutoZonedBlockDevice::RaidAutoZonedBlockDevice(
-    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices,
-    RaidMode mode, const std::shared_ptr<Logger> &logger)
-    : AbstractRaidZonedBlockDevice(logger, mode, devices) {
+    const std::shared_ptr<Logger> &logger,
+    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices)
+    : AbstractRaidZonedBlockDevice(logger, RaidMode::RAID_A,
+                                   std::move(devices)) {
   // create temporal device map: AQUAFS_META_ZONES in the first device is used
   // as meta zones, and marked as RAID_NONE; others are marked as RAID_C
   for (idx_t idx = 0; idx < AQUAFS_META_ZONES; idx++) {

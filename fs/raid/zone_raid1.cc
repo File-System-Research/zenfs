@@ -7,9 +7,10 @@
 namespace AQUAFS_NAMESPACE {
 
 Raid1ZonedBlockDevice::Raid1ZonedBlockDevice(
-    const std::shared_ptr<Logger> &logger, RaidMode mainMode,
-    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &devices)
-    : AbstractRaidZonedBlockDevice(logger, mainMode, devices) {
+    const std::shared_ptr<Logger> &logger,
+    std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> &&devices)
+    : AbstractRaidZonedBlockDevice(logger, RaidMode::RAID1,
+                                   std::move(devices)) {
   syncBackendInfo();
 }
 std::unique_ptr<ZoneList> Raid1ZonedBlockDevice::ListZones() {
