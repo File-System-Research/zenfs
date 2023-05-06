@@ -69,6 +69,8 @@ class AbstractRaidZonedBlockDevice : public ZonedBlockDeviceBackend {
     return devices_.begin()->get();
   }
 
+  [[nodiscard]] auto nr_dev() const { return devices_.size(); }
+
  protected:
   std::shared_ptr<Logger> logger_{};
   RaidMode main_mode_{};
@@ -77,7 +79,12 @@ class AbstractRaidZonedBlockDevice : public ZonedBlockDeviceBackend {
   uint32_t total_nr_devices_zones_{};
   const IOStatus unsupported = IOStatus::NotSupported("Raid unsupported");
 
-  virtual void syncBackendInfo() = 0;
+  virtual void syncBackendInfo();
+
+  template <class T>
+  T nr_dev_t() const {
+    return static_cast<T>(devices_.size());
+  }
 };
 };  // namespace AQUAFS_NAMESPACE
 

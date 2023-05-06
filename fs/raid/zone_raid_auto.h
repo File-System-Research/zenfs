@@ -8,7 +8,7 @@
 #include "zone_raid.h"
 
 namespace AQUAFS_NAMESPACE {
-class RaidZonedBlockDevice : public AbstractRaidZonedBlockDevice {
+class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
  public:
   // use `map` or `unordered_map` to store raid mappings
   template <typename K, typename V>
@@ -30,12 +30,12 @@ class RaidZonedBlockDevice : public AbstractRaidZonedBlockDevice {
   void syncBackendInfo() override;
 
  public:
-  explicit RaidZonedBlockDevice(
+  explicit RaidAutoZonedBlockDevice(
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices,
       RaidMode mode, const std::shared_ptr<Logger> &logger);
-  explicit RaidZonedBlockDevice(
+  explicit RaidAutoZonedBlockDevice(
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices)
-      : RaidZonedBlockDevice(std::move(devices), RaidMode::RAID_A, nullptr) {}
+      : RaidAutoZonedBlockDevice(std::move(devices), RaidMode::RAID_A, nullptr) {}
 
   void layout_update(device_zone_map_t &&device_zone, mode_map_t &&mode_map);
   void layout_setup(device_zone_map_t &&device_zone, mode_map_t &&mode_map);
@@ -63,29 +63,6 @@ class RaidZonedBlockDevice : public AbstractRaidZonedBlockDevice {
   uint64_t ZoneWp(std::unique_ptr<ZoneList> &zones, idx_t idx) override;
   std::string GetFilename() override;
 
-  template <class T>
-  T nr_dev_t() const {
-    return static_cast<T>(devices_.size());
-  }
-  auto nr_dev() const { return devices_.size(); }
-  template <typename T>
-  auto get_idx_block(T pos) const {
-    return pos / static_cast<T>(GetBlockSize());
-  }
-  template <typename T>
-  auto get_idx_dev(T pos) const {
-    return get_idx_dev(pos, nr_dev_t<T>());
-  }
-  template <typename T>
-  auto get_idx_dev(T pos, T m) const {
-    return get_idx_block(pos) % m;
-  }
-  template <typename T>
-  auto req_pos(T pos) const {
-    auto blk_offset = pos % static_cast<T>(GetBlockSize());
-    return blk_offset +
-           ((pos - blk_offset) / GetBlockSize()) / nr_dev() * GetBlockSize();
-  }
   bool IsRAIDEnabled() const override;
   RaidMode getMainMode() const;
   template <class T>
@@ -95,7 +72,7 @@ class RaidZonedBlockDevice : public AbstractRaidZonedBlockDevice {
   template <class T>
   T getAutoMappedDevicePos(T pos);
 
-  ~RaidZonedBlockDevice() override = default;
+  ~RaidAutoZonedBlockDevice() override = default;
 };
 
 class RaidInfoBasic {
@@ -110,7 +87,7 @@ class RaidInfoBasic {
   void load(ZonedBlockDevice *zbd) {
     assert(sizeof(RaidInfoBasic) == sizeof(uint32_t) * 5);
     if (zbd->IsRAIDEnabled()) {
-      auto be = dynamic_cast<RaidZonedBlockDevice *>(zbd->getBackend().get());
+      auto be = dynamic_cast<RaidAutoZonedBlockDevice *>(zbd->getBackend().get());
       if (!be) return;
       main_mode = be->getMainMode();
       nr_devices = be->nr_dev();
@@ -122,7 +99,7 @@ class RaidInfoBasic {
 
   Status compatible(ZonedBlockDevice *zbd) const {
     if (!zbd->IsRAIDEnabled()) return Status::OK();
-    auto be = dynamic_cast<RaidZonedBlockDevice *>(zbd->getBackend().get());
+    auto be = dynamic_cast<RaidAutoZonedBlockDevice *>(zbd->getBackend().get());
     if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");
     if (main_mode != be->getMainMode())
       return Status::Corruption(
@@ -143,8 +120,8 @@ class RaidInfoBasic {
 
 class RaidInfoAppend {
  public:
-  RaidZonedBlockDevice::device_zone_map_t device_zone_map;
-  RaidZonedBlockDevice::mode_map_t mode_map;
+  RaidAutoZonedBlockDevice::device_zone_map_t device_zone_map;
+  RaidAutoZonedBlockDevice::mode_map_t mode_map;
 };
 }
 

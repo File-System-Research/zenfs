@@ -193,7 +193,7 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
         } else
           raid_devices.emplace_back(std::make_unique<ZoneFsBackend>(p));
       }
-      zbd_be_ = std::make_unique<RaidZonedBlockDevice>(
+      zbd_be_ = std::make_unique<RaidAutoZonedBlockDevice>(
           std::move(raid_devices), raid_mode_from_str(raid_num_str), logger_);
     } else {
       zbd_be_ = nullptr;

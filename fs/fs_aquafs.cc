@@ -1310,8 +1310,8 @@ Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
   //    <RaidMapItem>
   // }
   uint32_t nr_device_zone_map;
-  RaidZonedBlockDevice::device_zone_map_t device_zone;
-  RaidZonedBlockDevice::mode_map_t mode_map;
+  RaidAutoZonedBlockDevice::device_zone_map_t device_zone;
+  RaidAutoZonedBlockDevice::mode_map_t mode_map;
   GetFixed32(slice, &nr_device_zone_map);
   for (uint32_t i = 0; i < nr_device_zone_map; i++) {
     uint32_t raid_zone_idx;
@@ -1331,7 +1331,7 @@ Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
     if (!s.ok()) return s;
     mode_map[raid_zone_idx] = item;
   }
-  auto be = dynamic_cast<RaidZonedBlockDevice*>(zbd_->getBackend().get());
+  auto be = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
   be->layout_update(std::move(device_zone), std::move(mode_map));
   return {};
 }

@@ -38,8 +38,7 @@ const char *raid_mode_str(RaidMode mode) {
       return "UNKNOWN";
   }
 }
-RaidMode raid_mode_from_str(
-    const std::string &str) {
+RaidMode raid_mode_from_str(const std::string &str) {
   if (str == "0") {
     return RaidMode::RAID0;
   } else if (str == "1") {
@@ -107,5 +106,15 @@ IOStatus AbstractRaidZonedBlockDevice::Open(bool readonly, bool exclusive,
   Info(logger_, "after Open(): nr_zones=%x, zone_sz=%lx blk_sz=%x", nr_zones_,
        zone_sz_, block_sz_);
   return s;
+}
+void AbstractRaidZonedBlockDevice::syncBackendInfo() {
+  total_nr_devices_zones_ = std::accumulate(
+      devices_.begin(), devices_.end(), 0,
+      [](int sum, const std::unique_ptr<ZonedBlockDeviceBackend> &dev) {
+        return sum + dev->GetNrZones();
+      });
+  block_sz_ = def_dev()->GetBlockSize();
+  zone_sz_ = def_dev()->GetZoneSize();
+  nr_zones_ = def_dev()->GetNrZones();
 }
 }  // namespace AQUAFS_NAMESPACE
