@@ -213,7 +213,6 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       return sz_read;
     } else {
       assert(false);
-      return 0;
     }
   }
 }
@@ -248,9 +247,10 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
         mode_item.mode == RaidMode::RAID_NONE) {
       auto r = devices_[m.device_idx]->Write(data, size, mapped_pos);
       // Info(logger_,
-      //      "RAID-A: WRITE raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x,
-      //      " "zone=%x; r=%x", raid_mode_str(mode_item.mode), pos,
-      //      mapped_pos, m.device_idx, m.zone_idx, r);
+      //      "RAID-A: WRITE raid%s mapping pos=%lx to mapped_pos=%lx, dev=%x,"
+      //      "zone=%x; r=%x",
+      //      raid_mode_str(mode_item.mode), pos, mapped_pos, m.device_idx,
+      //      m.zone_idx, r);
       return r;
     } else if (mode_item.mode == RaidMode::RAID0) {
       // split write range as blocks
@@ -264,13 +264,14 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
         // auto z = devices_[m.device_idx]->ListZones();
         // auto p = reinterpret_cast<raid_zone_t *>(z->GetData());
         // auto pp = p[m.zone_idx];
-        // if (pos == 0x10001000 || pos == 0x10000000 ||
-        //     (m.device_idx == 1 && m.zone_idx == 0)) {
+        // if ((pos == 0xe000000 || mapped_pos == 0x6000000) &&
+        //     (m.device_idx == 1 && m.zone_idx == 3)) {
+        //   mapped_pos = getAutoMappedDevicePos(pos);
         //   Info(logger_,
         //        "[DBG] RAID-A-0: dev_zone_info: st=%llx, cap=%llx, "
-        //        "wp=%llx, sz=%llx; to write: dev=%x, zone=%x, pos=%lx,
-        //        sz=%x", pp.start, pp.capacity, pp.wp, pp.capacity,
-        //        m.device_idx, m.zone_idx, mapped_pos, size);
+        //        "wp=%llx, sz=%llx; to write: dev=%x, zone=%x, pos=%lx,sz=%x",
+        //        pp.start, pp.capacity, pp.wp, pp.capacity, m.device_idx,
+        //        m.zone_idx, mapped_pos, size);
         // }
         auto req_size =
             std::min(size, static_cast<uint32_t>(GetBlockSize() -
@@ -418,6 +419,7 @@ void RaidAutoZonedBlockDevice::flush_zone_info() {
             auto w = devices_[item.device_idx]->ZoneWp(z, item.zone_idx);
             // printf("\tdev[%x][%x] st=%lx, wp=%lx\n", item.device_idx,
             //        item.zone_idx, s, w);
+            assert(w >= s);
             return sum + (w - s);
           });
       wp += p[idx].start;
@@ -432,9 +434,10 @@ void RaidAutoZonedBlockDevice::flush_zone_info() {
     p[idx].type = zone_list_ptr->type;
     p[idx].cond = zone_list_ptr->cond;
     memcpy(p[idx].reserved, zone_list_ptr->reserved, sizeof(p[idx].reserved));
-    p[idx].capacity = devices_[map_item.device_idx]->ZoneMaxCapacity(
-                          zone_list, map_item.zone_idx) *
-                      nr_dev();
+    // p[idx].capacity = devices_[map_item.device_idx]->ZoneMaxCapacity(
+    //                       zone_list, map_item.zone_idx) *
+    //                   nr_dev();
+    p[idx].capacity = zone_sz_;
     p[idx].len = p[idx].capacity;
   }
 }
