@@ -16,6 +16,48 @@
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
 
+const char *raid_mode_str(RaidMode mode) {
+  switch (mode) {
+    case RaidMode::RAID0:
+      return "0";
+    case RaidMode::RAID1:
+      return "1";
+    case RaidMode::RAID5:
+      return "5";
+    case RaidMode::RAID6:
+      return "6";
+    case RaidMode::RAID10:
+      return "10";
+    case RaidMode::RAID_A:
+      return "a";
+    case RaidMode::RAID_C:
+      return "c";
+    case RaidMode::RAID_NONE:
+      return "n";
+    default:
+      return "UNKNOWN";
+  }
+}
+RaidMode raid_mode_from_str(
+    const std::string &str) {
+  if (str == "0") {
+    return RaidMode::RAID0;
+  } else if (str == "1") {
+    return RaidMode::RAID1;
+  } else if (str == "5") {
+    return RaidMode::RAID5;
+  } else if (str == "6") {
+    return RaidMode::RAID6;
+  } else if (str == "10") {
+    return RaidMode::RAID10;
+  } else if (str == "A" || str == "a" || str == "-a" || str == "-A") {
+    return RaidMode::RAID_A;
+  } else if (str == "C" || str == "c" || str == "-c" || str == "-C") {
+    return RaidMode::RAID_C;
+  }
+  return RaidMode::RAID_A;
+}
+
 class RaidConsoleLogger : public Logger {
  public:
   using Logger::Logv;

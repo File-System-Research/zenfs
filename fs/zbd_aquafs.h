@@ -95,10 +95,10 @@ class Zone {
 
   IOStatus Append(char *data, uint32_t size);
   bool IsUsed();
-  bool IsFull();
-  bool IsEmpty();
+  bool IsFull() const;
+  bool IsEmpty() const;
   uint64_t GetZoneNr();
-  uint64_t GetCapacityLeft();
+  uint64_t GetCapacityLeft() const;
   bool IsBusy() { return this->busy_.load(std::memory_order_relaxed); }
   bool Acquire() {
     bool expected = false;
@@ -166,14 +166,14 @@ class ZonedBlockDevice {
   std::unique_ptr<ZonedBlockDeviceBackend> zbd_be_;
   std::vector<Zone *> io_zones;
   std::vector<Zone *> meta_zones;
-  time_t start_time_;
+  time_t start_time_{};
   std::shared_ptr<Logger> logger_;
   uint32_t finish_threshold_ = 0;
   std::atomic<uint64_t> bytes_written_{0};
   std::atomic<uint64_t> gc_bytes_written_{0};
 
-  std::atomic<long> active_io_zones_;
-  std::atomic<long> open_io_zones_;
+  std::atomic<long> active_io_zones_{};
+  std::atomic<long> open_io_zones_{};
   /* Protects zone_resuorces_  condition variable, used
      for notifying changes in open_io_zones_ */
   std::mutex zone_resources_mtx_;
@@ -185,8 +185,8 @@ class ZonedBlockDevice {
   std::mutex migrate_zone_mtx_;
   std::atomic<bool> migrating_{false};
 
-  unsigned int max_nr_active_io_zones_;
-  unsigned int max_nr_open_io_zones_;
+  unsigned int max_nr_active_io_zones_{};
+  unsigned int max_nr_open_io_zones_{};
 
   std::shared_ptr<AquaFSMetrics> metrics_;
 

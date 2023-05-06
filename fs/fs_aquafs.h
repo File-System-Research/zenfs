@@ -28,6 +28,7 @@ namespace fs = std::filesystem;
 #include "version.h"
 #include "zbd_aquafs.h"
 #include "raid/zone_raid.h"
+#include "raid/zone_raid_auto.h"
 
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;

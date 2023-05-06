@@ -8,19 +8,12 @@
 
 #include "zbd_aquafs.h"
 
-#include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <libzbd/zbd.h>
-#include <linux/blkzoned.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-
-#include <cstdlib>
+#include <cassert>
+#include <cerrno>
+#include <cstring>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <regex>
 #include <sstream>
@@ -29,12 +22,13 @@
 #include <vector>
 
 #include "aquafs_namespace.h"
+#include "raid/zone_raid.h"
+#include "raid/zone_raid_auto.h"
 #include "rocksdb/env.h"
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"
 #include "snapshot.h"
 #include "zbdlib_aquafs.h"
-#include "raid/zone_raid.h"
 #include "zonefs_aquafs.h"
 
 namespace AQUAFS_NAMESPACE {
@@ -56,9 +50,9 @@ Zone::Zone(ZonedBlockDevice *zbd, ZonedBlockDeviceBackend *zbd_be,
 }
 
 bool Zone::IsUsed() { return (used_capacity_ > 0); }
-uint64_t Zone::GetCapacityLeft() { return capacity_; }
-bool Zone::IsFull() { return (capacity_ == 0); }
-bool Zone::IsEmpty() { return (wp_ == start_); }
+uint64_t Zone::GetCapacityLeft() const { return capacity_; }
+bool Zone::IsFull() const { return (capacity_ == 0); }
+bool Zone::IsEmpty() const { return (wp_ == start_); }
 uint64_t Zone::GetZoneNr() { return start_ / zbd_->GetZoneSize(); }
 
 void Zone::EncodeJson(std::ostream &json_stream) {
@@ -165,12 +159,12 @@ Zone *ZonedBlockDevice::GetIOZone(uint64_t offset) {
 ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
                                    std::shared_ptr<Logger> logger,
                                    std::shared_ptr<AquaFSMetrics> metrics)
-    : logger_(logger), metrics_(metrics) {
+    : logger_(std::move(logger)), metrics_(std::move(metrics)) {
   if (backend == ZbdBackendType::kBlockDev) {
-    zbd_be_ = std::unique_ptr<ZbdlibBackend>(new ZbdlibBackend(path));
+    zbd_be_ = std::make_unique<ZbdlibBackend>(path);
     Info(logger_, "New Zoned Block Device: %s", zbd_be_->GetFilename().c_str());
   } else if (backend == ZbdBackendType::kZoneFS) {
-    zbd_be_ = std::unique_ptr<ZoneFsBackend>(new ZoneFsBackend(path));
+    zbd_be_ = std::make_unique<ZoneFsBackend>(path);
     Info(logger_, "New zonefs backing: %s", zbd_be_->GetFilename().c_str());
   } else if (backend == ZbdBackendType::kRaid) {
     // parse raid uri. format: "raid<num>:dev:null0,<path2>,<path3>,..."

@@ -869,6 +869,20 @@ void RaidZonedBlockDevice::flush_zone_info() {
     p[idx].len = p[idx].capacity;
   }
 }
+void RaidZonedBlockDevice::layout_update(
+    RaidZonedBlockDevice::device_zone_map_t &&device_zone,
+    RaidZonedBlockDevice::mode_map_t &&mode_map) {
+  for (auto &&p : device_zone) device_zone_map_.insert(p);
+  for (auto &&p : mode_map) mode_map_.insert(p);
+  flush_zone_info();
+}
+void RaidZonedBlockDevice::layout_setup(
+    RaidZonedBlockDevice::device_zone_map_t &&device_zone,
+    RaidZonedBlockDevice::mode_map_t &&mode_map) {
+  device_zone_map_ = std::move(device_zone);
+  mode_map_ = std::move(mode_map);
+  flush_zone_info();
+}
 template <class T>
 T RaidZonedBlockDevice::getAutoMappedDevicePos(T pos) {
   auto raid_zone_idx = pos / zone_sz_;

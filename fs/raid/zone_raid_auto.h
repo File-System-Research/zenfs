@@ -37,16 +37,8 @@ class RaidZonedBlockDevice : public AbstractRaidZonedBlockDevice {
       std::vector<std::unique_ptr<ZonedBlockDeviceBackend>> devices)
       : RaidZonedBlockDevice(std::move(devices), RaidMode::RAID_A, nullptr) {}
 
-  void layout_update(device_zone_map_t &&device_zone, mode_map_t &&mode_map) {
-    for (auto &&p : device_zone) device_zone_map_.insert(p);
-    for (auto &&p : mode_map) mode_map_.insert(p);
-    flush_zone_info();
-  }
-  void layout_setup(device_zone_map_t &&device_zone, mode_map_t &&mode_map) {
-    device_zone_map_ = std::move(device_zone);
-    mode_map_ = std::move(mode_map);
-    flush_zone_info();
-  }
+  void layout_update(device_zone_map_t &&device_zone, mode_map_t &&mode_map);
+  void layout_setup(device_zone_map_t &&device_zone, mode_map_t &&mode_map);
   const device_zone_map_t &getDeviceZoneMap() const { return device_zone_map_; }
   const mode_map_t &getModeMap() const { return mode_map_; }
 
