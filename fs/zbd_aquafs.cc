@@ -34,7 +34,7 @@
 #include "rocksdb/rocksdb_namespace.h"
 #include "snapshot.h"
 #include "zbdlib_aquafs.h"
-#include "zone_raid.h"
+#include "raid/zone_raid.h"
 #include "zonefs_aquafs.h"
 
 namespace AQUAFS_NAMESPACE {

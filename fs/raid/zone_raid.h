@@ -5,7 +5,7 @@
 
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"
-#include "zbd_aquafs.h"
+#include "../zbd_aquafs.h"
 
 namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
