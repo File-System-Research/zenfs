@@ -198,6 +198,7 @@ IOStatus AquaMetaLog::Read(Slice* slice) {
     return IOStatus::OK();
   }
 
+  printf("read_pos_=%lx, to_read = %lx\n", read_pos_, to_read);
   if ((read_pos_ + to_read) > (zone_->start_ + zone_->max_capacity_)) {
     return IOStatus::IOError("Read across zone");
   }
@@ -232,13 +233,20 @@ IOStatus AquaMetaLog::ReadRecord(Slice* record, std::string* scratch) {
   if (!s.ok()) return s;
 
   // EOF?
-  if (header.size() == 0) {
+  if (header.empty()) {
     record->clear();
     return IOStatus::OK();
   }
 
   GetFixed32(&header, &record_crc);
   GetFixed32(&header, &record_sz);
+
+  printf("record_crc=%x, record_sz=%x\n", record_crc, record_sz);
+
+  if (record_sz == (uint32_t)(-1) && record_crc == (uint32_t)(-1)) {
+    // EOF...
+    return IOStatus::IOError("Not a valid record");
+  }
 
   scratch->clear();
   scratch->append(record_sz, 0);
