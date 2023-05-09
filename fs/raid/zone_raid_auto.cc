@@ -52,6 +52,8 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
   }
   for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_; idx++) {
     for (size_t i = 0; i < nr_dev(); i++) {
+      // FIXME: not enough zones?
+      if (available_devices.empty()) break;
       idx_t d = available_devices.front();
       auto d_next = (d == nr_dev() - 1) ? 0 : d + 1;
       available_devices.pop();
