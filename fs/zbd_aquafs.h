@@ -224,7 +224,7 @@ class ZonedBlockDevice {
   uint32_t GetNrZones();
   std::vector<Zone *> GetMetaZones() { return meta_zones; }
 
-  void SetFinishTreshold(uint32_t threshold) { finish_threshold_ = threshold; }
+  void setFinishThreshold(uint32_t threshold) { finish_threshold_ = threshold; }
 
   void PutOpenIOZoneToken();
   void PutActiveIOZoneToken();

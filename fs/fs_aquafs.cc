@@ -9,11 +9,11 @@
 #include "fs_aquafs.h"
 
 #include <dirent.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <mntent.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 
 #include <set>
@@ -31,6 +31,7 @@
 #include "util/coding.h"
 #include "util/crc32c.h"
 #include "util/mutexlock.h"
+#include "configuration.h"
 
 #define DEFAULT_AQUAV_LOG_PATH "/tmp/"
 
@@ -314,7 +315,7 @@ AquaFS::~AquaFS() {
 
 void AquaFS::GCWorker() {
   while (run_gc_worker_) {
-    usleep(1000 * 1000 * 10);
+    usleep(1000 * FLAGS_gc_sleep_time);
 
     uint64_t non_free = zbd_->GetUsedSpace() + zbd_->GetReclaimableSpace();
     uint64_t free = zbd_->GetFreeSpace();
@@ -322,7 +323,7 @@ void AquaFS::GCWorker() {
     AquaFSSnapshot snapshot;
     AquaFSSnapshotOptions options;
 
-    if (free_percent > GC_START_LEVEL) continue;
+    if (free_percent > FLAGS_gc_start_level) continue;
 
     options.zone_ = true;
     options.zone_file_ = true;
@@ -330,7 +331,7 @@ void AquaFS::GCWorker() {
 
     GetAquaFSSnapshot(snapshot, options);
 
-    uint64_t threshold = (100 - GC_SLOPE * (GC_START_LEVEL - free_percent));
+    uint64_t threshold = (100 - FLAGS_gc_slope * (FLAGS_gc_start_level - free_percent));
     std::set<uint64_t> migrate_zones_start;
     for (const auto& zone : snapshot.zones_) {
       if (zone.capacity == 0) {
@@ -1523,7 +1524,7 @@ Status AquaFS::Mount(bool readonly) {
 
   Info(logger_, "Recovered from zone: %d", (int)valid_zones[r]->GetZoneNr());
   superblock_ = std::move(valid_superblocks[r]);
-  zbd_->SetFinishTreshold(superblock_->GetFinishTreshold());
+  zbd_->setFinishThreshold(superblock_->GetFinishTreshold());
 
   IOOptions foo;
   IODebugContext bar;
