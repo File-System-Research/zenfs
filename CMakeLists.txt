@@ -4,6 +4,10 @@ if (NOT DEFINED AQUAFS_STANDALONE)
     set(AQUAFS_STANDALONE 1)
 endif ()
 
+if (NOT DEFINED AQUAFS_EXPORT_PROMETHEUS)
+    set(AQUAFS_EXPORT_PROMETHEUS OFF)
+endif ()
+
 set(AQUAFS_VERSION v0.0.1-alpha)
 
 if (AQUAFS_STANDALONE)
@@ -69,11 +73,22 @@ else ()
             PARENT_SCOPE)
     set(aquafs_LIBS "zbd" PARENT_SCOPE)
     set(aquafs_CMAKE_EXE_LINKER_FLAGS "-u aquafs_filesystems_reg" PARENT_SCOPE)
+    set(aquafs_INCLUDE_PATHS "fs" PARENT_SCOPE)
 
     if (NOT AQUAFS_SKIP_LIBZBD_CHECK)
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(ZBD REQUIRED libzbd>=1.5.0)
     endif ()
+
+    if (AQUAFS_EXPORT_PROMETHEUS)
+        message(STATUS "Prometheus metrics enabled")
+        # pkg_check_modules(prometheus REQUIRED prometheus-cpp-pull=1.1.0)
+        find_package(prometheus-cpp REQUIRED)
+        list(APPEND aquafs_SOURCES "fs/metrics_prometheus.cc")
+        list(APPEND aquafs_HEADERS "fs/metrics_prometheus.h")
+        add_definitions(-DAQUAFS_EXPORT_PROMETHEUS=1)
+    endif ()
+
 
     #  execute_process(WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     #    RESULT_VARIABLE GENVER_RESULT

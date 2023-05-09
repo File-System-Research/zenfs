@@ -32,7 +32,7 @@ class GaugeMetric {
   std::atomic<uint64_t> min;
 };
 
-class AquaFSPrometheusMetrics : public rocksdb::AquaFSMetrics {
+class AquaFSPrometheusMetrics : public AQUAFS_NAMESPACE::AquaFSMetrics {
  private:
   std::shared_ptr<Registry> registry_;
   std::unordered_map<AquaFSMetricsHistograms, std::shared_ptr<GaugeMetric>>
