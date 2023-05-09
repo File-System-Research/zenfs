@@ -61,16 +61,15 @@ if (AQUAFS_STANDALONE)
 
     add_test(NAME aquafs-db_bench COMMAND sudo $<TARGET_FILE:db_bench> --fs_uri=aquafs://dev:nullb0 --benchmarks=fillrandom --use_direct_io_for_flush_and_compaction)
 else ()
-    set(aquafs_SOURCES "fs/fs_aquafs.cc" "fs/zbd_aquafs.cc" "fs/io_aquafs.cc" "fs/zonefs_aquafs.cc"
+    set(aquafs_SOURCES_local "fs/fs_aquafs.cc" "fs/zbd_aquafs.cc" "fs/io_aquafs.cc" "fs/zonefs_aquafs.cc"
             "fs/zbdlib_aquafs.cc"
             "fs/raid/zone_raid.cc" "fs/raid/zone_raid_auto.cc" "fs/raid/zone_raid0.cc" "fs/raid/zone_raid1.cc" "fs/raid/zone_raidc.cc"
-            "fs/configuration.cc"
-            PARENT_SCOPE)
-    set(aquafs_HEADERS "fs/fs_aquafs.h" "fs/zbd_aquafs.h" "fs/io_aquafs.h" "fs/version.h" "fs/metrics.h"
+            "fs/configuration.cc")
+    set(aquafs_HEADERS_local "fs/fs_aquafs.h" "fs/zbd_aquafs.h" "fs/io_aquafs.h" "fs/version.h" "fs/metrics.h"
             "fs/snapshot.h" "fs/filesystem_utility.h" "fs/zonefs_aquafs.h" "fs/zbdlib_aquafs.h"
             "fs/raid/zone_raid.h" "fs/raid/zone_raid_auto.h" "fs/raid/zone_raid0.h" "fs/raid/zone_raid1.h" "fs/raid/zone_raidc.h"
-            "fs/configuration.h"
-            PARENT_SCOPE)
+            "fs/configuration.h")
+    set(aquafs_LIBS_local "zbd")
     set(aquafs_LIBS "zbd" PARENT_SCOPE)
     set(aquafs_CMAKE_EXE_LINKER_FLAGS "-u aquafs_filesystems_reg" PARENT_SCOPE)
     set(aquafs_INCLUDE_PATHS "fs" PARENT_SCOPE)
@@ -84,10 +83,16 @@ else ()
         message(STATUS "Prometheus metrics enabled")
         # pkg_check_modules(prometheus REQUIRED prometheus-cpp-pull=1.1.0)
         find_package(prometheus-cpp REQUIRED)
-        list(APPEND aquafs_SOURCES "fs/metrics_prometheus.cc")
-        list(APPEND aquafs_HEADERS "fs/metrics_prometheus.h")
-        add_definitions(-DAQUAFS_EXPORT_PROMETHEUS=1)
+        # link_libraries(prometheus-cpp-pull)
+        list(APPEND aquafs_LIBS_local "prometheus-cpp-pull" "prometheus-cpp-core")
+        list(APPEND aquafs_SOURCES_local "fs/metrics_prometheus.cc")
+        list(APPEND aquafs_HEADERS_local "fs/metrics_prometheus.h")
+        set(aquafs_COMPILE_FLAGS -DAQUAFS_EXPORT_PROMETHEUS=1 PARENT_SCOPE)
+        # add_definitions(-DAQUAFS_EXPORT_PROMETHEUS=1)
     endif ()
+    set(aquafs_HEADERS ${aquafs_HEADERS_local} PARENT_SCOPE)
+    set(aquafs_SOURCES ${aquafs_SOURCES_local} PARENT_SCOPE)
+    set(aquafs_LIBS ${aquafs_LIBS_local} PARENT_SCOPE)
 
 
     #  execute_process(WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

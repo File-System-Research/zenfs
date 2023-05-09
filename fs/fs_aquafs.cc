@@ -1981,7 +1981,12 @@ FactoryFunc<FileSystem> aquafs_filesystem_reg =
               *errmsg = s.ToString();
             }
           } else if (devID.find("raid") == 0) {
+#ifdef AQUAFS_EXPORT_PROMETHEUS
+            s = NewAquaFS(&fs, ZbdBackendType::kRaid, devID,
+                          std::make_shared<AquaFSPrometheusMetrics>());
+#else
             s = NewAquaFS(&fs, ZbdBackendType::kRaid, devID);
+#endif
             if (!s.ok()) {
               *errmsg = s.ToString();
             }

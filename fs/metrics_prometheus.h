@@ -17,15 +17,15 @@ class ResettingGauge;
 
 namespace AQUAFS_NAMESPACE {
 
-using namespace prometheus;
+// using namespace prometheus;
 
 class GaugeMetric {
  public:
-  Family<Gauge> *family;
-  Gauge *gmin;
-  Gauge *gmax;
-  Gauge *gtotal;
-  Gauge *gcount;
+  prometheus::Family<prometheus::Gauge> *family;
+  prometheus::Gauge *gmin;
+  prometheus::Gauge *gmax;
+  prometheus::Gauge *gtotal;
+  prometheus::Gauge *gcount;
   std::atomic<uint64_t> value;
   std::atomic<uint64_t> count;
   std::atomic<uint64_t> max;
@@ -34,7 +34,7 @@ class GaugeMetric {
 
 class AquaFSPrometheusMetrics : public AQUAFS_NAMESPACE::AquaFSMetrics {
  private:
-  std::shared_ptr<Registry> registry_;
+  std::shared_ptr<prometheus::Registry> registry_;
   std::unordered_map<AquaFSMetricsHistograms, std::shared_ptr<GaugeMetric>>
       metric_map_;
   uint64_t report_interval_ms_ = 5000;
