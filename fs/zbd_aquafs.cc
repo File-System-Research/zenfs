@@ -22,9 +22,9 @@
 #include <vector>
 
 #include "aquafs_namespace.h"
-#include "plugin/aquafs/fs/raid/zone_raid0.h"
-#include "plugin/aquafs/fs/raid/zone_raid1.h"
-#include "plugin/aquafs/fs/raid/zone_raidc.h"
+#include "raid/zone_raid0.h"
+#include "raid/zone_raid1.h"
+#include "raid/zone_raidc.h"
 #include "raid/zone_raid.h"
 #include "raid/zone_raid_auto.h"
 #include "rocksdb/env.h"
