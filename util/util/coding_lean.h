@@ -16,7 +16,7 @@
 
 #include "port/port.h"  // for port::kLittleEndian
 
-namespace ROCKSDB_NAMESPACE {
+namespace aquafs {
 
 // Lower-level versions of Put... that write directly into a character buffer
 // REQUIRES: dst has enough space for the value being written

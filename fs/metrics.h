@@ -172,7 +172,11 @@ struct AquaFSMetricsLatencyGuard {
                             Report(end_time_micro_ - begin_time_micro_));
   }
   // overwrite this function if you wish to capture time by other methods.
-  virtual uint64_t GetTime() { return env_->NowMicros(); }
+  virtual uint64_t GetTime() {
+    // FIXME
+    // return env_->NowMicros();
+    return 0;
+  }
   // overwrite this function if you do not intend to report delays measured in
   // microseconds.
   virtual uint64_t Report(uint64_t time) { return time; }

@@ -27,7 +27,8 @@ if (AQUAFS_STANDALONE)
 
     file(GLOB_RECURSE STANDALONE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/standalone/*.cc")
 
-    set(aquafs_SOURCES ${aquafs_SOURCES_local} ${STANDALONE_SOURCES})
+    set(aquafs_SOURCES ${aquafs_SOURCES_local} ${STANDALONE_SOURCES}
+            ${CMAKE_CURRENT_SOURCE_DIR}/util/util/crc32c.cc)
     set(aquafs_HEADERS ${aquafs_HEADERS_local})
     set(aquafs_LIBS ${aquafs_LIBS_local} "gflags" "rocksdb" "uring" "zstd" "lz4" "snappy" "bz2" "z" "numa")
 

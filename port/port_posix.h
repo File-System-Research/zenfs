@@ -13,8 +13,7 @@
 
 #include <thread>
 
-#include "rocksdb/port_defs.h"
-#include "rocksdb/rocksdb_namespace.h"
+#include "standalone/include/port_defs.h"
 
 // size_t printf formatting named in the manner of C99 standard formatting
 // strings such as PRIu64
@@ -83,7 +82,7 @@
 #define fdatasync fsync
 #endif
 
-namespace ROCKSDB_NAMESPACE {
+namespace aquafs {
 
 extern const bool kDefaultToAdaptiveMutex;
 
@@ -240,4 +239,4 @@ int64_t GetProcessID();
 bool GenerateRfcUuid(std::string* output);
 
 }  // namespace port
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace aquafs

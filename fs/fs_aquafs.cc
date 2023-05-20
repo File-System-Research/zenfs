@@ -25,13 +25,17 @@
 #include "metrics_prometheus.h"
 #endif
 #include "aquafs_namespace.h"
-#include "rocksdb/rocksdb_namespace.h"
-#include "rocksdb/utilities/object_registry.h"
 #include "snapshot.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
 #include "util/mutexlock.h"
 #include "configuration.h"
+
+#ifndef AQUAFS_STANDALONE
+#include "rocksdb/utilities/object_registry.h"
+#else
+#include "standalone/include/object_registry.h"
+#endif
 
 #define DEFAULT_AQUAV_LOG_PATH "/tmp/"
 

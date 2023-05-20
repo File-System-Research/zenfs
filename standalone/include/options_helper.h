@@ -15,7 +15,7 @@
 #include "rocksdb/status.h"
 #include "rocksdb/table.h"
 
-namespace ROCKSDB_NAMESPACE {
+namespace aquafs {
 struct ColumnFamilyOptions;
 struct ConfigOptions;
 struct DBOptions;
@@ -113,4 +113,4 @@ static auto& temperature_string_map = OptionsHelper::temperature_string_map;
 static auto& prepopulate_blob_cache_string_map =
     OptionsHelper::prepopulate_blob_cache_string_map;
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace aquafs

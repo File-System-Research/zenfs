@@ -101,19 +101,19 @@ class Customizable : public Configurable {
     }
   }
 
-  const void* GetOptionsPtr(const std::string& name) const override {
-    const void* ptr = Configurable::GetOptionsPtr(name);
-    if (ptr != nullptr) {
-      return ptr;
-    } else {
-      const auto inner = Inner();
-      if (inner != nullptr) {
-        return inner->GetOptionsPtr(name);
-      } else {
-        return nullptr;
-      }
-    }
-  }
+  // const void* GetOptionsPtr(const std::string& name) const override {
+  //   const void* ptr = Configurable::GetOptionsPtr(name);
+  //   if (ptr != nullptr) {
+  //     return ptr;
+  //   } else {
+  //     const auto inner = Inner();
+  //     if (inner != nullptr) {
+  //       return inner->GetOptionsPtr(name);
+  //     } else {
+  //       return nullptr;
+  //     }
+  //   }
+  // }
 
   // Returns the named instance of the Customizable as a T*, or nullptr if not
   // found. This method uses IsInstanceOf/Inner to find the appropriate class

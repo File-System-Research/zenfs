@@ -14,9 +14,10 @@
 // #include "options/db_options.h"
 #include "rocksdb/convenience.h"
 // #include "rocksdb/utilities/customizable_util.h"
-#include "rocksdb/utilities/object_registry.h"
+#include "include/object_registry.h"
+#include "include/string_util.h"
 #include "rocksdb/utilities/options_type.h"
-#include "util/string_util.h"
+#include "include/env_logger.h"
 // #include "utilities/counted_fs.h"
 // #include "utilities/env_timed.h"
 
@@ -115,6 +116,7 @@ IOStatus FileSystem::NewLogger(const std::string& fname,
   options.io_options = io_opts;
   // TODO: Tune the buffer size.
   options.writable_file_max_buffer_size = 1024 * 1024;
+#ifndef AQUAFS_STANDALONE
   std::unique_ptr<FSWritableFile> writable_file;
   const IOStatus status = NewWritableFile(fname, options, &writable_file, dbg);
   if (!status.ok()) {
@@ -122,8 +124,11 @@ IOStatus FileSystem::NewLogger(const std::string& fname,
   }
 
   // FIXME
-  // *result = std::make_shared<EnvLogger>(std::move(writable_file), fname,
-  //                                       options, Env::Default());
+  *result = std::make_shared<EnvLogger>(std::move(writable_file), fname,
+                                        options, Env::Default());
+#else
+  *result = std::make_shared<EnvLogger>(Env::Default());
+#endif
   return IOStatus::OK();
 }
 
@@ -232,10 +237,10 @@ IOStatus ReadFileToString(FileSystem* fs, const std::string& fname,
 //          0, OptionVerificationType::kByName, OptionTypeFlags::kDontSerialize)},
 // };
 // }  // namespace
-// FileSystemWrapper::FileSystemWrapper(const std::shared_ptr<FileSystem>& t)
-//     : target_(t) {
-//   RegisterOptions("", &target_, &fs_wrapper_type_info);
-// }
+FileSystemWrapper::FileSystemWrapper(const std::shared_ptr<FileSystem>& t)
+    : target_(t) {
+  // RegisterOptions("", &target_, &fs_wrapper_type_info);
+}
 //
 // Status FileSystemWrapper::PrepareOptions(const ConfigOptions& options) {
 //   if (target_ == nullptr) {

@@ -21,6 +21,7 @@
 
 #include "port/port.h"
 #include "rocksdb/slice.h"
+#include "standalone/include/slice.h"
 #include "util/coding_lean.h"
 
 // Some processors does not allow unaligned access to memory
@@ -29,7 +30,7 @@
 #endif
 
 namespace aquafs {
-using namespace ROCKSDB_NAMESPACE;
+// using namespace ROCKSDB_NAMESPACE;
 
 // The maximum length of a varint in bytes for 64-bit.
 const uint32_t kMaxVarint64Length = 10;
@@ -387,4 +388,4 @@ GetUnaligned(const T* memory, T* value) {
 #endif
 }
 
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace aquafs

@@ -73,10 +73,10 @@ const size_t kDefaultPageSize = 4 * 1024;
 // Options while opening a file to read/write
 struct EnvOptions {
   // Construct with default Options
-  EnvOptions();
+  EnvOptions() {}
 
   // Construct from Options
-  explicit EnvOptions(const DBOptions& options);
+  explicit EnvOptions(const DBOptions& options) {}
 
   // If true, then use mmap to read data.
   // Not recommended for 32-bit OS.
@@ -158,9 +158,9 @@ class Env : public Customizable {
   Env();
   // Construct an Env with a separate FileSystem and/or SystemClock
   // implementation
-  explicit Env(const std::shared_ptr<FileSystem>& fs);
-  Env(const std::shared_ptr<FileSystem>& fs,
-      const std::shared_ptr<SystemClock>& clock);
+  // explicit Env(const std::shared_ptr<FileSystem>& fs);
+  // Env(const std::shared_ptr<FileSystem>& fs,
+  //     const std::shared_ptr<SystemClock>& clock);
   // No copying allowed
   Env(const Env&) = delete;
   void operator=(const Env&) = delete;
@@ -186,20 +186,20 @@ class Env : public Customizable {
   // @return OK If the environment was successfully loaded (and optionally
   // prepared)
   // @return not-OK if the load failed.
-  static Status CreateFromString(const ConfigOptions& config_options,
-                                 const std::string& value, Env** result);
-  static Status CreateFromString(const ConfigOptions& config_options,
-                                 const std::string& value, Env** result,
-                                 std::shared_ptr<Env>* guard);
+  // static Status CreateFromString(const ConfigOptions& config_options,
+  //                                const std::string& value, Env** result);
+  // static Status CreateFromString(const ConfigOptions& config_options,
+  //                                const std::string& value, Env** result,
+  //                                std::shared_ptr<Env>* guard);
 
   // Loads the environment specified by the env and fs uri.
   // If both are specified, an error is returned.
   // Otherwise, the environment is created by loading (via CreateFromString)
   // the appropriate env/fs from the corresponding values.
-  static Status CreateFromUri(const ConfigOptions& options,
-                              const std::string& env_uri,
-                              const std::string& fs_uri, Env** result,
-                              std::shared_ptr<Env>* guard);
+  // static Status CreateFromUri(const ConfigOptions& options,
+  //                             const std::string& env_uri,
+  //                             const std::string& fs_uri, Env** result,
+  //                             std::shared_ptr<Env>* guard);
 
   // Return a default environment suitable for the current operating
   // system.  Sophisticated users may wish to provide their own Env
@@ -207,38 +207,38 @@ class Env : public Customizable {
   //
   // The result of Default() belongs to rocksdb and must never be deleted.
   static Env* Default();
-
-  // See FileSystem::RegisterDbPaths.
-  virtual Status RegisterDbPaths(const std::vector<std::string>& /*paths*/) {
-    return Status::OK();
-  }
-  // See FileSystem::UnregisterDbPaths.
-  virtual Status UnregisterDbPaths(const std::vector<std::string>& /*paths*/) {
-    return Status::OK();
-  }
-
-  // Create a brand new sequentially-readable file with the specified name.
-  // On success, stores a pointer to the new file in *result and returns OK.
-  // On failure stores nullptr in *result and returns non-OK.  If the file does
-  // not exist, returns a non-OK status.
   //
-  // The returned file will only be accessed by one thread at a time.
-  virtual Status NewSequentialFile(const std::string& fname,
-                                   std::unique_ptr<SequentialFile>* result,
-                                   const EnvOptions& options) = 0;
-
-  // Create a brand new random access read-only file with the
-  // specified name.  On success, stores a pointer to the new file in
-  // *result and returns OK.  On failure stores nullptr in *result and
-  // returns non-OK.  If the file does not exist, returns a non-OK
-  // status.
+  // // See FileSystem::RegisterDbPaths.
+  // virtual Status RegisterDbPaths(const std::vector<std::string>& /*paths*/) {
+  //   return Status::OK();
+  // }
+  // // See FileSystem::UnregisterDbPaths.
+  // virtual Status UnregisterDbPaths(const std::vector<std::string>& /*paths*/) {
+  //   return Status::OK();
+  // }
   //
-  // The returned file may be concurrently accessed by multiple threads.
-  virtual Status NewRandomAccessFile(const std::string& fname,
-                                     std::unique_ptr<RandomAccessFile>* result,
-                                     const EnvOptions& options) = 0;
-  // These values match Linux definition
-  // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/fcntl.h#n56
+  // // Create a brand new sequentially-readable file with the specified name.
+  // // On success, stores a pointer to the new file in *result and returns OK.
+  // // On failure stores nullptr in *result and returns non-OK.  If the file does
+  // // not exist, returns a non-OK status.
+  // //
+  // // The returned file will only be accessed by one thread at a time.
+  // virtual Status NewSequentialFile(const std::string& fname,
+  //                                  std::unique_ptr<SequentialFile>* result,
+  //                                  const EnvOptions& options) = 0;
+  //
+  // // Create a brand new random access read-only file with the
+  // // specified name.  On success, stores a pointer to the new file in
+  // // *result and returns OK.  On failure stores nullptr in *result and
+  // // returns non-OK.  If the file does not exist, returns a non-OK
+  // // status.
+  // //
+  // // The returned file may be concurrently accessed by multiple threads.
+  // virtual Status NewRandomAccessFile(const std::string& fname,
+  //                                    std::unique_ptr<RandomAccessFile>* result,
+  //                                    const EnvOptions& options) = 0;
+  // // These values match Linux definition
+  // // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/fcntl.h#n56
   enum WriteLifeTimeHint {
     WLTH_NOT_SET = 0,  // No hint information set
     WLTH_NONE,         // No hints about write life time
@@ -247,187 +247,187 @@ class Env : public Customizable {
     WLTH_LONG,         // Data written has a long life time
     WLTH_EXTREME,      // Data written has an extremely long life time
   };
-
-  // Create an object that writes to a new file with the specified
-  // name.  Deletes any existing file with the same name and creates a
-  // new file.  On success, stores a pointer to the new file in
-  // *result and returns OK.  On failure stores nullptr in *result and
-  // returns non-OK.
   //
-  // The returned file will only be accessed by one thread at a time.
-  virtual Status NewWritableFile(const std::string& fname,
-                                 std::unique_ptr<WritableFile>* result,
-                                 const EnvOptions& options) = 0;
-
-  // Create an object that writes to a file with the specified name.
-  // `WritableFile::Append()`s will append after any existing content.  If the
-  // file does not already exist, creates it.
+  // // Create an object that writes to a new file with the specified
+  // // name.  Deletes any existing file with the same name and creates a
+  // // new file.  On success, stores a pointer to the new file in
+  // // *result and returns OK.  On failure stores nullptr in *result and
+  // // returns non-OK.
+  // //
+  // // The returned file will only be accessed by one thread at a time.
+  // virtual Status NewWritableFile(const std::string& fname,
+  //                                std::unique_ptr<WritableFile>* result,
+  //                                const EnvOptions& options) = 0;
   //
-  // On success, stores a pointer to the file in *result and returns OK.  On
-  // failure stores nullptr in *result and returns non-OK.
+  // // Create an object that writes to a file with the specified name.
+  // // `WritableFile::Append()`s will append after any existing content.  If the
+  // // file does not already exist, creates it.
+  // //
+  // // On success, stores a pointer to the file in *result and returns OK.  On
+  // // failure stores nullptr in *result and returns non-OK.
+  // //
+  // // The returned file will only be accessed by one thread at a time.
+  // virtual Status ReopenWritableFile(const std::string& /*fname*/,
+  //                                   std::unique_ptr<WritableFile>* /*result*/,
+  //                                   const EnvOptions& /*options*/) {
+  //   return Status::NotSupported("Env::ReopenWritableFile() not supported.");
+  // }
   //
-  // The returned file will only be accessed by one thread at a time.
-  virtual Status ReopenWritableFile(const std::string& /*fname*/,
-                                    std::unique_ptr<WritableFile>* /*result*/,
-                                    const EnvOptions& /*options*/) {
-    return Status::NotSupported("Env::ReopenWritableFile() not supported.");
-  }
-
-  // Reuse an existing file by renaming it and opening it as writable.
-  virtual Status ReuseWritableFile(const std::string& fname,
-                                   const std::string& old_fname,
-                                   std::unique_ptr<WritableFile>* result,
-                                   const EnvOptions& options);
-
-  // Open `fname` for random read and write, if file doesn't exist the file
-  // will be created.  On success, stores a pointer to the new file in
-  // *result and returns OK.  On failure returns non-OK.
+  // // Reuse an existing file by renaming it and opening it as writable.
+  // virtual Status ReuseWritableFile(const std::string& fname,
+  //                                  const std::string& old_fname,
+  //                                  std::unique_ptr<WritableFile>* result,
+  //                                  const EnvOptions& options);
   //
-  // The returned file will only be accessed by one thread at a time.
-  virtual Status NewRandomRWFile(const std::string& /*fname*/,
-                                 std::unique_ptr<RandomRWFile>* /*result*/,
-                                 const EnvOptions& /*options*/) {
-    return Status::NotSupported("RandomRWFile is not implemented in this Env");
-  }
-
-  // Opens `fname` as a memory-mapped file for read and write (in-place updates
-  // only, i.e., no appends). On success, stores a raw buffer covering the whole
-  // file in `*result`. The file must exist prior to this call.
-  virtual Status NewMemoryMappedFileBuffer(
-      const std::string& /*fname*/,
-      std::unique_ptr<MemoryMappedFileBuffer>* /*result*/) {
-    return Status::NotSupported(
-        "MemoryMappedFileBuffer is not implemented in this Env");
-  }
-
-  // Create an object that represents a directory. Will fail if directory
-  // doesn't exist. If the directory exists, it will open the directory
-  // and create a new Directory object.
+  // // Open `fname` for random read and write, if file doesn't exist the file
+  // // will be created.  On success, stores a pointer to the new file in
+  // // *result and returns OK.  On failure returns non-OK.
+  // //
+  // // The returned file will only be accessed by one thread at a time.
+  // virtual Status NewRandomRWFile(const std::string& /*fname*/,
+  //                                std::unique_ptr<RandomRWFile>* /*result*/,
+  //                                const EnvOptions& /*options*/) {
+  //   return Status::NotSupported("RandomRWFile is not implemented in this Env");
+  // }
   //
-  // On success, stores a pointer to the new Directory in
-  // *result and returns OK. On failure stores nullptr in *result and
-  // returns non-OK.
-  virtual Status NewDirectory(const std::string& name,
-                              std::unique_ptr<Directory>* result) = 0;
-
-  // Returns OK if the named file exists.
-  //         NotFound if the named file does not exist,
-  //                  the calling process does not have permission to determine
-  //                  whether this file exists, or if the path is invalid.
-  //         IOError if an IO Error was encountered
-  virtual Status FileExists(const std::string& fname) = 0;
-
-  // Store in *result the names of the children of the specified directory.
-  // The names are relative to "dir", and shall never include the
-  // names `.` or `..`.
-  // Original contents of *results are dropped.
-  // Returns OK if "dir" exists and "*result" contains its children.
-  //         NotFound if "dir" does not exist, the calling process does not have
-  //                  permission to access "dir", or if "dir" is invalid.
-  //         IOError if an IO Error was encountered
-  virtual Status GetChildren(const std::string& dir,
-                             std::vector<std::string>* result) = 0;
-
-  // Store in *result the attributes of the children of the specified directory.
-  // In case the implementation lists the directory prior to iterating the files
-  // and files are concurrently deleted, the deleted files will be omitted from
-  // result.
-  // The name attributes are relative to "dir", and shall never include the
-  // names `.` or `..`.
-  // Original contents of *results are dropped.
-  // Returns OK if "dir" exists and "*result" contains its children.
-  //         NotFound if "dir" does not exist, the calling process does not have
-  //                  permission to access "dir", or if "dir" is invalid.
-  //         IOError if an IO Error was encountered
-  virtual Status GetChildrenFileAttributes(const std::string& dir,
-                                           std::vector<FileAttributes>* result);
-
-  // Delete the named file.
-  virtual Status DeleteFile(const std::string& fname) = 0;
-
-  // Truncate the named file to the specified size.
-  virtual Status Truncate(const std::string& /*fname*/, size_t /*size*/) {
-    return Status::NotSupported("Truncate is not supported for this Env");
-  }
-
-  // Create the specified directory. Returns error if directory exists.
-  virtual Status CreateDir(const std::string& dirname) = 0;
-
-  // Creates directory if missing. Return Ok if it exists, or successful in
-  // Creating.
-  virtual Status CreateDirIfMissing(const std::string& dirname) = 0;
-
-  // Delete the specified directory.
-  // Many implementations of this function will only delete a directory if it is
-  // empty.
-  virtual Status DeleteDir(const std::string& dirname) = 0;
-
-  // Store the size of fname in *file_size.
-  virtual Status GetFileSize(const std::string& fname, uint64_t* file_size) = 0;
-
-  // Store the last modification time of fname in *file_mtime.
-  virtual Status GetFileModificationTime(const std::string& fname,
-                                         uint64_t* file_mtime) = 0;
-  // Rename file src to target.
-  virtual Status RenameFile(const std::string& src,
-                            const std::string& target) = 0;
-
-  // Hard Link file src to target.
-  virtual Status LinkFile(const std::string& /*src*/,
-                          const std::string& /*target*/) {
-    return Status::NotSupported("LinkFile is not supported for this Env");
-  }
-
-  virtual Status NumFileLinks(const std::string& /*fname*/,
-                              uint64_t* /*count*/) {
-    return Status::NotSupported(
-        "Getting number of file links is not supported for this Env");
-  }
-
-  virtual Status AreFilesSame(const std::string& /*first*/,
-                              const std::string& /*second*/, bool* /*res*/) {
-    return Status::NotSupported("AreFilesSame is not supported for this Env");
-  }
-
-  // Lock the specified file.  Used to prevent concurrent access to
-  // the same db by multiple processes.  On failure, stores nullptr in
-  // *lock and returns non-OK.
+  // // Opens `fname` as a memory-mapped file for read and write (in-place updates
+  // // only, i.e., no appends). On success, stores a raw buffer covering the whole
+  // // file in `*result`. The file must exist prior to this call.
+  // virtual Status NewMemoryMappedFileBuffer(
+  //     const std::string& /*fname*/,
+  //     std::unique_ptr<MemoryMappedFileBuffer>* /*result*/) {
+  //   return Status::NotSupported(
+  //       "MemoryMappedFileBuffer is not implemented in this Env");
+  // }
   //
-  // On success, stores a pointer to the object that represents the
-  // acquired lock in *lock and returns OK.  The caller should call
-  // UnlockFile(*lock) to release the lock.  If the process exits,
-  // the lock will be automatically released.
+  // // Create an object that represents a directory. Will fail if directory
+  // // doesn't exist. If the directory exists, it will open the directory
+  // // and create a new Directory object.
+  // //
+  // // On success, stores a pointer to the new Directory in
+  // // *result and returns OK. On failure stores nullptr in *result and
+  // // returns non-OK.
+  // virtual Status NewDirectory(const std::string& name,
+  //                             std::unique_ptr<Directory>* result) = 0;
   //
-  // If somebody else already holds the lock, finishes immediately
-  // with a failure.  I.e., this call does not wait for existing locks
-  // to go away.
+  // // Returns OK if the named file exists.
+  // //         NotFound if the named file does not exist,
+  // //                  the calling process does not have permission to determine
+  // //                  whether this file exists, or if the path is invalid.
+  // //         IOError if an IO Error was encountered
+  // virtual Status FileExists(const std::string& fname) = 0;
   //
-  // May create the named file if it does not already exist.
-  virtual Status LockFile(const std::string& fname, FileLock** lock) = 0;
-
-  // Release the lock acquired by a previous successful call to LockFile.
-  // REQUIRES: lock was returned by a successful LockFile() call
-  // REQUIRES: lock has not already been unlocked.
-  virtual Status UnlockFile(FileLock* lock) = 0;
-
-  // Opens `lib_name` as a dynamic library.
-  // If the 'search_path' is specified, breaks the path into its components
-  // based on the appropriate platform separator (";" or ";") and looks for the
-  // library in those directories.  If 'search path is not specified, uses the
-  // default library path search mechanism (such as LD_LIBRARY_PATH). On
-  // success, stores a dynamic library in `*result`.
-  virtual Status LoadLibrary(const std::string& /*lib_name*/,
-                             const std::string& /*search_path */,
-                             std::shared_ptr<DynamicLibrary>* /*result*/) {
-    return Status::NotSupported("LoadLibrary is not implemented in this Env");
-  }
-
+  // // Store in *result the names of the children of the specified directory.
+  // // The names are relative to "dir", and shall never include the
+  // // names `.` or `..`.
+  // // Original contents of *results are dropped.
+  // // Returns OK if "dir" exists and "*result" contains its children.
+  // //         NotFound if "dir" does not exist, the calling process does not have
+  // //                  permission to access "dir", or if "dir" is invalid.
+  // //         IOError if an IO Error was encountered
+  // virtual Status GetChildren(const std::string& dir,
+  //                            std::vector<std::string>* result) = 0;
+  //
+  // // Store in *result the attributes of the children of the specified directory.
+  // // In case the implementation lists the directory prior to iterating the files
+  // // and files are concurrently deleted, the deleted files will be omitted from
+  // // result.
+  // // The name attributes are relative to "dir", and shall never include the
+  // // names `.` or `..`.
+  // // Original contents of *results are dropped.
+  // // Returns OK if "dir" exists and "*result" contains its children.
+  // //         NotFound if "dir" does not exist, the calling process does not have
+  // //                  permission to access "dir", or if "dir" is invalid.
+  // //         IOError if an IO Error was encountered
+  // virtual Status GetChildrenFileAttributes(const std::string& dir,
+  //                                          std::vector<FileAttributes>* result);
+  //
+  // // Delete the named file.
+  // virtual Status DeleteFile(const std::string& fname) = 0;
+  //
+  // // Truncate the named file to the specified size.
+  // virtual Status Truncate(const std::string& /*fname*/, size_t /*size*/) {
+  //   return Status::NotSupported("Truncate is not supported for this Env");
+  // }
+  //
+  // // Create the specified directory. Returns error if directory exists.
+  // virtual Status CreateDir(const std::string& dirname) = 0;
+  //
+  // // Creates directory if missing. Return Ok if it exists, or successful in
+  // // Creating.
+  // virtual Status CreateDirIfMissing(const std::string& dirname) = 0;
+  //
+  // // Delete the specified directory.
+  // // Many implementations of this function will only delete a directory if it is
+  // // empty.
+  // virtual Status DeleteDir(const std::string& dirname) = 0;
+  //
+  // // Store the size of fname in *file_size.
+  // virtual Status GetFileSize(const std::string& fname, uint64_t* file_size) = 0;
+  //
+  // // Store the last modification time of fname in *file_mtime.
+  // virtual Status GetFileModificationTime(const std::string& fname,
+  //                                        uint64_t* file_mtime) = 0;
+  // // Rename file src to target.
+  // virtual Status RenameFile(const std::string& src,
+  //                           const std::string& target) = 0;
+  //
+  // // Hard Link file src to target.
+  // virtual Status LinkFile(const std::string& /*src*/,
+  //                         const std::string& /*target*/) {
+  //   return Status::NotSupported("LinkFile is not supported for this Env");
+  // }
+  //
+  // virtual Status NumFileLinks(const std::string& /*fname*/,
+  //                             uint64_t* /*count*/) {
+  //   return Status::NotSupported(
+  //       "Getting number of file links is not supported for this Env");
+  // }
+  //
+  // virtual Status AreFilesSame(const std::string& /*first*/,
+  //                             const std::string& /*second*/, bool* /*res*/) {
+  //   return Status::NotSupported("AreFilesSame is not supported for this Env");
+  // }
+  //
+  // // Lock the specified file.  Used to prevent concurrent access to
+  // // the same db by multiple processes.  On failure, stores nullptr in
+  // // *lock and returns non-OK.
+  // //
+  // // On success, stores a pointer to the object that represents the
+  // // acquired lock in *lock and returns OK.  The caller should call
+  // // UnlockFile(*lock) to release the lock.  If the process exits,
+  // // the lock will be automatically released.
+  // //
+  // // If somebody else already holds the lock, finishes immediately
+  // // with a failure.  I.e., this call does not wait for existing locks
+  // // to go away.
+  // //
+  // // May create the named file if it does not already exist.
+  // virtual Status LockFile(const std::string& fname, FileLock** lock) = 0;
+  //
+  // // Release the lock acquired by a previous successful call to LockFile.
+  // // REQUIRES: lock was returned by a successful LockFile() call
+  // // REQUIRES: lock has not already been unlocked.
+  // virtual Status UnlockFile(FileLock* lock) = 0;
+  //
+  // // Opens `lib_name` as a dynamic library.
+  // // If the 'search_path' is specified, breaks the path into its components
+  // // based on the appropriate platform separator (";" or ";") and looks for the
+  // // library in those directories.  If 'search path is not specified, uses the
+  // // default library path search mechanism (such as LD_LIBRARY_PATH). On
+  // // success, stores a dynamic library in `*result`.
+  // virtual Status LoadLibrary(const std::string& /*lib_name*/,
+  //                            const std::string& /*search_path */,
+  //                            std::shared_ptr<DynamicLibrary>* /*result*/) {
+  //   return Status::NotSupported("LoadLibrary is not implemented in this Env");
+  // }
+  //
   // Priority for scheduling job in thread pool
   enum Priority { BOTTOM, LOW, HIGH, USER, TOTAL };
-
-  static std::string PriorityToString(Priority priority);
-
-  // Priority for requesting bytes in rate limiter scheduler
+  //
+  // static std::string PriorityToString(Priority priority);
+  //
+  // // Priority for requesting bytes in rate limiter scheduler
   enum IOPriority {
     IO_LOW = 0,
     IO_MID = 1,
@@ -435,240 +435,240 @@ class Env : public Customizable {
     IO_USER = 3,
     IO_TOTAL = 4
   };
+  //
+  // // Arrange to run "(*function)(arg)" once in a background thread, in
+  // // the thread pool specified by pri. By default, jobs go to the 'LOW'
+  // // priority thread pool.
+  //
+  // // "function" may run in an unspecified thread.  Multiple functions
+  // // added to the same Env may run concurrently in different threads.
+  // // I.e., the caller may not assume that background work items are
+  // // serialized.
+  // // When the UnSchedule function is called, the unschedFunction
+  // // registered at the time of Schedule is invoked with arg as a parameter.
+  // virtual void Schedule(void (*function)(void* arg), void* arg,
+  //                       Priority pri = LOW, void* tag = nullptr,
+  //                       void (*unschedFunction)(void* arg) = nullptr) = 0;
+  //
+  // // Arrange to remove jobs for given arg from the queue_ if they are not
+  // // already scheduled. Caller is expected to have exclusive lock on arg.
+  // virtual int UnSchedule(void* /*arg*/, Priority /*pri*/) { return 0; }
+  //
+  // // Start a new thread, invoking "function(arg)" within the new thread.
+  // // When "function(arg)" returns, the thread will be destroyed.
+  // virtual void StartThread(void (*function)(void* arg), void* arg) = 0;
+  //
+  // // Start a new thread, invoking "function(args...)" within the new thread.
+  // // When "function(args...)" returns, the thread will be destroyed.
+  // template <typename FunctionT, typename... Args>
+  // void StartThreadTyped(FunctionT function, Args&&... args) {
+  //   using FWType = FunctorWrapper<Args...>;
+  //   StartThread(
+  //       [](void* arg) {
+  //         auto* functor = static_cast<FWType*>(arg);
+  //         functor->invoke();
+  //         delete functor;
+  //       },
+  //       new FWType(std::function<void(Args...)>(function),
+  //                  std::forward<Args>(args)...));
+  // }
+  //
+  // // Wait for all threads started by StartThread to terminate.
+  // virtual void WaitForJoin() {}
+  //
+  // // Reserve available background threads in the specified thread pool.
+  // virtual int ReserveThreads(int /*threads_to_be_reserved*/, Priority /*pri*/) {
+  //   return 0;
+  // }
+  //
+  // // Release a specific number of reserved threads from the specified thread
+  // // pool
+  // virtual int ReleaseThreads(int /*threads_to_be_released*/, Priority /*pri*/) {
+  //   return 0;
+  // }
+  //
+  // // Get thread pool queue length for specific thread pool.
+  // virtual unsigned int GetThreadPoolQueueLen(Priority /*pri*/ = LOW) const {
+  //   return 0;
+  // }
 
-  // Arrange to run "(*function)(arg)" once in a background thread, in
-  // the thread pool specified by pri. By default, jobs go to the 'LOW'
-  // priority thread pool.
-
-  // "function" may run in an unspecified thread.  Multiple functions
-  // added to the same Env may run concurrently in different threads.
-  // I.e., the caller may not assume that background work items are
-  // serialized.
-  // When the UnSchedule function is called, the unschedFunction
-  // registered at the time of Schedule is invoked with arg as a parameter.
-  virtual void Schedule(void (*function)(void* arg), void* arg,
-                        Priority pri = LOW, void* tag = nullptr,
-                        void (*unschedFunction)(void* arg) = nullptr) = 0;
-
-  // Arrange to remove jobs for given arg from the queue_ if they are not
-  // already scheduled. Caller is expected to have exclusive lock on arg.
-  virtual int UnSchedule(void* /*arg*/, Priority /*pri*/) { return 0; }
-
-  // Start a new thread, invoking "function(arg)" within the new thread.
-  // When "function(arg)" returns, the thread will be destroyed.
-  virtual void StartThread(void (*function)(void* arg), void* arg) = 0;
-
-  // Start a new thread, invoking "function(args...)" within the new thread.
-  // When "function(args...)" returns, the thread will be destroyed.
-  template <typename FunctionT, typename... Args>
-  void StartThreadTyped(FunctionT function, Args&&... args) {
-    using FWType = FunctorWrapper<Args...>;
-    StartThread(
-        [](void* arg) {
-          auto* functor = static_cast<FWType*>(arg);
-          functor->invoke();
-          delete functor;
-        },
-        new FWType(std::function<void(Args...)>(function),
-                   std::forward<Args>(args)...));
-  }
-
-  // Wait for all threads started by StartThread to terminate.
-  virtual void WaitForJoin() {}
-
-  // Reserve available background threads in the specified thread pool.
-  virtual int ReserveThreads(int /*threads_to_be_reserved*/, Priority /*pri*/) {
-    return 0;
-  }
-
-  // Release a specific number of reserved threads from the specified thread
-  // pool
-  virtual int ReleaseThreads(int /*threads_to_be_released*/, Priority /*pri*/) {
-    return 0;
-  }
-
-  // Get thread pool queue length for specific thread pool.
-  virtual unsigned int GetThreadPoolQueueLen(Priority /*pri*/ = LOW) const {
-    return 0;
-  }
-
-  // *path is set to a temporary directory that can be used for testing. It may
-  // or many not have just been created. The directory may or may not differ
-  // between runs of the same process, but subsequent calls will return the
-  // same directory.
-  virtual Status GetTestDirectory(std::string* path) = 0;
-
-  // Create and returns a default logger (an instance of EnvLogger) for storing
-  // informational messages. Derived classes can override to provide custom
-  // logger.
-  virtual Status NewLogger(const std::string& fname,
-                           std::shared_ptr<Logger>* result);
-
-  // Returns the number of micro-seconds since some fixed point in time.
-  // It is often used as system time such as in GenericRateLimiter
-  // and other places so a port needs to return system time in order to work.
-  virtual uint64_t NowMicros() = 0;
-
-  // Returns the number of nano-seconds since some fixed point in time. Only
-  // useful for computing deltas of time in one run.
-  // Default implementation simply relies on NowMicros.
-  // In platform-specific implementations, NowNanos() should return time points
-  // that are MONOTONIC.
-  virtual uint64_t NowNanos() { return NowMicros() * 1000; }
-
-  // 0 indicates not supported.
-  virtual uint64_t NowCPUNanos() { return 0; }
-
-  // Sleep/delay the thread for the prescribed number of micro-seconds.
-  virtual void SleepForMicroseconds(int micros) = 0;
-
-  // Get the current host name as a null terminated string iff the string
-  // length is < len. The hostname should otherwise be truncated to len.
-  virtual Status GetHostName(char* name, uint64_t len) = 0;
-
-  // Get the current hostname from the given env as a std::string in result.
-  // The result may be truncated if the hostname is too
-  // long
-  virtual Status GetHostNameString(std::string* result);
-
-  // Get the number of seconds since the Epoch, 1970-01-01 00:00:00 (UTC).
-  // Only overwrites *unix_time on success.
-  virtual Status GetCurrentTime(int64_t* unix_time) = 0;
-
-  // Get full directory name for this db.
-  virtual Status GetAbsolutePath(const std::string& db_path,
-                                 std::string* output_path) = 0;
-
-  // The number of background worker threads of a specific thread pool
-  // for this environment. 'LOW' is the default pool.
-  // default number: 1
-  virtual void SetBackgroundThreads(int number, Priority pri = LOW) = 0;
-  virtual int GetBackgroundThreads(Priority pri = LOW) = 0;
-
-  virtual Status SetAllowNonOwnerAccess(bool /*allow_non_owner_access*/) {
-    return Status::NotSupported("Env::SetAllowNonOwnerAccess() not supported.");
-  }
-
-  // Enlarge number of background worker threads of a specific thread pool
-  // for this environment if it is smaller than specified. 'LOW' is the default
-  // pool.
-  virtual void IncBackgroundThreadsIfNeeded(int number, Priority pri) = 0;
-
-  // Lower IO priority for threads from the specified pool.
-  virtual void LowerThreadPoolIOPriority(Priority /*pool*/ = LOW) {}
-
-  // Lower CPU priority for threads from the specified pool.
-  virtual Status LowerThreadPoolCPUPriority(Priority /*pool*/,
-                                            CpuPriority /*pri*/) {
-    return Status::NotSupported(
-        "Env::LowerThreadPoolCPUPriority(Priority, CpuPriority) not supported");
-  }
-
-  // Lower CPU priority for threads from the specified pool.
-  virtual void LowerThreadPoolCPUPriority(Priority /*pool*/ = LOW) {}
-
-  // Converts seconds-since-Jan-01-1970 to a printable string
-  virtual std::string TimeToString(uint64_t time) = 0;
-
-  // Generates a human-readable unique ID that can be used to identify a DB.
-  // In built-in implementations, this is an RFC-4122 UUID string, but might
-  // not be in all implementations. Overriding is not recommended.
-  // NOTE: this has not be validated for use in cryptography
-  virtual std::string GenerateUniqueId();
-
-  // OptimizeForLogWrite will create a new EnvOptions object that is a copy of
-  // the EnvOptions in the parameters, but is optimized for reading log files.
-  virtual EnvOptions OptimizeForLogRead(const EnvOptions& env_options) const;
-
-  // OptimizeForManifestRead will create a new EnvOptions object that is a copy
-  // of the EnvOptions in the parameters, but is optimized for reading manifest
-  // files.
-  virtual EnvOptions OptimizeForManifestRead(
-      const EnvOptions& env_options) const;
-
-  // OptimizeForLogWrite will create a new EnvOptions object that is a copy of
-  // the EnvOptions in the parameters, but is optimized for writing log files.
-  // Default implementation returns the copy of the same object.
-  virtual EnvOptions OptimizeForLogWrite(const EnvOptions& env_options,
-                                         const DBOptions& db_options) const;
-  // OptimizeForManifestWrite will create a new EnvOptions object that is a copy
-  // of the EnvOptions in the parameters, but is optimized for writing manifest
-  // files. Default implementation returns the copy of the same object.
-  virtual EnvOptions OptimizeForManifestWrite(
-      const EnvOptions& env_options) const;
-
-  // OptimizeForCompactionTableWrite will create a new EnvOptions object that is
-  // a copy of the EnvOptions in the parameters, but is optimized for writing
-  // table files.
-  virtual EnvOptions OptimizeForCompactionTableWrite(
-      const EnvOptions& env_options,
-      const ImmutableDBOptions& immutable_ops) const;
-
-  // OptimizeForCompactionTableWrite will create a new EnvOptions object that
-  // is a copy of the EnvOptions in the parameters, but is optimized for reading
-  // table files.
-  virtual EnvOptions OptimizeForCompactionTableRead(
-      const EnvOptions& env_options,
-      const ImmutableDBOptions& db_options) const;
-
-  // OptimizeForBlobFileRead will create a new EnvOptions object that
-  // is a copy of the EnvOptions in the parameters, but is optimized for reading
-  // blob files.
-  virtual EnvOptions OptimizeForBlobFileRead(
-      const EnvOptions& env_options,
-      const ImmutableDBOptions& db_options) const;
-
-  // Returns the status of all threads that belong to the current Env.
-  virtual Status GetThreadList(std::vector<ThreadStatus>* /*thread_list*/) {
-    return Status::NotSupported("Env::GetThreadList() not supported.");
-  }
-
-  // Returns the pointer to ThreadStatusUpdater.  This function will be
-  // used in RocksDB internally to update thread status and supports
-  // GetThreadList().
-  virtual ThreadStatusUpdater* GetThreadStatusUpdater() const {
-    return thread_status_updater_;
-  }
-
-  // Returns the ID of the current thread.
-  virtual uint64_t GetThreadID() const;
-
-// This seems to clash with a macro on Windows, so #undef it here
-#undef GetFreeSpace
-
-  // Get the amount of free disk space
-  virtual Status GetFreeSpace(const std::string& /*path*/,
-                              uint64_t* /*diskfree*/) {
-    return Status::NotSupported("Env::GetFreeSpace() not supported.");
-  }
-
-  // Check whether the specified path is a directory
-  virtual Status IsDirectory(const std::string& /*path*/, bool* /*is_dir*/) {
-    return Status::NotSupported("Env::IsDirectory() not supported.");
-  }
-
-  virtual void SanitizeEnvOptions(EnvOptions* /*env_opts*/) const {}
-
-  // Get the FileSystem implementation this Env was constructed with. It
-  // could be a fully implemented one, or a wrapper class around the Env
-  const std::shared_ptr<FileSystem>& GetFileSystem() const;
-
-  // Get the SystemClock implementation this Env was constructed with. It
-  // could be a fully implemented one, or a wrapper class around the Env
-  const std::shared_ptr<SystemClock>& GetSystemClock() const;
+//   // *path is set to a temporary directory that can be used for testing. It may
+//   // or many not have just been created. The directory may or may not differ
+//   // between runs of the same process, but subsequent calls will return the
+//   // same directory.
+//   virtual Status GetTestDirectory(std::string* path) = 0;
+//
+//   // Create and returns a default logger (an instance of EnvLogger) for storing
+//   // informational messages. Derived classes can override to provide custom
+//   // logger.
+//   virtual Status NewLogger(const std::string& fname,
+//                            std::shared_ptr<Logger>* result);
+//
+//   // Returns the number of micro-seconds since some fixed point in time.
+//   // It is often used as system time such as in GenericRateLimiter
+//   // and other places so a port needs to return system time in order to work.
+//   virtual uint64_t NowMicros() = 0;
+//
+//   // Returns the number of nano-seconds since some fixed point in time. Only
+//   // useful for computing deltas of time in one run.
+//   // Default implementation simply relies on NowMicros.
+//   // In platform-specific implementations, NowNanos() should return time points
+//   // that are MONOTONIC.
+//   virtual uint64_t NowNanos() { return NowMicros() * 1000; }
+//
+//   // 0 indicates not supported.
+//   virtual uint64_t NowCPUNanos() { return 0; }
+//
+//   // Sleep/delay the thread for the prescribed number of micro-seconds.
+//   virtual void SleepForMicroseconds(int micros) = 0;
+//
+//   // Get the current host name as a null terminated string iff the string
+//   // length is < len. The hostname should otherwise be truncated to len.
+//   virtual Status GetHostName(char* name, uint64_t len) = 0;
+//
+//   // Get the current hostname from the given env as a std::string in result.
+//   // The result may be truncated if the hostname is too
+//   // long
+//   virtual Status GetHostNameString(std::string* result);
+//
+//   // Get the number of seconds since the Epoch, 1970-01-01 00:00:00 (UTC).
+//   // Only overwrites *unix_time on success.
+//   virtual Status GetCurrentTime(int64_t* unix_time) = 0;
+//
+//   // Get full directory name for this db.
+//   virtual Status GetAbsolutePath(const std::string& db_path,
+//                                  std::string* output_path) = 0;
+//
+//   // The number of background worker threads of a specific thread pool
+//   // for this environment. 'LOW' is the default pool.
+//   // default number: 1
+//   virtual void SetBackgroundThreads(int number, Priority pri = LOW) = 0;
+//   virtual int GetBackgroundThreads(Priority pri = LOW) = 0;
+//
+//   virtual Status SetAllowNonOwnerAccess(bool /*allow_non_owner_access*/) {
+//     return Status::NotSupported("Env::SetAllowNonOwnerAccess() not supported.");
+//   }
+//
+//   // Enlarge number of background worker threads of a specific thread pool
+//   // for this environment if it is smaller than specified. 'LOW' is the default
+//   // pool.
+//   virtual void IncBackgroundThreadsIfNeeded(int number, Priority pri) = 0;
+//
+//   // Lower IO priority for threads from the specified pool.
+//   virtual void LowerThreadPoolIOPriority(Priority /*pool*/ = LOW) {}
+//
+//   // Lower CPU priority for threads from the specified pool.
+//   virtual Status LowerThreadPoolCPUPriority(Priority /*pool*/,
+//                                             CpuPriority /*pri*/) {
+//     return Status::NotSupported(
+//         "Env::LowerThreadPoolCPUPriority(Priority, CpuPriority) not supported");
+//   }
+//
+//   // Lower CPU priority for threads from the specified pool.
+//   virtual void LowerThreadPoolCPUPriority(Priority /*pool*/ = LOW) {}
+//
+//   // Converts seconds-since-Jan-01-1970 to a printable string
+//   virtual std::string TimeToString(uint64_t time) = 0;
+//
+//   // Generates a human-readable unique ID that can be used to identify a DB.
+//   // In built-in implementations, this is an RFC-4122 UUID string, but might
+//   // not be in all implementations. Overriding is not recommended.
+//   // NOTE: this has not be validated for use in cryptography
+  virtual std::string GenerateUniqueId() { return "none-uuid"; }
+//
+//   // OptimizeForLogWrite will create a new EnvOptions object that is a copy of
+//   // the EnvOptions in the parameters, but is optimized for reading log files.
+//   virtual EnvOptions OptimizeForLogRead(const EnvOptions& env_options) const;
+//
+//   // OptimizeForManifestRead will create a new EnvOptions object that is a copy
+//   // of the EnvOptions in the parameters, but is optimized for reading manifest
+//   // files.
+//   virtual EnvOptions OptimizeForManifestRead(
+//       const EnvOptions& env_options) const;
+//
+//   // OptimizeForLogWrite will create a new EnvOptions object that is a copy of
+//   // the EnvOptions in the parameters, but is optimized for writing log files.
+//   // Default implementation returns the copy of the same object.
+//   virtual EnvOptions OptimizeForLogWrite(const EnvOptions& env_options,
+//                                          const DBOptions& db_options) const;
+//   // OptimizeForManifestWrite will create a new EnvOptions object that is a copy
+//   // of the EnvOptions in the parameters, but is optimized for writing manifest
+//   // files. Default implementation returns the copy of the same object.
+//   virtual EnvOptions OptimizeForManifestWrite(
+//       const EnvOptions& env_options) const;
+//
+//   // OptimizeForCompactionTableWrite will create a new EnvOptions object that is
+//   // a copy of the EnvOptions in the parameters, but is optimized for writing
+//   // table files.
+//   virtual EnvOptions OptimizeForCompactionTableWrite(
+//       const EnvOptions& env_options,
+//       const ImmutableDBOptions& immutable_ops) const;
+//
+//   // OptimizeForCompactionTableWrite will create a new EnvOptions object that
+//   // is a copy of the EnvOptions in the parameters, but is optimized for reading
+//   // table files.
+//   virtual EnvOptions OptimizeForCompactionTableRead(
+//       const EnvOptions& env_options,
+//       const ImmutableDBOptions& db_options) const;
+//
+//   // OptimizeForBlobFileRead will create a new EnvOptions object that
+//   // is a copy of the EnvOptions in the parameters, but is optimized for reading
+//   // blob files.
+//   virtual EnvOptions OptimizeForBlobFileRead(
+//       const EnvOptions& env_options,
+//       const ImmutableDBOptions& db_options) const;
+//
+//   // Returns the status of all threads that belong to the current Env.
+//   virtual Status GetThreadList(std::vector<ThreadStatus>* /*thread_list*/) {
+//     return Status::NotSupported("Env::GetThreadList() not supported.");
+//   }
+//
+//   // Returns the pointer to ThreadStatusUpdater.  This function will be
+//   // used in RocksDB internally to update thread status and supports
+//   // GetThreadList().
+//   virtual ThreadStatusUpdater* GetThreadStatusUpdater() const {
+//     return thread_status_updater_;
+//   }
+//
+//   // Returns the ID of the current thread.
+//   // virtual uint64_t GetThreadID() const;
+//
+// // This seems to clash with a macro on Windows, so #undef it here
+// #undef GetFreeSpace
+//
+//   // Get the amount of free disk space
+//   virtual Status GetFreeSpace(const std::string& /*path*/,
+//                               uint64_t* /*diskfree*/) {
+//     return Status::NotSupported("Env::GetFreeSpace() not supported.");
+//   }
+//
+//   // Check whether the specified path is a directory
+//   virtual Status IsDirectory(const std::string& /*path*/, bool* /*is_dir*/) {
+//     return Status::NotSupported("Env::IsDirectory() not supported.");
+//   }
+//
+//   virtual void SanitizeEnvOptions(EnvOptions* /*env_opts*/) const {}
+//
+//   // Get the FileSystem implementation this Env was constructed with. It
+//   // could be a fully implemented one, or a wrapper class around the Env
+//   // const std::shared_ptr<FileSystem>& GetFileSystem() const;
+//
+//   // Get the SystemClock implementation this Env was constructed with. It
+//   // could be a fully implemented one, or a wrapper class around the Env
+//   // const std::shared_ptr<SystemClock>& GetSystemClock() const;
 
   // If you're adding methods here, remember to add them to EnvWrapper too.
 
  protected:
   // The pointer to an internal structure that will update the
   // status of each thread.
-  ThreadStatusUpdater* thread_status_updater_;
+  // ThreadStatusUpdater* thread_status_updater_;
 
   // Pointer to the underlying FileSystem implementation
-  std::shared_ptr<FileSystem> file_system_;
+  // std::shared_ptr<FileSystem> file_system_;
 
   // Pointer to the underlying SystemClock implementation
-  std::shared_ptr<SystemClock> system_clock_;
+  // std::shared_ptr<SystemClock> system_clock_;
 
  private:
   static const size_t kMaxHostNameLen = 256;
@@ -1396,255 +1396,255 @@ class EnvWrapper : public Env {
   const char* Name() const override { return target_.env->Name(); }
 
   // The following text is boilerplate that forwards all methods to target()
-  Status RegisterDbPaths(const std::vector<std::string>& paths) override {
-    return target_.env->RegisterDbPaths(paths);
-  }
+  // Status RegisterDbPaths(const std::vector<std::string>& paths) override {
+  //   return target_.env->RegisterDbPaths(paths);
+  // }
+  //
+  // Status UnregisterDbPaths(const std::vector<std::string>& paths) override {
+  //   return target_.env->UnregisterDbPaths(paths);
+  // }
+  //
+  // Status NewSequentialFile(const std::string& f,
+  //                          std::unique_ptr<SequentialFile>* r,
+  //                          const EnvOptions& options) override {
+  //   return target_.env->NewSequentialFile(f, r, options);
+  // }
+  // Status NewRandomAccessFile(const std::string& f,
+  //                            std::unique_ptr<RandomAccessFile>* r,
+  //                            const EnvOptions& options) override {
+  //   return target_.env->NewRandomAccessFile(f, r, options);
+  // }
+  // Status NewWritableFile(const std::string& f, std::unique_ptr<WritableFile>* r,
+  //                        const EnvOptions& options) override {
+  //   return target_.env->NewWritableFile(f, r, options);
+  // }
+  // Status ReopenWritableFile(const std::string& fname,
+  //                           std::unique_ptr<WritableFile>* result,
+  //                           const EnvOptions& options) override {
+  //   return target_.env->ReopenWritableFile(fname, result, options);
+  // }
+  // Status ReuseWritableFile(const std::string& fname,
+  //                          const std::string& old_fname,
+  //                          std::unique_ptr<WritableFile>* r,
+  //                          const EnvOptions& options) override {
+  //   return target_.env->ReuseWritableFile(fname, old_fname, r, options);
+  // }
+  // Status NewRandomRWFile(const std::string& fname,
+  //                        std::unique_ptr<RandomRWFile>* result,
+  //                        const EnvOptions& options) override {
+  //   return target_.env->NewRandomRWFile(fname, result, options);
+  // }
+  // Status NewMemoryMappedFileBuffer(
+  //     const std::string& fname,
+  //     std::unique_ptr<MemoryMappedFileBuffer>* result) override {
+  //   return target_.env->NewMemoryMappedFileBuffer(fname, result);
+  // }
+  // Status NewDirectory(const std::string& name,
+  //                     std::unique_ptr<Directory>* result) override {
+  //   return target_.env->NewDirectory(name, result);
+  // }
+  // Status FileExists(const std::string& f) override {
+  //   return target_.env->FileExists(f);
+  // }
+  // Status GetChildren(const std::string& dir,
+  //                    std::vector<std::string>* r) override {
+  //   return target_.env->GetChildren(dir, r);
+  // }
+  // Status GetChildrenFileAttributes(
+  //     const std::string& dir, std::vector<FileAttributes>* result) override {
+  //   return target_.env->GetChildrenFileAttributes(dir, result);
+  // }
+  // Status DeleteFile(const std::string& f) override {
+  //   return target_.env->DeleteFile(f);
+  // }
+  // Status Truncate(const std::string& fname, size_t size) override {
+  //   return target_.env->Truncate(fname, size);
+  // }
+  // Status CreateDir(const std::string& d) override {
+  //   return target_.env->CreateDir(d);
+  // }
+  // Status CreateDirIfMissing(const std::string& d) override {
+  //   return target_.env->CreateDirIfMissing(d);
+  // }
+  // Status DeleteDir(const std::string& d) override {
+  //   return target_.env->DeleteDir(d);
+  // }
+  // Status GetFileSize(const std::string& f, uint64_t* s) override {
+  //   return target_.env->GetFileSize(f, s);
+  // }
+  //
+  // Status GetFileModificationTime(const std::string& fname,
+  //                                uint64_t* file_mtime) override {
+  //   return target_.env->GetFileModificationTime(fname, file_mtime);
+  // }
+  //
+  // Status RenameFile(const std::string& s, const std::string& t) override {
+  //   return target_.env->RenameFile(s, t);
+  // }
+  //
+  // Status LinkFile(const std::string& s, const std::string& t) override {
+  //   return target_.env->LinkFile(s, t);
+  // }
+  //
+  // Status NumFileLinks(const std::string& fname, uint64_t* count) override {
+  //   return target_.env->NumFileLinks(fname, count);
+  // }
+  //
+  // Status AreFilesSame(const std::string& first, const std::string& second,
+  //                     bool* res) override {
+  //   return target_.env->AreFilesSame(first, second, res);
+  // }
+  //
+  // Status LockFile(const std::string& f, FileLock** l) override {
+  //   return target_.env->LockFile(f, l);
+  // }
+  //
+  // Status UnlockFile(FileLock* l) override { return target_.env->UnlockFile(l); }
+  //
+  // // Status IsDirectory(const std::string& path, bool* is_dir) override {
+  // //   return target_.env->IsDirectory(path, is_dir);
+  // // }
+  //
+  // Status LoadLibrary(const std::string& lib_name,
+  //                    const std::string& search_path,
+  //                    std::shared_ptr<DynamicLibrary>* result) override {
+  //   return target_.env->LoadLibrary(lib_name, search_path, result);
+  // }
+  //
+  // void Schedule(void (*f)(void* arg), void* a, Priority pri,
+  //               void* tag = nullptr, void (*u)(void* arg) = nullptr) override {
+  //   return target_.env->Schedule(f, a, pri, tag, u);
+  // }
+  //
+  // int UnSchedule(void* tag, Priority pri) override {
+  //   return target_.env->UnSchedule(tag, pri);
+  // }
+  //
+  // void StartThread(void (*f)(void*), void* a) override {
+  //   return target_.env->StartThread(f, a);
+  // }
+  // void WaitForJoin() override { return target_.env->WaitForJoin(); }
+  // unsigned int GetThreadPoolQueueLen(Priority pri = LOW) const override {
+  //   return target_.env->GetThreadPoolQueueLen(pri);
+  // }
+  //
+  // int ReserveThreads(int threads_to_be_reserved, Priority pri) override {
+  //   return target_.env->ReserveThreads(threads_to_be_reserved, pri);
+  // }
+  //
+  // int ReleaseThreads(int threads_to_be_released, Priority pri) override {
+  //   return target_.env->ReleaseThreads(threads_to_be_released, pri);
+  // }
 
-  Status UnregisterDbPaths(const std::vector<std::string>& paths) override {
-    return target_.env->UnregisterDbPaths(paths);
-  }
-
-  Status NewSequentialFile(const std::string& f,
-                           std::unique_ptr<SequentialFile>* r,
-                           const EnvOptions& options) override {
-    return target_.env->NewSequentialFile(f, r, options);
-  }
-  Status NewRandomAccessFile(const std::string& f,
-                             std::unique_ptr<RandomAccessFile>* r,
-                             const EnvOptions& options) override {
-    return target_.env->NewRandomAccessFile(f, r, options);
-  }
-  Status NewWritableFile(const std::string& f, std::unique_ptr<WritableFile>* r,
-                         const EnvOptions& options) override {
-    return target_.env->NewWritableFile(f, r, options);
-  }
-  Status ReopenWritableFile(const std::string& fname,
-                            std::unique_ptr<WritableFile>* result,
-                            const EnvOptions& options) override {
-    return target_.env->ReopenWritableFile(fname, result, options);
-  }
-  Status ReuseWritableFile(const std::string& fname,
-                           const std::string& old_fname,
-                           std::unique_ptr<WritableFile>* r,
-                           const EnvOptions& options) override {
-    return target_.env->ReuseWritableFile(fname, old_fname, r, options);
-  }
-  Status NewRandomRWFile(const std::string& fname,
-                         std::unique_ptr<RandomRWFile>* result,
-                         const EnvOptions& options) override {
-    return target_.env->NewRandomRWFile(fname, result, options);
-  }
-  Status NewMemoryMappedFileBuffer(
-      const std::string& fname,
-      std::unique_ptr<MemoryMappedFileBuffer>* result) override {
-    return target_.env->NewMemoryMappedFileBuffer(fname, result);
-  }
-  Status NewDirectory(const std::string& name,
-                      std::unique_ptr<Directory>* result) override {
-    return target_.env->NewDirectory(name, result);
-  }
-  Status FileExists(const std::string& f) override {
-    return target_.env->FileExists(f);
-  }
-  Status GetChildren(const std::string& dir,
-                     std::vector<std::string>* r) override {
-    return target_.env->GetChildren(dir, r);
-  }
-  Status GetChildrenFileAttributes(
-      const std::string& dir, std::vector<FileAttributes>* result) override {
-    return target_.env->GetChildrenFileAttributes(dir, result);
-  }
-  Status DeleteFile(const std::string& f) override {
-    return target_.env->DeleteFile(f);
-  }
-  Status Truncate(const std::string& fname, size_t size) override {
-    return target_.env->Truncate(fname, size);
-  }
-  Status CreateDir(const std::string& d) override {
-    return target_.env->CreateDir(d);
-  }
-  Status CreateDirIfMissing(const std::string& d) override {
-    return target_.env->CreateDirIfMissing(d);
-  }
-  Status DeleteDir(const std::string& d) override {
-    return target_.env->DeleteDir(d);
-  }
-  Status GetFileSize(const std::string& f, uint64_t* s) override {
-    return target_.env->GetFileSize(f, s);
-  }
-
-  Status GetFileModificationTime(const std::string& fname,
-                                 uint64_t* file_mtime) override {
-    return target_.env->GetFileModificationTime(fname, file_mtime);
-  }
-
-  Status RenameFile(const std::string& s, const std::string& t) override {
-    return target_.env->RenameFile(s, t);
-  }
-
-  Status LinkFile(const std::string& s, const std::string& t) override {
-    return target_.env->LinkFile(s, t);
-  }
-
-  Status NumFileLinks(const std::string& fname, uint64_t* count) override {
-    return target_.env->NumFileLinks(fname, count);
-  }
-
-  Status AreFilesSame(const std::string& first, const std::string& second,
-                      bool* res) override {
-    return target_.env->AreFilesSame(first, second, res);
-  }
-
-  Status LockFile(const std::string& f, FileLock** l) override {
-    return target_.env->LockFile(f, l);
-  }
-
-  Status UnlockFile(FileLock* l) override { return target_.env->UnlockFile(l); }
-
-  Status IsDirectory(const std::string& path, bool* is_dir) override {
-    return target_.env->IsDirectory(path, is_dir);
-  }
-
-  Status LoadLibrary(const std::string& lib_name,
-                     const std::string& search_path,
-                     std::shared_ptr<DynamicLibrary>* result) override {
-    return target_.env->LoadLibrary(lib_name, search_path, result);
-  }
-
-  void Schedule(void (*f)(void* arg), void* a, Priority pri,
-                void* tag = nullptr, void (*u)(void* arg) = nullptr) override {
-    return target_.env->Schedule(f, a, pri, tag, u);
-  }
-
-  int UnSchedule(void* tag, Priority pri) override {
-    return target_.env->UnSchedule(tag, pri);
-  }
-
-  void StartThread(void (*f)(void*), void* a) override {
-    return target_.env->StartThread(f, a);
-  }
-  void WaitForJoin() override { return target_.env->WaitForJoin(); }
-  unsigned int GetThreadPoolQueueLen(Priority pri = LOW) const override {
-    return target_.env->GetThreadPoolQueueLen(pri);
-  }
-
-  int ReserveThreads(int threads_to_be_reserved, Priority pri) override {
-    return target_.env->ReserveThreads(threads_to_be_reserved, pri);
-  }
-
-  int ReleaseThreads(int threads_to_be_released, Priority pri) override {
-    return target_.env->ReleaseThreads(threads_to_be_released, pri);
-  }
-
-  Status GetTestDirectory(std::string* path) override {
-    return target_.env->GetTestDirectory(path);
-  }
-  Status NewLogger(const std::string& fname,
-                   std::shared_ptr<Logger>* result) override {
-    return target_.env->NewLogger(fname, result);
-  }
-  uint64_t NowMicros() override { return target_.env->NowMicros(); }
-  uint64_t NowNanos() override { return target_.env->NowNanos(); }
-  uint64_t NowCPUNanos() override { return target_.env->NowCPUNanos(); }
-
-  void SleepForMicroseconds(int micros) override {
-    target_.env->SleepForMicroseconds(micros);
-  }
-  Status GetHostName(char* name, uint64_t len) override {
-    return target_.env->GetHostName(name, len);
-  }
-  Status GetCurrentTime(int64_t* unix_time) override {
-    return target_.env->GetCurrentTime(unix_time);
-  }
-  Status GetAbsolutePath(const std::string& db_path,
-                         std::string* output_path) override {
-    return target_.env->GetAbsolutePath(db_path, output_path);
-  }
-  void SetBackgroundThreads(int num, Priority pri) override {
-    return target_.env->SetBackgroundThreads(num, pri);
-  }
-  int GetBackgroundThreads(Priority pri) override {
-    return target_.env->GetBackgroundThreads(pri);
-  }
-
-  Status SetAllowNonOwnerAccess(bool allow_non_owner_access) override {
-    return target_.env->SetAllowNonOwnerAccess(allow_non_owner_access);
-  }
-
-  void IncBackgroundThreadsIfNeeded(int num, Priority pri) override {
-    return target_.env->IncBackgroundThreadsIfNeeded(num, pri);
-  }
-
-  void LowerThreadPoolIOPriority(Priority pool) override {
-    target_.env->LowerThreadPoolIOPriority(pool);
-  }
-
-  void LowerThreadPoolCPUPriority(Priority pool) override {
-    target_.env->LowerThreadPoolCPUPriority(pool);
-  }
-
-  Status LowerThreadPoolCPUPriority(Priority pool, CpuPriority pri) override {
-    return target_.env->LowerThreadPoolCPUPriority(pool, pri);
-  }
-
-  std::string TimeToString(uint64_t time) override {
-    return target_.env->TimeToString(time);
-  }
-
-  Status GetThreadList(std::vector<ThreadStatus>* thread_list) override {
-    return target_.env->GetThreadList(thread_list);
-  }
-
-  ThreadStatusUpdater* GetThreadStatusUpdater() const override {
-    return target_.env->GetThreadStatusUpdater();
-  }
-
-  uint64_t GetThreadID() const override { return target_.env->GetThreadID(); }
-
+  // Status GetTestDirectory(std::string* path) override {
+  //   return target_.env->GetTestDirectory(path);
+  // }
+  // Status NewLogger(const std::string& fname,
+  //                  std::shared_ptr<Logger>* result) override {
+  //   return target_.env->NewLogger(fname, result);
+  // }
+  // uint64_t NowMicros() override { return target_.env->NowMicros(); }
+  // uint64_t NowNanos() override { return target_.env->NowNanos(); }
+  // uint64_t NowCPUNanos() override { return target_.env->NowCPUNanos(); }
+  //
+  // void SleepForMicroseconds(int micros) override {
+  //   target_.env->SleepForMicroseconds(micros);
+  // }
+  // Status GetHostName(char* name, uint64_t len) override {
+  //   return target_.env->GetHostName(name, len);
+  // }
+  // Status GetCurrentTime(int64_t* unix_time) override {
+  //   return target_.env->GetCurrentTime(unix_time);
+  // }
+  // Status GetAbsolutePath(const std::string& db_path,
+  //                        std::string* output_path) override {
+  //   return target_.env->GetAbsolutePath(db_path, output_path);
+  // }
+  // void SetBackgroundThreads(int num, Priority pri) override {
+  //   return target_.env->SetBackgroundThreads(num, pri);
+  // }
+  // int GetBackgroundThreads(Priority pri) override {
+  //   return target_.env->GetBackgroundThreads(pri);
+  // }
+  //
+  // Status SetAllowNonOwnerAccess(bool allow_non_owner_access) override {
+  //   return target_.env->SetAllowNonOwnerAccess(allow_non_owner_access);
+  // }
+  //
+  // void IncBackgroundThreadsIfNeeded(int num, Priority pri) override {
+  //   return target_.env->IncBackgroundThreadsIfNeeded(num, pri);
+  // }
+  //
+  // void LowerThreadPoolIOPriority(Priority pool) override {
+  //   target_.env->LowerThreadPoolIOPriority(pool);
+  // }
+  //
+  // void LowerThreadPoolCPUPriority(Priority pool) override {
+  //   target_.env->LowerThreadPoolCPUPriority(pool);
+  // }
+  //
+  // Status LowerThreadPoolCPUPriority(Priority pool, CpuPriority pri) override {
+  //   return target_.env->LowerThreadPoolCPUPriority(pool, pri);
+  // }
+  //
+  // std::string TimeToString(uint64_t time) override {
+  //   return target_.env->TimeToString(time);
+  // }
+  //
+  // Status GetThreadList(std::vector<ThreadStatus>* thread_list) override {
+  //   return target_.env->GetThreadList(thread_list);
+  // }
+  //
+  // ThreadStatusUpdater* GetThreadStatusUpdater() const override {
+  //   return target_.env->GetThreadStatusUpdater();
+  // }
+  //
+  // uint64_t GetThreadID() const override { return target_.env->GetThreadID(); }
+  //
   std::string GenerateUniqueId() override {
     return target_.env->GenerateUniqueId();
   }
-
-  EnvOptions OptimizeForLogRead(const EnvOptions& env_options) const override {
-    return target_.env->OptimizeForLogRead(env_options);
-  }
-  EnvOptions OptimizeForManifestRead(
-      const EnvOptions& env_options) const override {
-    return target_.env->OptimizeForManifestRead(env_options);
-  }
-  EnvOptions OptimizeForLogWrite(const EnvOptions& env_options,
-                                 const DBOptions& db_options) const override {
-    return target_.env->OptimizeForLogWrite(env_options, db_options);
-  }
-  EnvOptions OptimizeForManifestWrite(
-      const EnvOptions& env_options) const override {
-    return target_.env->OptimizeForManifestWrite(env_options);
-  }
-  EnvOptions OptimizeForCompactionTableWrite(
-      const EnvOptions& env_options,
-      const ImmutableDBOptions& immutable_ops) const override {
-    return target_.env->OptimizeForCompactionTableWrite(env_options,
-                                                        immutable_ops);
-  }
-  EnvOptions OptimizeForCompactionTableRead(
-      const EnvOptions& env_options,
-      const ImmutableDBOptions& db_options) const override {
-    return target_.env->OptimizeForCompactionTableRead(env_options, db_options);
-  }
-  EnvOptions OptimizeForBlobFileRead(
-      const EnvOptions& env_options,
-      const ImmutableDBOptions& db_options) const override {
-    return target_.env->OptimizeForBlobFileRead(env_options, db_options);
-  }
-  Status GetFreeSpace(const std::string& path, uint64_t* diskfree) override {
-    return target_.env->GetFreeSpace(path, diskfree);
-  }
-  void SanitizeEnvOptions(EnvOptions* env_opts) const override {
-    target_.env->SanitizeEnvOptions(env_opts);
-  }
-  Status PrepareOptions(const ConfigOptions& options) override;
-  std::string SerializeOptions(const ConfigOptions& config_options,
-                               const std::string& header) const override;
+  //
+  // EnvOptions OptimizeForLogRead(const EnvOptions& env_options) const override {
+  //   return target_.env->OptimizeForLogRead(env_options);
+  // }
+  // EnvOptions OptimizeForManifestRead(
+  //     const EnvOptions& env_options) const override {
+  //   return target_.env->OptimizeForManifestRead(env_options);
+  // }
+  // EnvOptions OptimizeForLogWrite(const EnvOptions& env_options,
+  //                                const DBOptions& db_options) const override {
+  //   return target_.env->OptimizeForLogWrite(env_options, db_options);
+  // }
+  // EnvOptions OptimizeForManifestWrite(
+  //     const EnvOptions& env_options) const override {
+  //   return target_.env->OptimizeForManifestWrite(env_options);
+  // }
+  // EnvOptions OptimizeForCompactionTableWrite(
+  //     const EnvOptions& env_options,
+  //     const ImmutableDBOptions& immutable_ops) const override {
+  //   return target_.env->OptimizeForCompactionTableWrite(env_options,
+  //                                                       immutable_ops);
+  // }
+  // EnvOptions OptimizeForCompactionTableRead(
+  //     const EnvOptions& env_options,
+  //     const ImmutableDBOptions& db_options) const override {
+  //   return target_.env->OptimizeForCompactionTableRead(env_options, db_options);
+  // }
+  // EnvOptions OptimizeForBlobFileRead(
+  //     const EnvOptions& env_options,
+  //     const ImmutableDBOptions& db_options) const override {
+  //   return target_.env->OptimizeForBlobFileRead(env_options, db_options);
+  // }
+  // Status GetFreeSpace(const std::string& path, uint64_t* diskfree) override {
+  //   return target_.env->GetFreeSpace(path, diskfree);
+  // }
+  // void SanitizeEnvOptions(EnvOptions* env_opts) const override {
+  //   target_.env->SanitizeEnvOptions(env_opts);
+  // }
+  // Status PrepareOptions(const ConfigOptions& options) override;
+  // std::string SerializeOptions(const ConfigOptions& config_options,
+  //                              const std::string& header) const override;
 
  private:
   Target target_;

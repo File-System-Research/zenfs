@@ -1323,7 +1323,7 @@ class FileSystemWrapper : public FileSystem {
  public:
   // Initialize an EnvWrapper that delegates all calls to *t
   explicit FileSystemWrapper(const std::shared_ptr<FileSystem>& t);
-  ~FileSystemWrapper() override {}
+  ~FileSystemWrapper() override = default;
 
   // Return the target to which this Env forwards all calls
   FileSystem* target() const { return target_.get(); }

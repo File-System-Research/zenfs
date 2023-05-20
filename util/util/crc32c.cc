@@ -23,7 +23,7 @@
 #include "port/lang.h"
 #include "util/coding.h"
 #include "util/crc32c_arm64.h"
-#include "util/math.h"
+#include "standalone/include/math.h"
 
 #ifdef __powerpc64__
 #include "util/crc32c_ppc.h"
@@ -54,7 +54,7 @@
 bool pmull_runtime_flag = false;
 #endif
 
-namespace ROCKSDB_NAMESPACE {
+namespace aquafs {
 namespace crc32c {
 
 #if defined(HAVE_POWER8) && defined(HAS_ALTIVEC)
@@ -1348,4 +1348,4 @@ uint32_t Crc32cCombine(uint32_t crc1, uint32_t crc2, size_t crc2len) {
 }
 
 }  // namespace crc32c
-}  // namespace ROCKSDB_NAMESPACE
+}  // namespace aquafs
