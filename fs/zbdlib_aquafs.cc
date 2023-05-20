@@ -22,8 +22,8 @@
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 ZbdlibBackend::ZbdlibBackend(std::string bdevname)
     : filename_("/dev/" + bdevname),
@@ -181,6 +181,6 @@ int ZbdlibBackend::Write(char *data, uint32_t size, uint64_t pos) {
   return pwrite(write_f_, data, size, pos);
 }
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
 
 #endif  // !defined(ROCKSDB_LITE) && !defined(OS_WIN)

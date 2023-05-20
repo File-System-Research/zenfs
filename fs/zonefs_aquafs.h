@@ -20,8 +20,8 @@
 #include "rocksdb/rocksdb_namespace.h"
 #include "zbd_aquafs.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 class ZoneFsFile {
  private:
@@ -101,6 +101,6 @@ class ZoneFsBackend : public ZonedBlockDeviceBackend {
   void PutZoneFile(uint64_t start, int flags);
 };
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
 
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)

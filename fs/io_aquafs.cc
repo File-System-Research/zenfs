@@ -29,8 +29,8 @@
 #include "rocksdb/rocksdb_namespace.h"
 #include "util/coding.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 ZoneExtent::ZoneExtent(uint64_t start, uint64_t length, Zone* zone)
     : start_(start), length_(length), zone_(zone) {}
@@ -1110,6 +1110,6 @@ IOStatus ZoneFile::MigrateData(uint64_t offset, uint32_t length,
   return IOStatus::OK();
 }
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
 
 #endif  // !defined(ROCKSDB_LITE) && !defined(OS_WIN)

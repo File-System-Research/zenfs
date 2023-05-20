@@ -9,4 +9,14 @@
 #define AQUAFS_NAMESPACE aquafs
 #endif
 
+#ifdef AQUAFS_STANDALONE
+#include "standalone/include/standalone.h"
+#else
+#include <rocksdb/rocksdb_namespace.h>
+#include <rocksdb/file_system.h>
+namespace aquafs {
+using namespace ROCKSDB_NAMESPACE;
+};
+#endif
+
 #endif  // ROCKSDB_AQUAFS_NAMESPACE_H

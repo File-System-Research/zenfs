@@ -27,8 +27,8 @@
 #include "rocksdb/rocksdb_namespace.h"
 #include "zbd_aquafs.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 class ZoneExtent {
  public:
@@ -324,6 +324,6 @@ class ZonedRandomAccessFile : public FSRandomAccessFile {
   }
 };
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
 
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)

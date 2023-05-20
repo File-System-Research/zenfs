@@ -34,8 +34,8 @@
 #include "zbdlib_aquafs.h"
 #include "zonefs_aquafs.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 Zone::Zone(ZonedBlockDevice *zbd, ZonedBlockDeviceBackend *zbd_be,
            std::unique_ptr<ZoneList> &zones, unsigned int idx)
@@ -926,6 +926,6 @@ void ZonedBlockDevice::GetZoneSnapshot(std::vector<ZoneSnapshot> &snapshot) {
   }
 }
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
 
 #endif  // !defined(ROCKSDB_LITE) && !defined(OS_WIN)

@@ -36,8 +36,8 @@
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 ZoneFsFileCache::ZoneFsFileCache(int flags) {
   if (flags & O_RDONLY)
@@ -412,6 +412,6 @@ uint64_t ZoneFsBackend::ZoneWp(std::unique_ptr<ZoneList> &zones,
   return idx * zone_sz_ + z->st_size;
 };
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
 
 #endif  // !defined(ROCKSDB_LITE) && !defined(OS_WIN)

@@ -10,8 +10,8 @@
 #include "snapshot.h"
 #include "util/mutexlock.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 const std::unordered_map<uint32_t, std::pair<std::string, uint32_t>>
     AquaFSHistogramsNameMap = {
@@ -171,4 +171,4 @@ struct AquaFSMetricsSample : public AquaFSMetrics {
   uint64_t GetTime() { return env_->NowMicros(); }
 };
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs

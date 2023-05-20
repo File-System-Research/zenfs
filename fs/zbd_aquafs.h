@@ -52,8 +52,8 @@
 #define AQUAFS_MIN_ZONES (32)
 #endif
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 class ZonedBlockDevice;
 class ZonedBlockDeviceBackend;
@@ -270,6 +270,6 @@ class ZonedBlockDevice {
   IOStatus AllocateEmptyZone(Zone **zone_out);
 };
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
 
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)

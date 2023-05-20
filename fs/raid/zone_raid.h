@@ -10,8 +10,8 @@
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 class RaidConsoleLogger;
 
@@ -90,6 +90,6 @@ class AbstractRaidZonedBlockDevice : public ZonedBlockDeviceBackend {
     return static_cast<T>(devices_.size());
   }
 };
-};  // namespace AQUAFS_NAMESPACE
+};  // namespace aquafs
 
 #endif  // HEAD_ZONE_RAID_H

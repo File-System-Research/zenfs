@@ -25,7 +25,9 @@ if (AQUAFS_STANDALONE)
 
     file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define AQUAFS_VERSION \"${AQUAFS_VERSION}\"\n")
 
-    set(aquafs_SOURCES ${aquafs_SOURCES_local})
+    file(GLOB_RECURSE STANDALONE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/standalone/*.cc")
+
+    set(aquafs_SOURCES ${aquafs_SOURCES_local} ${STANDALONE_SOURCES})
     set(aquafs_HEADERS ${aquafs_HEADERS_local})
     set(aquafs_LIBS ${aquafs_LIBS_local} "gflags" "rocksdb" "uring" "zstd" "lz4" "snappy" "bz2" "z" "numa")
 
@@ -52,7 +54,7 @@ if (AQUAFS_STANDALONE)
     add_library(aaquafs STATIC ${aquafs_SOURCES} ${aquafs_HEADERS})
     target_link_libraries(aaquafs ${aquafs_LIBS})
 
-    add_definitions(-DWITH_TERARKDB=1 -DOS_LINUX=1 -DROCKSDB_PLATFORM_POSIX=1)
+    add_definitions(-DWITH_TERARKDB=1 -DOS_LINUX=1 -DROCKSDB_PLATFORM_POSIX=1 -DAQUAFS_STANDALONE=1)
     add_executable(aquafs ${CMAKE_CURRENT_SOURCE_DIR}/util/aquafs.cc)
     target_link_libraries(aquafs aaquafs)
 

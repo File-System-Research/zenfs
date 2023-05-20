@@ -16,8 +16,8 @@
 #include "rocksdb/rocksdb_namespace.h"
 #include "zbd_aquafs.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 class ZbdlibBackend : public ZonedBlockDeviceBackend {
  private:
@@ -91,6 +91,6 @@ class ZbdlibBackend : public ZonedBlockDeviceBackend {
   std::string ErrorToString(int err);
 };
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
 
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)

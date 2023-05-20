@@ -35,8 +35,8 @@
 
 #define DEFAULT_AQUAV_LOG_PATH "/tmp/"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 Status Superblock::DecodeFrom(Slice* input) {
   if (input->size() != ENCODED_SIZE) {
@@ -2028,7 +2028,7 @@ FactoryFunc<FileSystem> aquafs_filesystem_reg =
           f->reset(fs);
           return f->get();
         });
-};  // namespace AQUAFS_NAMESPACE
+};  // namespace aquafs
 
 #else
 

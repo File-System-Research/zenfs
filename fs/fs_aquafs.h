@@ -30,8 +30,8 @@ namespace fs = std::filesystem;
 #include "version.h"
 #include "zbd_aquafs.h"
 
-namespace AQUAFS_NAMESPACE {
-using namespace ROCKSDB_NAMESPACE;
+namespace aquafs {
+
 
 #if !defined(ROCKSDB_LITE) && defined(OS_LINUX)
 
@@ -500,4 +500,4 @@ Status AppendAquaFileSystem(
 Status ListAquaFileSystems(
     std::map<std::string, std::pair<std::string, ZbdBackendType>>& out_list);
 
-}  // namespace AQUAFS_NAMESPACE
+}  // namespace aquafs
