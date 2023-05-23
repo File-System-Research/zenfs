@@ -56,6 +56,9 @@ if (AQUAFS_STANDALONE)
     add_executable(aquafs ${CMAKE_CURRENT_SOURCE_DIR}/util/aquafs.cc)
     target_link_libraries(aquafs aaquafs)
 
+    add_executable(defconfig ${CMAKE_CURRENT_SOURCE_DIR}/util/defconfig.cc)
+    target_link_libraries(defconfig aaquafs)
+
     add_executable(db_bench ${CMAKE_CURRENT_SOURCE_DIR}/util/db_bench.cc)
     target_link_libraries(db_bench aaquafs)
 
@@ -107,6 +110,10 @@ else ()
     add_executable(aquafs ${CMAKE_CURRENT_SOURCE_DIR}/util/aquafs.cc)
     target_link_libraries(aquafs rocksdb)
     target_include_directories(aquafs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+    add_executable(defconfig ${CMAKE_CURRENT_SOURCE_DIR}/util/defconfig.cc)
+    target_link_libraries(defconfig rocksdb)
+    target_include_directories(defconfig PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
     add_test(NAME aquafs-mkfs COMMAND sudo $<TARGET_FILE:aquafs> mkfs --zbd=nullb0 --aux_path=/tmp/aux_path --force)
     add_test(NAME aquafs-list COMMAND sudo $<TARGET_FILE:aquafs> list --zbd=nullb0)
