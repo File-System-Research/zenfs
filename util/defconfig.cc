@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 
   stream << "\"gc_start_level\": " << FLAGS_gc_start_level << ",\n";
   stream << "\"gc_slope\": " << FLAGS_gc_slope << ",\n";
-  stream << "\"gc_sleep_time\": " << FLAGS_gc_sleep_time << ",\n";
+  stream << "\"gc_sleep_time\": " << FLAGS_gc_sleep_time << "\n";
 
   stream << "}";
   std::cout << stream.str();
