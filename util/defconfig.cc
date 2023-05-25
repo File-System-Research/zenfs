@@ -16,11 +16,11 @@
 
 int main(int argc, char **argv) {
   std::ostringstream stream;
-  stream << "{\n";
+  stream << "{";
 
-  stream << "\"gc_start_level\": " << FLAGS_gc_start_level << ",\n";
-  stream << "\"gc_slope\": " << FLAGS_gc_slope << ",\n";
-  stream << "\"gc_sleep_time\": " << FLAGS_gc_sleep_time << "\n";
+  stream << "\"gc_start_level\":" << FLAGS_gc_start_level << ",";
+  stream << "\"gc_slope\":" << FLAGS_gc_slope << ",";
+  stream << "\"gc_sleep_time\":" << FLAGS_gc_sleep_time;
 
   stream << "}";
   std::cout << stream.str();
