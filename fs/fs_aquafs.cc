@@ -325,6 +325,8 @@ void AquaFS::GCWorker() {
 
     if (free_percent > FLAGS_gc_start_level) continue;
 
+    Warn(logger_, "starting gc! free_percent = %lu", free_percent);
+
     options.zone_ = true;
     options.zone_file_ = true;
     options.log_garbage_ = true;
