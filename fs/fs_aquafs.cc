@@ -299,7 +299,7 @@ AquaFS::AquaFS(ZonedBlockDevice* zbd, std::shared_ptr<FileSystem> aux_fs,
 
 AquaFS::~AquaFS() {
   Status s;
-  Info(logger_, "AquaFS shutting down");
+  Info(logger_, "AquaFS unmounting...");
   zbd_->LogZoneUsage();
   LogFiles();
 
@@ -310,6 +310,7 @@ AquaFS::~AquaFS() {
 
   meta_log_.reset(nullptr);
   ClearFiles();
+  Info(logger_, "AquaFS unmounted");
   delete zbd_;
 }
 
