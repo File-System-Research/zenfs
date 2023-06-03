@@ -52,7 +52,8 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
   // allocate default layout
   a_zones_.reset(new raid_zone_t[nr_zones_]);
   memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
-  const auto target_default_raid = RaidMode::RAID1;
+  // const auto target_default_raid = RaidMode::RAID1;
+  const auto target_default_raid = RaidMode::RAID0;
   if (target_default_raid == RaidMode::RAID0) {
     // spare some free zones for dynamic allocation
     for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_ / 2; idx++) {
@@ -151,7 +152,7 @@ IOStatus RaidAutoZonedBlockDevice::Close(uint64_t start) {
            sub_idx);
       continue;
     }
-    Warn(logger_,
+    Info(logger_,
          "Closing raid sub zone %lx, with %zu device zones, mode=raid%s",
          sub_idx, mm.size(),
          f == allocator.mode_map_.end() ? "?" : raid_mode_str(f->second.mode));
@@ -268,7 +269,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
 }
 
 int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
-  Info(logger_, "Write(size=%x, pos=%lx)", size, pos);
+  // Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
   auto dev_zone_sz = def_dev()->GetZoneSize();
   if (static_cast<decltype(dev_zone_sz)>(size) > dev_zone_sz ||
       (size > 1 && pos / dev_zone_sz != (pos + size - 1) / dev_zone_sz)) {
@@ -323,9 +324,9 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
         r = devices_[mm.device_idx]->Write(
             data, size,
             mm.zone_idx * def_dev()->GetZoneSize() + inner_zone_offset);
-        Warn(logger_,
-             "writing raid1: pos=%lx, size=%x, backend dev=%x, zone=%x, r=%x",
-             pos, size, mm.device_idx, mm.zone_idx, r);
+        // Debug(logger_,
+        //       "writing raid1: pos=%lx, size=%x, backend dev=%x,
+        //       zone=%x,r=%x", pos, size, mm.device_idx, mm.zone_idx, r);
         if (r < 0) {
           Error(logger_,
                 "Cannot write raid1! r=%d, pos=%lx, size=%x, backend dev=%x, "
