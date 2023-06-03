@@ -52,8 +52,8 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
   // allocate default layout
   a_zones_.reset(new raid_zone_t[nr_zones_]);
   memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
-  // const auto target_default_raid = RaidMode::RAID1;
-  const auto target_default_raid = RaidMode::RAID0;
+  const auto target_default_raid = RaidMode::RAID1;
+  // const auto target_default_raid = RaidMode::RAID0;
   if (target_default_raid == RaidMode::RAID0) {
     // spare some free zones for dynamic allocation
     for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_ / 2; idx++) {
@@ -224,13 +224,27 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       // auto raid_zone_offset = pos - raid_zone_idx * zone_sz_;
       idx_t inner_zone_idx_offset = (pos / def_dev()->GetZoneSize()) % nr_dev();
       auto inner_zone_offset = pos % def_dev()->GetZoneSize();
-      auto m = allocator.device_zone_map_[raid_zone_idx * nr_dev() +
-                                          inner_zone_idx_offset];
-      // TODO: spare read to all devices
+      auto &m = allocator.device_zone_map_[raid_zone_idx * nr_dev() +
+                                           inner_zone_idx_offset];
       assert(size <= static_cast<decltype(size)>(def_dev()->GetZoneSize()));
-      auto r = devices_[m[0].device_idx]->Read(
-          buf, size,
-          m[0].zone_idx * def_dev()->GetZoneSize() + inner_zone_offset, direct);
+      int r;
+      for (auto &mm : m) {
+        // TODO: spare read to all devices
+        r = devices_[mm.device_idx]->Read(
+            buf, size,
+            mm.zone_idx * def_dev()->GetZoneSize() + inner_zone_offset, direct);
+        if (r < 0) break;
+      }
+      if (r < 0) {
+        auto status = ScanAndHandleOffline();
+        if (status.ok()) {
+          // retry this read
+          return Read(buf, size, pos, direct);
+        } else {
+          Error(logger_, "failed to restore data: %s", status.getState());
+          return r;
+        }
+      }
       return r;
     } else if (mode_item.mode == RaidMode::RAID0) {
       RaidMapItem m;
@@ -269,7 +283,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
 }
 
 int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
-  Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
+  // Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
   auto dev_zone_sz = def_dev()->GetZoneSize();
   if (static_cast<decltype(dev_zone_sz)>(size) > dev_zone_sz ||
       (size > 1 && pos / dev_zone_sz != (pos + size - 1) / dev_zone_sz)) {
@@ -533,10 +547,10 @@ void RaidAutoZonedBlockDevice::flush_zone_info() {
         zone_list = devices_[mm.device_idx]->ListZones();
         auto c = devices_[mm.device_idx]->ZoneWp(zone_list, mm.zone_idx) -
                  devices_[mm.device_idx]->ZoneStart(zone_list, mm.zone_idx);
-        if (c > 0) {
-          Info(logger_, "adding size %lx in dev %x zone %x to raid zone %x", c,
-               mm.device_idx, mm.zone_idx, idx);
-        }
+        // if (c > 0) {
+        //   Info(logger_, "adding size %lx in dev %x zone %x to raid zone %x", c,
+        //        mm.device_idx, mm.zone_idx, idx);
+        // }
         cnt += c;
       }
       p[idx].wp = p[idx].start + cnt;
@@ -650,7 +664,7 @@ Status RaidModeItem::DecodeFrom(Slice *input) {
   return Status::OK();
 }
 
-void RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
+Status RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
   idx_t handle_device = 0;
   idx_t handle_zone_sub = 0;
   idx_t handle_device_zone = 0;
@@ -702,43 +716,53 @@ void RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
       }
       if (mode == RaidMode::RAID1) {
         // clone data
-        auto &fine = (mp[0].zone_idx != handle_device_zone &&
-                      mp[0].device_idx != handle_device)
-                         ? mp[0]
-                         : mp[1];
-        auto &restoring = fine == mp[0] ? mp[1] : mp[0];
-        auto zones = devices_[fine.device_idx]->ListZones();
-        auto wp = devices_[fine.device_idx]->ZoneWp(zones, fine.zone_idx);
-        auto start = devices_[fine.device_idx]->ZoneStart(zones, fine.zone_idx);
+        auto restoring =
+            std::find_if(mp.begin(), mp.end(), [&](const RaidMapItem &item) {
+              return item.device_idx == handle_device &&
+                     item.zone_idx == handle_device_zone;
+            });
+        auto fine = std::find_if(
+            mp.begin(), mp.end(),
+            [&](const RaidMapItem &item) { return item != *restoring; });
+        auto zones = devices_[fine->device_idx]->ListZones();
+        auto wp = devices_[fine->device_idx]->ZoneWp(zones, fine->zone_idx);
+        auto start =
+            devices_[fine->device_idx]->ZoneStart(zones, fine->zone_idx);
         assert(wp >= start);
         auto sz = wp - start;
         char *buf = new char[sz];
-        devices_[fine.device_idx]->Read(
-            buf, static_cast<int>(sz), restoring.zone_idx * zone_sz_ / nr_dev(),
-            false);
+        devices_[fine->device_idx]->Read(
+            buf, static_cast<int>(sz),
+            restoring->zone_idx * zone_sz_ / nr_dev(), false);
         // restore data
         bool tmp_offline = false;
         uint64_t tmp_max_capacity = 0;
-        devices_[restoring.device_idx]->Reset(
-            restoring.zone_idx * zone_sz_ / nr_dev(), &tmp_offline,
+        devices_[restoring->device_idx]->Reset(
+            restoring->zone_idx * zone_sz_ / nr_dev(), &tmp_offline,
             &tmp_max_capacity);
-        auto written = devices_[restoring.device_idx]->Write(
-            buf, sz, restoring.zone_idx * zone_sz_ / nr_dev());
+        auto written = devices_[restoring->device_idx]->Write(
+            buf, sz, restoring->zone_idx * zone_sz_ / nr_dev());
         if (static_cast<decltype(sz)>(written) != sz) {
           Error(logger_, "Cannot write restored data!");
+          delete[] buf;
+          return Status::IOError("Cannot recover data");
+        } else {
+          delete[] buf;
         }
-        delete[] buf;
       }
     } else {
       Error(
           logger_,
           "Zone sub %x offline (dev %x, dev zone %x), and cannot recover data!",
           handle_zone_sub, handle_device, handle_device_zone);
+      return Status::IOError("Cannot recover data");
     }
   }
+  return Status::OK();
 }
 void RaidAutoZonedBlockDevice::setZoneOffline(unsigned int idx,
                                               unsigned int idx2, bool offline) {
+  if (offline) Warn(logger_, "setting dev %x zone %x to offline!", idx, idx2);
   devices_[idx]->setZoneOffline(idx2, 0, offline);
 }
 

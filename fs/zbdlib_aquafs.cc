@@ -186,8 +186,10 @@ int ZbdlibBackend::Read(char *buf, int size, uint64_t pos, bool direct) {
   int sz = size;
   uint64_t pos2 = pos;
   while (sz > 0) {
-    if (sim_offline_zones.find(pos2 / zone_sz_) != sim_offline_zones.end())
+    if (sim_offline_zones.find(pos2 / zone_sz_) != sim_offline_zones.end()) {
+      printf("visiting offline zone! pos=%lx, size=%x\n", pos, size);
       return -1;
+    }
     pos2 += std::min(static_cast<int>(zone_sz_), sz);
     sz -= zone_sz_;
   }

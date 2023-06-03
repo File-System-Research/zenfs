@@ -181,9 +181,9 @@ IOStatus AquaMetaLog::AddRecord(const Slice& slice) {
   EncodeFixed32(buffer + sizeof(uint32_t), record_sz);
   memcpy(buffer + sizeof(uint32_t) * 2, data, record_sz);
 
-  if (record_sz >= 4)
-    printf("add record: crc=%x, sz=%x, data[0]=%x, pos=%lx\n", crc, record_sz,
-           *(uint32_t*)(data), zone_->wp_);
+  // if (record_sz >= 4)
+  //   printf("add record: crc=%x, sz=%x, data[0]=%x, pos=%lx\n", crc, record_sz,
+  //          *(uint32_t*)(data), zone_->wp_);
 
   s = zone_->Append(buffer, phys_sz);
 
@@ -203,7 +203,7 @@ IOStatus AquaMetaLog::Read(Slice* slice) {
     return IOStatus::OK();
   }
 
-  printf("read_pos_=%lx, to_read = %lx\n", read_pos_, to_read);
+  // printf("read_pos_=%lx, to_read = %lx\n", read_pos_, to_read);
   if ((read_pos_ + to_read) > (zone_->start_ + zone_->max_capacity_)) {
     return IOStatus::IOError("Read across zone");
   }
@@ -246,7 +246,7 @@ IOStatus AquaMetaLog::ReadRecord(Slice* record, std::string* scratch) {
   GetFixed32(&header, &record_crc);
   GetFixed32(&header, &record_sz);
 
-  printf("record_crc=%x, record_sz=%x\n", record_crc, record_sz);
+  // printf("record_crc=%x, record_sz=%x\n", record_crc, record_sz);
 
   if (record_sz == (uint32_t)(-1) && record_crc == (uint32_t)(-1)) {
     // EOF...
@@ -1989,9 +1989,10 @@ IOStatus AquaFS::selectZoneToOffline() {
     return IOStatus::IOError("unsupported");
   }
   auto it = p->allocator.device_zone_map_.begin();
-  std::advance(it, rand() % p->allocator.device_zone_map_.size());
+  std::advance(it, rand() % (p->allocator.device_zone_map_.size() / 2));
   auto it2 = it->second.begin();
-  std::advance(it2, rand() % it->second.size());
+  std::advance(it2,
+               rand() % (it->second.size() <= 1 ? 1 : it->second.size() / 2));
   blockingDeviceZone(it2->device_idx, it2->zone_idx);
   return IOStatus::OK();
 }
