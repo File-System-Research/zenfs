@@ -32,12 +32,15 @@ int main() {
   auto data_source_dir = std::filesystem::temp_directory_path() / "aquafs_test";
   std::filesystem::create_directories(data_source_dir);
   auto file = data_source_dir / "test_file";
-  std::ofstream ofs(file);
-  ofs << "test content\n";
-  ofs.close();
+  // std::ofstream ofs(file);
+  // ofs << "test content\n";
+  // ofs.close();
   // 128 MiB
   auto mib = 128l;
-  std::filesystem::resize_file(file, mib * 1024 * 1024);
+  // std::filesystem::resize_file(file, mib * 1024 * 1024);
+  system((std::string("dd if=/dev/random of=") + file.string() +
+          " bs=1M count=" + std::to_string(mib))
+             .c_str());
   // calculate checksum
   size_t file_hash = get_file_hash(file);
   printf("file hash: %zx\n", file_hash);
