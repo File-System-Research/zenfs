@@ -13,10 +13,12 @@ set(AQUAFS_VERSION v0.0.1-alpha)
 set(aquafs_SOURCES_local "fs/fs_aquafs.cc" "fs/zbd_aquafs.cc" "fs/io_aquafs.cc" "fs/zonefs_aquafs.cc"
         "fs/zbdlib_aquafs.cc"
         "fs/raid/zone_raid.cc" "fs/raid/zone_raid_auto.cc" "fs/raid/zone_raid0.cc" "fs/raid/zone_raid1.cc" "fs/raid/zone_raidc.cc"
+        "fs/raid/zone_raid_allocator.cc"
         "fs/configuration.cc")
 set(aquafs_HEADERS_local "fs/fs_aquafs.h" "fs/zbd_aquafs.h" "fs/io_aquafs.h" "fs/version.h" "fs/metrics.h"
         "fs/snapshot.h" "fs/filesystem_utility.h" "fs/zonefs_aquafs.h" "fs/zbdlib_aquafs.h"
         "fs/raid/zone_raid.h" "fs/raid/zone_raid_auto.h" "fs/raid/zone_raid0.h" "fs/raid/zone_raid1.h" "fs/raid/zone_raidc.h"
+        "fs/raid/zone_raid_allocator.h"
         "fs/configuration.h")
 set(aquafs_LIBS_local "zbd")
 
