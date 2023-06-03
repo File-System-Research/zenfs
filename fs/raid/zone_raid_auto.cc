@@ -136,13 +136,32 @@ IOStatus RaidAutoZonedBlockDevice::Close(uint64_t start) {
   IOStatus r{};
   auto zone_idx = start / zone_sz_;
   for (size_t i = 0; i < nr_dev(); i++) {
-    auto mm = allocator.device_zone_map_[i + zone_idx * nr_dev()];
+    auto sub_idx = i + zone_idx * nr_dev();
+    auto fm = allocator.device_zone_map_.find(sub_idx);
+    if (fm == allocator.device_zone_map_.end()) {
+      Warn(logger_,
+           "Ignoring raid sub zone %lx: not mapping in device zone map",
+           sub_idx);
+      continue;
+    }
+    auto mm = allocator.device_zone_map_[sub_idx];
+    auto f = allocator.mode_map_.find(sub_idx);
+    if (f == allocator.mode_map_.end()) {
+      Warn(logger_, "Ignoring raid sub zone %lx: not mapping in raid mode map",
+           sub_idx);
+      continue;
+    }
+    Warn(logger_,
+         "Closing raid sub zone %lx, with %zu device zones, mode=raid%s",
+         sub_idx, mm.size(),
+         f == allocator.mode_map_.end() ? "?" : raid_mode_str(f->second.mode));
     for (auto &&m : mm) {
       r = devices_[m.device_idx]->Close(m.zone_idx * def_dev()->GetZoneSize());
       if (!r.ok()) {
-        Error(logger_, "RAID-A: do close failed for device %d, zone %d",
-              m.device_idx, m.zone_idx);
-        // return r;
+        Error(logger_, "RAID-A: do close failed for device %d, zone %d! %s",
+              m.device_idx, m.zone_idx, r.getState());
+        flush_zone_info();
+        return r;
       } else {
         Info(logger_, "RAID-A: do close for device %d, zone %d", m.device_idx,
              m.zone_idx);
@@ -202,7 +221,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
     } else if (mode_item.mode == RaidMode::RAID1) {
       idx_t raid_zone_idx = pos / zone_sz_;
       // auto raid_zone_offset = pos - raid_zone_idx * zone_sz_;
-      idx_t inner_zone_idx_offset = raid_zone_idx % nr_dev();
+      idx_t inner_zone_idx_offset = (pos / def_dev()->GetZoneSize()) % nr_dev();
       auto inner_zone_offset = pos % def_dev()->GetZoneSize();
       auto m = allocator.device_zone_map_[raid_zone_idx * nr_dev() +
                                           inner_zone_idx_offset];
@@ -213,8 +232,8 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
           m[0].zone_idx * def_dev()->GetZoneSize() + inner_zone_offset, direct);
       return r;
     } else if (mode_item.mode == RaidMode::RAID0) {
-      auto m = getAutoDeviceZone(pos);
-      auto mapped_pos = getAutoMappedDevicePos(pos);
+      RaidMapItem m;
+      uint64_t mapped_pos;
       // split read range as blocks
       int sz_read = 0;
       // TODO: Read blocks in multi-threads
@@ -249,10 +268,12 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
 }
 
 int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
-  // Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
+  Info(logger_, "Write(size=%x, pos=%lx)", size, pos);
   auto dev_zone_sz = def_dev()->GetZoneSize();
-  if (static_cast<decltype(dev_zone_sz)>(size) > dev_zone_sz) {
+  if (static_cast<decltype(dev_zone_sz)>(size) > dev_zone_sz ||
+      (size > 1 && pos / dev_zone_sz != (pos + size - 1) / dev_zone_sz)) {
     // may cross raid zone, split write range as zones
+    Warn(logger_, "Write across inner zones! splitting write request");
     int sz_written = 0;
     int r;
     while (size > 0) {
@@ -284,11 +305,17 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
       return r;
     } else if (mode_item.mode == RaidMode::RAID1) {
       idx_t raid_zone_idx = pos / zone_sz_;
-      // auto raid_zone_offset = pos - raid_zone_idx * zone_sz_;
-      idx_t inner_zone_idx_offset = (pos / def_dev()->GetZoneSize()) % nr_dev();
+      idx_t inner_zone_idx = pos / def_dev()->GetZoneSize();
+      idx_t inner_zone_idx_offset = inner_zone_idx % nr_dev();
       auto inner_zone_offset = pos % def_dev()->GetZoneSize();
-      auto m = allocator.device_zone_map_[raid_zone_idx * nr_dev() +
-                                          inner_zone_idx_offset];
+      auto sub_idx = raid_zone_idx * nr_dev() + inner_zone_idx_offset;
+      auto fm = allocator.device_zone_map_.find(sub_idx);
+      if (fm == allocator.device_zone_map_.end()) {
+        Error(logger_,
+              "Cannot locate raid1 write: sub idx %zx not in device zone map",
+              sub_idx);
+      }
+      auto m = fm->second;
       assert(size <= static_cast<decltype(size)>(def_dev()->GetZoneSize()));
       // write to all mapped zones
       int r;
@@ -302,12 +329,13 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
         if (r < 0) {
           Error(logger_,
                 "Cannot write raid1! r=%d, pos=%lx, size=%x, backend dev=%x, "
-                "zone=%x",
-                r, pos, size, mm.device_idx, mm.zone_idx);
+                "zone=%x, writing dev pos %lx",
+                r, pos, size, mm.device_idx, mm.zone_idx,
+                mm.zone_idx * def_dev()->GetZoneSize() + inner_zone_offset);
           return r;
         }
+        return r;
       }
-      return r;
     } else if (mode_item.mode == RaidMode::RAID0) {
       RaidMapItem m;
       uint64_t mapped_pos;
@@ -491,11 +519,24 @@ void RaidAutoZonedBlockDevice::flush_zone_info() {
     } else if (mode_item.mode == RaidMode::RAID1) {
       uint64_t cnt = 0;
       for (idx_t offset = 0; offset < nr_dev(); offset++) {
-        auto m = allocator.device_zone_map_[idx * nr_dev() + offset];
+        auto sub_idx = idx * nr_dev() + offset;
+        auto fm = allocator.device_zone_map_.find(sub_idx);
+        if (fm == allocator.device_zone_map_.end()) {
+          Error(logger_,
+                "flush_zone_info raid1: failed to locate sub idx %zx, ignore",
+                sub_idx);
+          continue;
+        }
+        auto m = fm->second;
         auto mm = m[0];
         zone_list = devices_[mm.device_idx]->ListZones();
-        cnt += devices_[mm.device_idx]->ZoneWp(zone_list, mm.zone_idx) -
-               devices_[mm.device_idx]->ZoneStart(zone_list, mm.zone_idx);
+        auto c = devices_[mm.device_idx]->ZoneWp(zone_list, mm.zone_idx) -
+                 devices_[mm.device_idx]->ZoneStart(zone_list, mm.zone_idx);
+        if (c > 0) {
+          Info(logger_, "adding size %lx in dev %x zone %x to raid zone %x", c,
+               mm.device_idx, mm.zone_idx, idx);
+        }
+        cnt += c;
       }
       p[idx].wp = p[idx].start + cnt;
     }
@@ -535,8 +576,10 @@ RaidMapItem RaidAutoZonedBlockDevice::getAutoDeviceZoneFromIdx(T idx) {
   if (p == allocator.device_zone_map_.end()) return {};
   if (p->second.size() > 0)
     return p->second[0];
-  else
+  else {
+    Error(logger_, "failed to get idx %x! fall back to default 0", idx);
     return {};
+  }
 }
 template <class T>
 T RaidAutoZonedBlockDevice::getAutoMappedDevicePos(T pos) {
