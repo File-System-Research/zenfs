@@ -27,7 +27,7 @@ RaidAutoZonedBlockDevice::RaidAutoZonedBlockDevice(
   // as meta zones, and marked as RAID_NONE; others are marked as RAID_C
   for (idx_t idx = 0; idx < AQUAFS_META_ZONES; idx++) {
     for (size_t i = 0; i < nr_dev(); i++)
-      allocator.createMapping(idx * nr_dev() + i, 0, idx * nr_dev() + i);
+      allocator.setMapping(idx * nr_dev() + i, 0, idx * nr_dev() + i);
     allocator.setMappingMode(idx, RaidMode::RAID_NONE);
   }
   syncBackendInfo();
@@ -38,54 +38,61 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
                                         unsigned int *max_open_zones) {
   auto s = AbstractRaidZonedBlockDevice::Open(readonly, exclusive,
                                               max_active_zones, max_open_zones);
+  if (!s.ok()) return s;
+  allocator.setInfo(nr_dev(), nr_zones_);
   // allocate default layout
   a_zones_.reset(new raid_zone_t[nr_zones_]);
   memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
-  std::queue<size_t> available_devices;
-  std::vector<std::queue<idx_t>> available_zones(nr_dev());
-  for (size_t i = 0; i < nr_dev(); i++) {
-    available_devices.push(i);
-    for (idx_t idx = (i ? 0 : (AQUAFS_META_ZONES * nr_dev()));
-         idx < def_dev()->GetNrZones(); idx++)
-      available_zones[i].push(idx);
-  }
+  // std::queue<size_t> available_devices;
+  // std::vector<std::queue<idx_t>> available_zones(nr_dev());
+  // for (size_t i = 0; i < nr_dev(); i++) {
+  //   available_devices.push(i);
+  //   for (idx_t idx = (i ? 0 : (AQUAFS_META_ZONES * nr_dev()));
+  //        idx < def_dev()->GetNrZones(); idx++)
+  //     available_zones[i].push(idx);
+  // }
   for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_; idx++) {
-    for (size_t i = 0; i < nr_dev(); i++) {
-      // FIXME: not enough zones?
-      if (available_devices.empty()) break;
-      idx_t d = available_devices.front();
-      auto d_next = (d == nr_dev() - 1) ? 0 : d + 1;
-      available_devices.pop();
-      idx_t ti;
-      if (available_zones[d].empty()) {
-        if (available_zones[d_next].empty()) {
-          // FIXME
-          Info(logger_,
-               "available_zones[d_next=%d] empty! Cannot allocate for "
-               "device_zone_map_[%lx, idx=%x, i=%zx]",
-               d_next, idx * nr_dev() + i, idx, i);
-          break;
-        }
-        assert(!available_zones[d_next].empty());
-        ti = available_zones[d_next].front();
-        available_zones[d_next].pop();
-      } else {
-        assert(!available_zones[d].empty());
-        ti = available_zones[d].front();
-        available_zones[d].pop();
-        available_devices.push(d_next);
-      }
-      allocator.createMapping(idx * nr_dev() + i, d, ti);
-      // Info(logger_,
-      //      "RAID-A: pre-allocate raid zone %x device_zone_map_[(idx*nr_dev
-      //      + " "i)=%zx] = "
-      //      "{d=%x, ti=%x, 0}",
-      //      idx, idx * nr_dev() + i, d, ti);
-    }
+    // for (size_t i = 0; i < nr_dev(); i++) {
+    //   // FIXME: not enough zones?
+    //   if (available_devices.empty()) break;
+    //   idx_t d = available_devices.front();
+    //   auto d_next = (d == nr_dev() - 1) ? 0 : d + 1;
+    //   available_devices.pop();
+    //   idx_t ti;
+    //   if (available_zones[d].empty()) {
+    //     if (available_zones[d_next].empty()) {
+    //       // FIXME
+    //       Info(logger_,
+    //            "available_zones[d_next=%d] empty! Cannot allocate for "
+    //            "device_zone_map_[%lx, idx=%x, i=%zx]",
+    //            d_next, idx * nr_dev() + i, idx, i);
+    //       break;
+    //     }
+    //     assert(!available_zones[d_next].empty());
+    //     ti = available_zones[d_next].front();
+    //     available_zones[d_next].pop();
+    //   } else {
+    //     assert(!available_zones[d].empty());
+    //     ti = available_zones[d].front();
+    //     available_zones[d].pop();
+    //     available_devices.push(d_next);
+    //   }
+    //   allocator.setMapping(idx * nr_dev() + i, d, ti);
+    //   // Info(logger_,
+    //   //      "RAID-A: pre-allocate raid zone %x device_zone_map_[(idx*nr_dev
+    //   //      + " "i)=%zx] = "
+    //   //      "{d=%x, ti=%x, 0}",
+    //   //      idx, idx * nr_dev() + i, d, ti);
+    // }
+    // allocator.setMappingMode(idx, RaidMode::RAID0);
+    // // mode_map_[idx] = {RaidMode::RAID1, 0};
+    // // mode_map_[idx] = {RaidMode::RAID_C, 0};
+    // // mode_map_[idx] = {RaidMode::RAID_NONE, 0};
+    auto status = allocator.createMapping(idx);
     allocator.setMappingMode(idx, RaidMode::RAID0);
-    // mode_map_[idx] = {RaidMode::RAID1, 0};
-    // mode_map_[idx] = {RaidMode::RAID_C, 0};
-    // mode_map_[idx] = {RaidMode::RAID_NONE, 0};
+    if (!status.ok()) {
+      Error(logger_, "Failed to create mapping for zone %x", idx);
+    }
   }
   flush_zone_info();
   return s;
