@@ -109,13 +109,23 @@ else ()
 
     file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/fs/version.h "#pragma once\n#define AQUAFS_VERSION \"${AQUAFS_VERSION}\"\n")
 
-    add_executable(aquafs ${CMAKE_CURRENT_SOURCE_DIR}/util/aquafs.cc)
+    add_executable(aquafs ${CMAKE_CURRENT_SOURCE_DIR}/util/aquafs.cc ${CMAKE_CURRENT_SOURCE_DIR}/util/tools/tools.cc)
     target_link_libraries(aquafs rocksdb)
     target_include_directories(aquafs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
     add_executable(defconfig ${CMAKE_CURRENT_SOURCE_DIR}/util/defconfig.cc)
     target_link_libraries(defconfig rocksdb)
     target_include_directories(defconfig PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+    # add unit tests
+    file(GLOB test_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/util/unit_tests/*.cc")
+    foreach (test_SOURCE ${test_SOURCES})
+        get_filename_component(test_NAME ${test_SOURCE} NAME_WE)
+        add_executable(${test_NAME} ${test_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/util/tools/tools.cc)
+        target_link_libraries(${test_NAME} rocksdb)
+        target_include_directories(${test_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+        # add_test(NAME ${test_NAME} COMMAND ${test_NAME})
+    endforeach ()
 
     add_test(NAME aquafs-mkfs COMMAND sudo $<TARGET_FILE:aquafs> mkfs --zbd=nullb0 --aux_path=/tmp/aux_path --force)
     add_test(NAME aquafs-list COMMAND sudo $<TARGET_FILE:aquafs> list --zbd=nullb0)
