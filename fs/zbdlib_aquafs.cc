@@ -122,6 +122,12 @@ std::unique_ptr<ZoneList> ZbdlibBackend::ListZones() {
     return nullptr;
   }
 
+  // add simulated offline sign
+  for (auto idx : sim_offline_zones) {
+    auto p = (struct zbd_zone **)&zones;
+    p[idx]->cond = ZBD_ZONE_COND_OFFLINE;
+  }
+
   std::unique_ptr<ZoneList> zl(new ZoneList(zones, nr_zones));
 
   return zl;
@@ -174,6 +180,14 @@ int ZbdlibBackend::InvalidateCache(uint64_t pos, uint64_t size) {
 }
 
 int ZbdlibBackend::Read(char *buf, int size, uint64_t pos, bool direct) {
+  int sz = size;
+  uint64_t pos2 = pos;
+  while (sz > 0) {
+    if (sim_offline_zones.find(pos2 / zone_sz_) != sim_offline_zones.end())
+      return -1;
+    pos2 += std::min(static_cast<int>(zone_sz_), sz);
+    sz -= zone_sz_;
+  }
   return pread(direct ? read_direct_f_ : read_f_, buf, size, pos);
 }
 

@@ -66,6 +66,8 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
   void ScanAndHandleOffline();
 
   ~RaidAutoZonedBlockDevice() override = default;
+
+  void setZoneOffline(unsigned int idx, bool offline) override;
 };
 
 class RaidInfoBasic {

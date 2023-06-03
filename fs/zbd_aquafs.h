@@ -21,6 +21,7 @@
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -157,6 +158,18 @@ class ZonedBlockDeviceBackend {
   [[nodiscard]] uint32_t GetNrZones() const { return nr_zones_; };
   [[nodiscard]] virtual bool IsRAIDEnabled() const { return false; };
   virtual ~ZonedBlockDeviceBackend() = default;
+
+  virtual void setZoneOffline(unsigned int idx, bool offline) {
+    if (offline) {
+      printf("setting idx=%x to offline!\n", idx);
+      sim_offline_zones.insert(idx);
+    } else {
+      sim_offline_zones.erase(idx);
+    }
+  }
+
+ protected:
+  std::unordered_set<unsigned int> sim_offline_zones;
 };
 
 enum class ZbdBackendType { kBlockDev, kZoneFS, kRaid };

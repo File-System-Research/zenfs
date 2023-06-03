@@ -1953,6 +1953,14 @@ IOStatus AquaFS::MigrateFileExtents(
        fname.data(), migrate_exts.size());
   return IOStatus::OK();
 }
+void AquaFS::selectZoneToOffline() {
+  auto p = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
+  if (!p) {
+    Error(logger_, "zbd_ is not a RaidAutoZonedBlockDevice, unsupported");
+    return;
+  }
+  p->setZoneOffline(rand() % p->GetNrZones(), true);
+}
 
 extern "C" FactoryFunc<FileSystem> aquafs_filesystem_reg;
 

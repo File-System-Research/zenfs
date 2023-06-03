@@ -7,6 +7,7 @@
 #include <string>
 
 #include "../tools/tools.h"
+#include "fs/fs_aquafs.h"
 
 using namespace aquafs;
 
@@ -25,9 +26,20 @@ size_t get_file_hash(std::filesystem::path file) {
   return file_hash;
 }
 
+void emit_device_zone_offline(const std::string& devID) {
+  // mount
+  std::unique_ptr<AquaFS> aquaFS;
+  FileSystem* fs = nullptr;
+  auto status = NewAquaFS(&fs, ZbdBackendType::kRaid, devID);
+  assert(status.ok());
+  aquaFS.reset(dynamic_cast<AquaFS*>(fs));
+  aquaFS->selectZoneToOffline();
+}
+
 int main() {
   prepare_test_env();
-  auto fs_uri = "--raids=raida:dev:nullb0,dev:nullb1,dev:nullb2,dev:nullb3";
+  const char* fs_uri =
+      "--raids=raida:dev:nullb0,dev:nullb1,dev:nullb2,dev:nullb3";
   aquafs_tools_call({"mkfs", fs_uri, "--aux_path=/tmp/aux_path", "--force"});
   auto data_source_dir = std::filesystem::temp_directory_path() / "aquafs_test";
   std::filesystem::create_directories(data_source_dir);
@@ -46,6 +58,11 @@ int main() {
   printf("file hash: %zx\n", file_hash);
   // call restore
   aquafs_tools_call({"restore", fs_uri, "--path=" + data_source_dir.string()});
+
+  // emit zone offline
+  std::string dev = std::string(fs_uri + strlen("--raids"));
+  emit_device_zone_offline(dev);
+
   auto dump_dir = std::filesystem::temp_directory_path() / "aquafs_dump";
   std::filesystem::create_directories(dump_dir);
   aquafs_tools_call({"backup", fs_uri, "--path=" + dump_dir.string()});

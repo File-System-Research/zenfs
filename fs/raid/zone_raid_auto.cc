@@ -737,5 +737,9 @@ void RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
     }
   }
 }
+void RaidAutoZonedBlockDevice::setZoneOffline(unsigned int idx, bool offline) {
+  devices_[rand() % nr_dev()]->setZoneOffline(rand() % def_dev()->GetNrZones(),
+                                              offline);
+}
 
 }  // namespace AQUAFS_NAMESPACE
