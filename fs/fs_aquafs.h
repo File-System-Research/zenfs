@@ -185,6 +185,7 @@ class AquaFS : public FileSystemWrapper {
     kEndRecord = 4,
     kFileReplace = 5,
     kRaidInfoAppend = 6,
+    kBlockingDeviceZones = 7,
   };
 
   void LogFiles();
@@ -219,6 +220,7 @@ class AquaFS : public FileSystemWrapper {
   Status DecodeFileDeletionFrom(Slice* slice);
 
   Status DecodeRaidAppendFrom(Slice* slice);
+  Status DecodeBlockingDeviceZones(Slice *slice);
 
   Status RecoverFrom(AquaMetaLog* log);
 
@@ -481,11 +483,14 @@ class AquaFS : public FileSystemWrapper {
  private:
   // moved to configuration.cc
   // const uint64_t GC_START_LEVEL =
-  //     20;                      /* Enable GC when < 20% free space available */
+  //     20;                      /* Enable GC when < 20% free space available
+  //     */
   // const uint64_t GC_SLOPE = 3; /* GC agressiveness */
   void GCWorker();
+
  public:
-  void selectZoneToOffline();
+  IOStatus selectZoneToOffline();
+  IOStatus blockingDeviceZone(size_t device, size_t zone);
 };
 #endif  // !defined(ROCKSDB_LITE) && defined(OS_LINUX)
 

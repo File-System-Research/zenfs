@@ -47,8 +47,7 @@ int main() {
   // std::ofstream ofs(file);
   // ofs << "test content\n";
   // ofs.close();
-  // 128 MiB
-  auto mib = 128l;
+  auto mib = 2l;
   // std::filesystem::resize_file(file, mib * 1024 * 1024);
   system((std::string("dd if=/dev/random of=") + file.string() +
           " bs=1M count=" + std::to_string(mib))

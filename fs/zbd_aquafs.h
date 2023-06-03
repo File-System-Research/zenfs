@@ -159,7 +159,8 @@ class ZonedBlockDeviceBackend {
   [[nodiscard]] virtual bool IsRAIDEnabled() const { return false; };
   virtual ~ZonedBlockDeviceBackend() = default;
 
-  virtual void setZoneOffline(unsigned int idx, bool offline) {
+  virtual void setZoneOffline(unsigned int idx, unsigned int idx2,
+                              bool offline) {
     if (offline) {
       printf("setting idx=%x to offline!\n", idx);
       sim_offline_zones.insert(idx);

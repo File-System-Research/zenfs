@@ -17,8 +17,8 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
   using mode_map_t = ZoneRaidAllocator::mode_map_t;
   using raid_zone_t = struct zbd_zone;
 
- private:
   ZoneRaidAllocator allocator;
+ private:
   // auto-raid: manually managed zone info
   std::unique_ptr<raid_zone_t> a_zones_{};
 
@@ -67,7 +67,8 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
 
   ~RaidAutoZonedBlockDevice() override = default;
 
-  void setZoneOffline(unsigned int idx, bool offline) override;
+  void setZoneOffline(unsigned int idx, unsigned int idx2,
+                      bool offline) override;
 };
 
 class RaidInfoBasic {

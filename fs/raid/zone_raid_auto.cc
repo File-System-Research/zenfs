@@ -269,7 +269,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
 }
 
 int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
-  // Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
+  Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
   auto dev_zone_sz = def_dev()->GetZoneSize();
   if (static_cast<decltype(dev_zone_sz)>(size) > dev_zone_sz ||
       (size > 1 && pos / dev_zone_sz != (pos + size - 1) / dev_zone_sz)) {
@@ -737,9 +737,9 @@ void RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
     }
   }
 }
-void RaidAutoZonedBlockDevice::setZoneOffline(unsigned int idx, bool offline) {
-  devices_[rand() % nr_dev()]->setZoneOffline(rand() % def_dev()->GetNrZones(),
-                                              offline);
+void RaidAutoZonedBlockDevice::setZoneOffline(unsigned int idx,
+                                              unsigned int idx2, bool offline) {
+  devices_[idx]->setZoneOffline(idx2, 0, offline);
 }
 
 }  // namespace AQUAFS_NAMESPACE

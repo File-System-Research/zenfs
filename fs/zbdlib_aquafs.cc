@@ -124,8 +124,11 @@ std::unique_ptr<ZoneList> ZbdlibBackend::ListZones() {
 
   // add simulated offline sign
   for (auto idx : sim_offline_zones) {
-    auto p = (struct zbd_zone **)&zones;
-    p[idx]->cond = ZBD_ZONE_COND_OFFLINE;
+    auto p = (struct zbd_zone *)zones;
+    if (idx < nr_zones_ && p)
+      p[idx].cond = ZBD_ZONE_COND_OFFLINE;
+    else
+      printf("invalid zone index %d\n", idx);
   }
 
   std::unique_ptr<ZoneList> zl(new ZoneList(zones, nr_zones));

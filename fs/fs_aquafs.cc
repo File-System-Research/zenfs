@@ -181,6 +181,10 @@ IOStatus AquaMetaLog::AddRecord(const Slice& slice) {
   EncodeFixed32(buffer + sizeof(uint32_t), record_sz);
   memcpy(buffer + sizeof(uint32_t) * 2, data, record_sz);
 
+  if (record_sz >= 4)
+    printf("add record: crc=%x, sz=%x, data[0]=%x, pos=%lx\n", crc, record_sz,
+           *(uint32_t*)(data), zone_->wp_);
+
   s = zone_->Append(buffer, phys_sz);
 
   free(buffer);
@@ -242,7 +246,7 @@ IOStatus AquaMetaLog::ReadRecord(Slice* record, std::string* scratch) {
   GetFixed32(&header, &record_crc);
   GetFixed32(&header, &record_sz);
 
-  // printf("record_crc=%x, record_sz=%x\n", record_crc, record_sz);
+  printf("record_crc=%x, record_sz=%x\n", record_crc, record_sz);
 
   if (record_sz == (uint32_t)(-1) && record_crc == (uint32_t)(-1)) {
     // EOF...
@@ -1346,7 +1350,23 @@ Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
   }
   auto be = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
   be->layout_update(std::move(device_zone), std::move(mode_map));
-  return {};
+  return Status::OK();
+}
+
+Status AquaFS::DecodeBlockingDeviceZones(Slice* slice) {
+  // format: <uint32_t> dev_idx, <uint32_t> dev_zone_idx
+  uint32_t dev_idx, dev_zone_idx;
+  if (!GetFixed32(slice, &dev_idx))
+    return Status::IOError("decode dev idx failed");
+  if (!GetFixed32(slice, &dev_zone_idx))
+    return Status::IOError("decode zone idx failed");
+  auto be = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
+  if (be) {
+    be->setZoneOffline(dev_idx, dev_zone_idx, true);
+    return Status::OK();
+  } else {
+    return Status::Corruption("unsupported raid for mounting options");
+  }
 }
 
 Status AquaFS::RecoverFrom(AquaMetaLog* log) {
@@ -1417,6 +1437,15 @@ Status AquaFS::RecoverFrom(AquaMetaLog* log) {
         s = DecodeRaidAppendFrom(&data);
         if (!s.ok()) {
           Warn(logger_, "Could not decode RAID append info: %s",
+               s.ToString().c_str());
+          return s;
+        }
+        break;
+
+      case kBlockingDeviceZones:
+        s = DecodeBlockingDeviceZones(&data);
+        if (!s.ok()) {
+          Warn(logger_, "Could not decode blocking device zones: %s",
                s.ToString().c_str());
           return s;
         }
@@ -1953,13 +1982,34 @@ IOStatus AquaFS::MigrateFileExtents(
        fname.data(), migrate_exts.size());
   return IOStatus::OK();
 }
-void AquaFS::selectZoneToOffline() {
+IOStatus AquaFS::selectZoneToOffline() {
   auto p = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
   if (!p) {
     Error(logger_, "zbd_ is not a RaidAutoZonedBlockDevice, unsupported");
-    return;
+    return IOStatus::IOError("unsupported");
   }
-  p->setZoneOffline(rand() % p->GetNrZones(), true);
+  auto it = p->allocator.device_zone_map_.begin();
+  std::advance(it, rand() % p->allocator.device_zone_map_.size());
+  auto it2 = it->second.begin();
+  std::advance(it2, rand() % it->second.size());
+  blockingDeviceZone(it2->device_idx, it2->zone_idx);
+  return IOStatus::OK();
+}
+IOStatus AquaFS::blockingDeviceZone(size_t device, size_t zone) {
+  auto p = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
+  if (!p) {
+    Error(logger_, "zbd_ is not a RaidAutoZonedBlockDevice, unsupported");
+    return IOStatus::IOError("unsupported");
+  }
+  std::string output;
+  std::string record;
+  PutFixed32(&record, kBlockingDeviceZones);
+  PutFixed32(&output, device);
+  PutFixed32(&output, zone);
+  PutLengthPrefixedSlice(&record, output);
+  PersistRecord(record);
+  p->setZoneOffline(device, zone, true);
+  return IOStatus::OK();
 }
 
 extern "C" FactoryFunc<FileSystem> aquafs_filesystem_reg;
