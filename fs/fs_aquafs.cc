@@ -242,7 +242,7 @@ IOStatus AquaMetaLog::ReadRecord(Slice* record, std::string* scratch) {
   GetFixed32(&header, &record_crc);
   GetFixed32(&header, &record_sz);
 
-  printf("record_crc=%x, record_sz=%x\n", record_crc, record_sz);
+  // printf("record_crc=%x, record_sz=%x\n", record_crc, record_sz);
 
   if (record_sz == (uint32_t)(-1) && record_crc == (uint32_t)(-1)) {
     // EOF...
