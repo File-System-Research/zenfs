@@ -48,6 +48,9 @@ int aquafs_tool_restore();
 int aquafs_tool_dump();
 int aquafs_tool_fsinfo();
 
+int aquafs_tools(int argc, char **argv);
+int aquafs_tools_call(const std::vector<std::string> &v);
+
 }  // namespace aquafs
 
 #endif  // ROCKSDB_TOOLS_H
