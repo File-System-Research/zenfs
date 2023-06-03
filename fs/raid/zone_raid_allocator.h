@@ -30,17 +30,20 @@ class ZoneRaidAllocator {
   // use `map` or `unordered_map` to store raid mappings
   template <typename K, typename V>
   using map_use = std::map<K, V>;
-  using device_zone_map_t = map_use<idx_t, RaidMapItem>;
+  using device_zone_map_t = map_use<idx_t, std::vector<RaidMapItem>>;
   using mode_map_t = map_use<idx_t, RaidModeItem>;
   // <device idx, zone idx> -> raid zone idx, unsupported: unordered_map
-  using device_zone_inv_map_t = map_use<std::pair<idx_t, idx_t>, idx_t>;
+  using device_zone_t = std::pair<idx_t, idx_t>;
+  using device_zone_inv_map_t = map_use<device_zone_t, idx_t>;
 
-  // map: raid zone idx (* sz) -> device idx, device zone idx
+  // map: raid zone idx (* sz) -> vec<device idx, device zone idx>
   device_zone_map_t device_zone_map_{};
   // map: <device idx, device zone idx> -> raid zone idx (* sz)
   device_zone_inv_map_t device_zone_inv_map_{};
   // map: raid zone idx -> raid mode, option
   mode_map_t mode_map_{};
+  // offline zones
+  map_use<device_zone_t, bool> offline_zones_;
 
   idx_t device_nr_{};
   idx_t zone_nr_{};
@@ -53,7 +56,7 @@ class ZoneRaidAllocator {
     zone_nr_ = zone_nr;
   }
 
-  Status setMapping(idx_t logical_raid_zone_sub_idx, idx_t physical_device_idx,
+  Status addMapping(idx_t logical_raid_zone_sub_idx, idx_t physical_device_idx,
                     idx_t physical_zone_idx);
   void setMappingMode(idx_t logical_raid_zone_idx, RaidModeItem mode);
   void setMappingMode(idx_t logical_raid_zone_idx, RaidMode mode);
@@ -61,6 +64,9 @@ class ZoneRaidAllocator {
   int getFreeDeviceZone(idx_t device);
   int getFreeZoneDevice(idx_t device_zone);
   Status createMapping(idx_t logical_raid_zone_idx);
+  Status createMappingTwice(idx_t logical_raid_zone_idx);
+  Status createOneMappingAt(idx_t logical_raid_zone_sub_idx, idx_t device);
+  void setOffline(idx_t device, idx_t zone);
 };
 
 }  // namespace aquafs

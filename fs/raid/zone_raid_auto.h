@@ -63,6 +63,8 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
   template <class T>
   T getAutoMappedDevicePos(T pos);
 
+  void ScanAndHandleOffline();
+
   ~RaidAutoZonedBlockDevice() override = default;
 };
 

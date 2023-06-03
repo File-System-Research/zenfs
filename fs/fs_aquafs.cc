@@ -9,13 +9,13 @@
 #include "fs_aquafs.h"
 
 #include <dirent.h>
-#include <cerrno>
 #include <fcntl.h>
 #include <mntent.h>
-#include <cstdlib>
-#include <cstring>
 #include <unistd.h>
 
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
 #include <set>
 #include <sstream>
 #include <utility>
@@ -25,13 +25,13 @@
 #include "metrics_prometheus.h"
 #endif
 #include "aquafs_namespace.h"
+#include "configuration.h"
 #include "rocksdb/rocksdb_namespace.h"
 #include "rocksdb/utilities/object_registry.h"
 #include "snapshot.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
 #include "util/mutexlock.h"
-#include "configuration.h"
 
 #define DEFAULT_AQUAV_LOG_PATH "/tmp/"
 
@@ -334,7 +334,8 @@ void AquaFS::GCWorker() {
 
     GetAquaFSSnapshot(snapshot, options);
 
-    uint64_t threshold = (100 - FLAGS_gc_slope * (FLAGS_gc_start_level - free_percent));
+    uint64_t threshold =
+        (100 - FLAGS_gc_slope * (FLAGS_gc_start_level - free_percent));
     std::set<uint64_t> migrate_zones_start;
     for (const auto& zone : snapshot.zones_) {
       if (zone.capacity == 0) {
@@ -1331,7 +1332,7 @@ Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
     RaidMapItem item;
     auto s = item.DecodeFrom(slice);
     if (!s.ok()) return s;
-    device_zone[raid_zone_idx] = item;
+    device_zone[raid_zone_idx].emplace_back(item);
   }
   uint32_t nr_mode_map;
   GetFixed32(slice, &nr_mode_map);
