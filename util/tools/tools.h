@@ -51,6 +51,9 @@ int aquafs_tool_fsinfo();
 int aquafs_tools(int argc, char **argv);
 int aquafs_tools_call(const std::vector<std::string> &v);
 
+void prepare_test_env(int num = 4);
+// void prepare_test_env();
+
 }  // namespace aquafs
 
 #endif  // ROCKSDB_TOOLS_H

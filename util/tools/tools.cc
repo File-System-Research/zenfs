@@ -848,8 +848,20 @@ int aquafs_tools(int argc, char **argv) {
 int aquafs_tools_call(const std::vector<std::string> &v) {
   std::string self = "aquafs";
   std::vector<char *> argv = {const_cast<char *>(self.c_str())};
-  for (auto &s : v) argv.push_back(const_cast<char *>(s.c_str()));
+  printf("aquafs_tools_call: ");
+  for (auto &s : v) {
+    argv.push_back(const_cast<char *>(s.c_str()));
+    printf("%s ", s.c_str());
+  }
+  printf("\n");
   return aquafs_tools(static_cast<int>(argv.size()), argv.data());
+}
+
+void prepare_test_env(int num) {
+  std::string path_prefix = "../../../plugin/aquafs";
+  auto cmd = "sudo " + path_prefix + "/tests/nullblk/refresh.sh " +
+             std::to_string(num);
+  system(cmd.c_str());
 }
 
 }  // namespace aquafs
