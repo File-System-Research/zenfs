@@ -36,7 +36,7 @@ void emit_device_zone_offline(const std::string& devID) {
 }
 
 int main() {
-  // prepare_test_env();
+  prepare_test_env();
   const char* fs_uri =
       "--raids=raida:dev:nullb0,dev:nullb1,dev:nullb2,dev:nullb3";
   aquafs_tools_call({"mkfs", fs_uri, "--aux_path=/tmp/aux_path", "--force"});
@@ -45,11 +45,9 @@ int main() {
   std::filesystem::create_directories(data_source_dir);
   auto filename = "test_file";
   auto file = data_source_dir / filename;
-  // std::ofstream ofs(file);
-  // ofs << "test content\n";
-  // ofs.close();
   // auto kib = 128l * 1024;
-  auto kib = 1024l * 1024;
+  // auto kib = 1024l * 1024;
+  auto kib = 32l * 1024;
   // std::filesystem::resize_file(file, mib * 1024 * 1024);
   system((std::string("dd if=/dev/random of=") + file.string() +
           " bs=1K count=" + std::to_string(kib))

@@ -164,6 +164,7 @@ class ZonedBlockDeviceBackend {
     if (offline) {
       printf("setting idx=%x to offline!\n", idx);
       sim_offline_zones.insert(idx);
+      Close(idx * zone_sz_);
     } else {
       sim_offline_zones.erase(idx);
     }
