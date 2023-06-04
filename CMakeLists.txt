@@ -22,8 +22,10 @@ set(aquafs_HEADERS_local "fs/fs_aquafs.h" "fs/zbd_aquafs.h" "fs/io_aquafs.h" "fs
         "fs/configuration.h")
 set(aquafs_LIBS_local "zbd")
 
+#set(PROJECT_IS_TOP_LEVEL OFF)
+#add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/liburing4cpp)
+if (DEFINED AQUAFS_RAID_URING)
 # NOT WORKING: CMake Error: install(EXPORT "RocksDBTargets" ...) includes target "rocksdb" which requires target "liburing4cpp" that is not in any export set.
-#if (DEFINED AQUAFS_RAID_URING)
 #    include(FetchContent)
 #    FetchContent_Declare(
 #            liburing4cpp
@@ -32,7 +34,9 @@ set(aquafs_LIBS_local "zbd")
 #    )
 #    FetchContent_MakeAvailable(liburing4cpp)
 #    list(APPEND aquafs_LIBS_local liburing4cpp)
-#endif ()
+    # include headers
+    file(GLOB ${CMAKE_CURRENT_SOURCE_DIR}/liburing4cpp/include/liburing/*.hpp)
+endif ()
 
 if (AQUAFS_STANDALONE)
     project(aquafs)
