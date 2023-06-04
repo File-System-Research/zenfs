@@ -4,6 +4,10 @@
 
 #include "zone_raid0.h"
 
+#ifdef AQUAFS_RAID_URING
+#include "../../liburing4cpp/include/liburing/io_service.hpp"
+#endif
+
 namespace AQUAFS_NAMESPACE {
 void Raid0ZonedBlockDevice::syncBackendInfo() {
   AbstractRaidZonedBlockDevice::syncBackendInfo();

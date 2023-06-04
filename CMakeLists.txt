@@ -21,21 +21,24 @@ set(aquafs_HEADERS_local "fs/fs_aquafs.h" "fs/zbd_aquafs.h" "fs/io_aquafs.h" "fs
         "fs/raid/zone_raid_allocator.h"
         "fs/configuration.h")
 set(aquafs_LIBS_local "zbd")
+set(aquafs_COMPILE_FLAGS_local "")
+set(aquafs_INCLUDE_PATHS_local ${CMAKE_CURRENT_SOURCE_DIR})
 
-#set(PROJECT_IS_TOP_LEVEL OFF)
-#add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/liburing4cpp)
 if (DEFINED AQUAFS_RAID_URING)
-# NOT WORKING: CMake Error: install(EXPORT "RocksDBTargets" ...) includes target "rocksdb" which requires target "liburing4cpp" that is not in any export set.
-#    include(FetchContent)
-#    FetchContent_Declare(
-#            liburing4cpp
-#            GIT_REPOSITORY https://github.com/CarterLi/liburing4cpp.git
-#            GIT_TAG        async
-#    )
-#    FetchContent_MakeAvailable(liburing4cpp)
-#    list(APPEND aquafs_LIBS_local liburing4cpp)
+    set(liburing4cpp_INC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/liburing4cpp/include)
+    list(APPEND aquafs_INCLUDE_PATHS_local ${liburing4cpp_INC_PATH})
     # include headers
-    file(GLOB ${CMAKE_CURRENT_SOURCE_DIR}/liburing4cpp/include/liburing/*.hpp)
+    file(GLOB liburing4cpp_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/liburing4cpp/include/liburing/*.hpp)
+    # append and remove prefix for file items
+    foreach (file ${liburing4cpp_HEADERS})
+        get_filename_component(file_name ${file} NAME)
+        list(APPEND aquafs_HEADERS_local "liburing4cpp/include/liburing/${file_name}")
+    endforeach ()
+    set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -DAQUAFS_RAID_URING=1 -Wno-non-virtual-dtor -Wno-shadow")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -fcoroutines")
+    endif()
+    list(APPEND aquafs_LIBS_local "uring" "fmt" "Threads::Threads")
 endif ()
 
 if (AQUAFS_STANDALONE)
@@ -107,13 +110,14 @@ else ()
         list(APPEND aquafs_LIBS_local "prometheus-cpp-pull" "prometheus-cpp-core")
         list(APPEND aquafs_SOURCES_local "fs/metrics_prometheus.cc")
         list(APPEND aquafs_HEADERS_local "fs/metrics_prometheus.h")
-        set(aquafs_COMPILE_FLAGS -DAQUAFS_EXPORT_PROMETHEUS=1 PARENT_SCOPE)
+        set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -DAQUAFS_EXPORT_PROMETHEUS=1")
         # add_definitions(-DAQUAFS_EXPORT_PROMETHEUS=1)
     endif ()
     set(aquafs_HEADERS ${aquafs_HEADERS_local} PARENT_SCOPE)
     set(aquafs_SOURCES ${aquafs_SOURCES_local} PARENT_SCOPE)
     set(aquafs_LIBS ${aquafs_LIBS_local} PARENT_SCOPE)
-
+    set(aquafs_COMPILE_FLAGS ${aquafs_COMPILE_FLAGS_local} PARENT_SCOPE)
+    set(aquafs_INCLUDE_PATHS ${aquafs_INCLUDE_PATHS_local} PARENT_SCOPE)
 
     #  execute_process(WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     #    RESULT_VARIABLE GENVER_RESULT
