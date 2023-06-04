@@ -20,7 +20,8 @@ namespace AQUAFS_NAMESPACE {
 using namespace ROCKSDB_NAMESPACE;
 
 class ZbdlibBackend : public ZonedBlockDeviceBackend {
- private:
+ // private:
+public:
   std::string filename_;
   int read_f_;
   int read_direct_f_;

@@ -22,11 +22,11 @@
 #include <vector>
 
 #include "aquafs_namespace.h"
+#include "raid/zone_raid.h"
 #include "raid/zone_raid0.h"
 #include "raid/zone_raid1.h"
-#include "raid/zone_raidc.h"
-#include "raid/zone_raid.h"
 #include "raid/zone_raid_auto.h"
+#include "raid/zone_raidc.h"
 #include "rocksdb/env.h"
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"
@@ -226,6 +226,7 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
             path.c_str());
     }
   }
+  if (zbd_be_ == nullptr) Error(logger_, "Failed to load zone data backend");
 }
 
 IOStatus ZonedBlockDevice::Open(bool readonly, bool exclusive) {
