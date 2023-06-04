@@ -33,7 +33,7 @@ class GaugeMetric {
 };
 
 class AquaFSPrometheusMetrics : public AQUAFS_NAMESPACE::AquaFSMetrics {
- private:
+ protected:
   std::shared_ptr<prometheus::Registry> registry_;
   std::unordered_map<AquaFSMetricsHistograms, std::shared_ptr<GaugeMetric>>
       metric_map_;

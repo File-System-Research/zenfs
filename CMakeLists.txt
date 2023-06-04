@@ -8,6 +8,10 @@ if (NOT DEFINED AQUAFS_EXPORT_PROMETHEUS)
     set(AQUAFS_EXPORT_PROMETHEUS OFF)
 endif ()
 
+if (NOT DEFINED AQUAFS_EXPORT_METRICS)
+    set(AQUAFS_EXPORT_METRICS OFF)
+endif ()
+
 set(AQUAFS_VERSION v0.0.1-alpha)
 
 set(aquafs_SOURCES_local "fs/fs_aquafs.cc" "fs/zbd_aquafs.cc" "fs/io_aquafs.cc" "fs/zonefs_aquafs.cc"
@@ -94,6 +98,14 @@ else ()
         set(aquafs_COMPILE_FLAGS -DAQUAFS_EXPORT_PROMETHEUS=1 PARENT_SCOPE)
         # add_definitions(-DAQUAFS_EXPORT_PROMETHEUS=1)
     endif ()
+
+    if (AQUAFS_EXPORT_METRICS)
+        message(STATUS "Exporting metrics to files enabled")
+        list(APPEND aquafs_SOURCES_local "fs/metrics_file.cc")
+        list(APPEND aquafs_HEADERS_local "fs/metrics_file.h")
+        set(aquafs_COMPILE_FLAGS -DAQUAFS_EXPORT_METRICS=1 PARENT_SCOPE)
+    endif ()
+
     set(aquafs_HEADERS ${aquafs_HEADERS_local} PARENT_SCOPE)
     set(aquafs_SOURCES ${aquafs_SOURCES_local} PARENT_SCOPE)
     set(aquafs_LIBS ${aquafs_LIBS_local} PARENT_SCOPE)
