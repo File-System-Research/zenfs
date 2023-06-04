@@ -756,10 +756,7 @@ Status RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
         Info(logger_, "fine zone: dev=%x, zone=%x, wp=%lx, start=%lx",
              fine->device_idx, fine->zone_idx, wp, start);
         assert(wp >= start);
-        // FIXME: write invalid...?
-        // auto sz = wp - start;
-        auto sz = 0l;
-        // char *buf = new char[sz];
+        auto sz = wp - start;
         char *buf = nullptr;
         if (posix_memalign((void **)(&buf), getpagesize(), sz)) {
           return Status::IOError("Allocate memory failed!");
@@ -781,8 +778,6 @@ Status RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
             &tmp_max_capacity);
         auto write_start = restoring->zone_idx * def_dev()->GetZoneSize();
         auto write_dev = restoring->device_idx;
-        // auto write_start = 0 * def_dev()->GetZoneSize();
-        // auto write_dev = 0;
         Info(logger_, "restoring data to dev %x zone %x, sz=%lx, pos=%lx",
              write_dev, restoring->zone_idx, sz, write_start);
         uint32_t tmp_2;
@@ -797,7 +792,7 @@ Status RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
           Error(logger_, "Cannot write restored data! written=%x, cause: %s",
                 written, strerror(errno));
           free(buf);
-          // return Status::IOError("Cannot recover data");
+          return Status::IOError("Cannot recover data");
         } else {
           free(buf);
         }

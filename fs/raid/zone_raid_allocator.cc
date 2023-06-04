@@ -20,8 +20,8 @@ Status ZoneRaidAllocator::addMapping(idx_t logical_raid_zone_sub_idx,
 }
 void ZoneRaidAllocator::setMappingMode(idx_t logical_raid_zone_idx,
                                        RaidModeItem mode) {
-  printf("setMappingMode: set raid zone %x to mode raid%s\n",
-         logical_raid_zone_idx, raid_mode_str(mode.mode));
+  // printf("setMappingMode: set raid zone %x to mode raid%s\n",
+  //        logical_raid_zone_idx, raid_mode_str(mode.mode));
   mode_map_[logical_raid_zone_idx] = mode;
 }
 void ZoneRaidAllocator::setMappingMode(idx_t logical_raid_zone_idx,

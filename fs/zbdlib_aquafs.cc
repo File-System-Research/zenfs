@@ -64,7 +64,7 @@ IOStatus ZbdlibBackend::CheckScheduler() {
 IOStatus ZbdlibBackend::Open(bool readonly, bool exclusive,
                              unsigned int *max_active_zones,
                              unsigned int *max_open_zones) {
-  printf("ZbdlibBackend::Open\n");
+  // printf("ZbdlibBackend::Open\n");
   zbd_info info;
 
   /* The non-direct file descriptor acts as an exclusive-use semaphore */
@@ -139,7 +139,7 @@ std::unique_ptr<ZoneList> ZbdlibBackend::ListZones() {
 
 IOStatus ZbdlibBackend::Reset(uint64_t start, bool *offline,
                               uint64_t *max_capacity) {
-  printf("ZbdlibBackend::Reset start=%lx\n", start);
+  // printf("ZbdlibBackend::Reset start=%lx\n", start);
   unsigned int report = 1;
   struct zbd_zone z;
   int ret;
@@ -163,7 +163,7 @@ IOStatus ZbdlibBackend::Reset(uint64_t start, bool *offline,
 }
 
 IOStatus ZbdlibBackend::Finish(uint64_t start) {
-  printf("ZbdlibBackend::Finish start=%lx\n", start);
+  // printf("ZbdlibBackend::Finish start=%lx\n", start);
   int ret;
 
   ret = zbd_finish_zones(write_f_, start, zone_sz_);
@@ -182,7 +182,7 @@ IOStatus ZbdlibBackend::Close(uint64_t start) {
 }
 
 int ZbdlibBackend::InvalidateCache(uint64_t pos, uint64_t size) {
-  printf("ZbdlibBackend::InvalidateCache pos=%lx, size=%lx\n", pos, size);
+  // printf("ZbdlibBackend::InvalidateCache pos=%lx, size=%lx\n", pos, size);
   return posix_fadvise(read_f_, pos, size, POSIX_FADV_DONTNEED);
 }
 
@@ -209,7 +209,7 @@ int ZbdlibBackend::Read(char *buf, int size, uint64_t pos, bool direct) {
 }
 
 int ZbdlibBackend::Write(char *data, uint32_t size, uint64_t pos) {
-  printf("ZbdlibBackend::Write size=%x, pos=%lx\n", size, pos);
+  // printf("ZbdlibBackend::Write size=%x, pos=%lx\n", size, pos);
   return pwrite(write_f_, data, size, pos);
 }
 
