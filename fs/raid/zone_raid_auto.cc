@@ -759,14 +759,18 @@ Status RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
         // FIXME: write invalid...?
         // auto sz = wp - start;
         auto sz = 0l;
-        char *buf = new char[sz];
+        // char *buf = new char[sz];
+        char *buf = nullptr;
+        if (posix_memalign((void **)(&buf), getpagesize(), sz)) {
+          return Status::IOError("Allocate memory failed!");
+        }
         auto read_sz = devices_[fine->device_idx]->Read(
             buf, static_cast<int>(sz),
             restoring->zone_idx * zone_sz_ / nr_dev(), false);
         if (read_sz < 0) {
           Error(logger_, "Cannot read data from dev %x zone %x, sz=%lx",
                 fine->device_idx, fine->zone_idx, sz);
-          delete[] buf;
+          free(buf);
           return Status::IOError("Cannot recover data");
         }
         // restore data
@@ -792,10 +796,10 @@ Status RaidAutoZonedBlockDevice::ScanAndHandleOffline() {
         if (static_cast<decltype(sz)>(written) != sz) {
           Error(logger_, "Cannot write restored data! written=%x, cause: %s",
                 written, strerror(errno));
-          delete[] buf;
+          free(buf);
           // return Status::IOError("Cannot recover data");
         } else {
-          delete[] buf;
+          free(buf);
         }
       }
     } else {
