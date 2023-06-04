@@ -65,7 +65,8 @@ class ZoneRaidAllocator {
   int getFreeZoneDevice(idx_t device_zone);
   Status createMapping(idx_t logical_raid_zone_idx);
   Status createMappingTwice(idx_t logical_raid_zone_idx);
-  Status createOneMappingAt(idx_t logical_raid_zone_sub_idx, idx_t device);
+  Status createOneMappingAt(idx_t logical_raid_zone_sub_idx, idx_t device,
+                            idx_t &zone);
   void setOffline(idx_t device, idx_t zone);
 };
 

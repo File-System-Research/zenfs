@@ -7,6 +7,8 @@
 
 #include <gflags/gflags.h>
 
+#include "fs/fs_aquafs.h"
+#include "fs/zbd_aquafs.h"
 #include "rocksdb/file_system.h"
 #include "rocksdb/io_status.h"
 
@@ -53,6 +55,10 @@ int aquafs_tools_call(const std::vector<std::string> &v);
 
 void prepare_test_env(int num = 4);
 // void prepare_test_env();
+
+std::unique_ptr<ZonedBlockDevice> zbd_open(bool readonly, bool exclusive);
+Status aquafs_mount(std::unique_ptr<ZonedBlockDevice> &zbd,
+                    std::unique_ptr<AquaFS> *aquaFS, bool readonly);
 
 }  // namespace aquafs
 

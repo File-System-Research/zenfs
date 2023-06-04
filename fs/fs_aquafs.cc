@@ -182,7 +182,8 @@ IOStatus AquaMetaLog::AddRecord(const Slice& slice) {
   memcpy(buffer + sizeof(uint32_t) * 2, data, record_sz);
 
   // if (record_sz >= 4)
-  //   printf("add record: crc=%x, sz=%x, data[0]=%x, pos=%lx\n", crc, record_sz,
+  //   printf("add record: crc=%x, sz=%x, data[0]=%x, pos=%lx\n", crc,
+  //   record_sz,
   //          *(uint32_t*)(data), zone_->wp_);
 
   s = zone_->Append(buffer, phys_sz);
@@ -1989,7 +1990,14 @@ IOStatus AquaFS::selectZoneToOffline() {
     return IOStatus::IOError("unsupported");
   }
   auto it = p->allocator.device_zone_map_.begin();
-  std::advance(it, rand() % (p->allocator.device_zone_map_.size() / 2));
+  // std::advance(it, rand() % (p->allocator.device_zone_map_.size() / 2));
+  while (it != p->allocator.device_zone_map_.end() && !it->second.empty() &&
+         it->second.front().device_idx == 0)
+    it++;
+  if (it == p->allocator.device_zone_map_.end()) {
+    Error(logger_, "no zone to offline");
+    return IOStatus::IOError("no zone to offline");
+  }
   auto it2 = it->second.begin();
   std::advance(it2,
                rand() % (it->second.size() <= 1 ? 1 : it->second.size() / 2));

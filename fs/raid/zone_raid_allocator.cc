@@ -92,10 +92,11 @@ void ZoneRaidAllocator::setOffline(idx_t device, idx_t zone) {
   offline_zones_[std::make_pair(device, zone)] = true;
 }
 Status ZoneRaidAllocator::createOneMappingAt(idx_t logical_raid_zone_sub_idx,
-                                             idx_t device) {
+                                             idx_t device, idx_t &zone) {
   auto z = getFreeDeviceZone(device);
   if (z >= 0) {
     addMapping(logical_raid_zone_sub_idx, device, static_cast<idx_t>(z));
+    zone = (decltype(zone))(z);
     return Status::OK();
   } else
     return Status::NoSpace();
