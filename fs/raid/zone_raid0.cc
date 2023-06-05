@@ -10,6 +10,7 @@
 #include <tuple>
 
 #include "../../liburing4cpp/include/liburing/io_service.hpp"
+#include "fs/aquafs_utils.h"
 #include "fs/zbdlib_aquafs.h"
 #endif
 
@@ -249,47 +250,72 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
     pos += req_size;
   }
   service.run([&]() -> uio::task<> {
-    std::vector<uio::task<int>> futures;
-    using req_item2_t = std::tuple<int, char *, uint64_t, off_t>;
-    std::vector<req_item2_t> unordered_req;
-    for (const auto &be : bes) {
-      int fd = be->write_f_;
-      if (!requests[fd].empty()) {
-        std::reverse(requests[fd].begin(), requests[fd].end());
-      }
-    }
-    while (true) {
-      bool found = false;
-      for (const auto &be : bes) {
-        int fd = be->write_f_;
-        if (requests[fd].empty()) continue;
-        auto &&req = requests[fd].back();
-        unordered_req.emplace_back(fd, std::get<0>(req), std::get<1>(req),
-                                   std::get<2>(req));
-        requests[fd].pop_back();
-        found = true;
-      }
-      if (!found) break;
-    }
-    for (auto &&req : unordered_req) {
-      pwrite(std::get<0>(req), std::get<1>(req), std::get<2>(req),
-             std::get<3>(req));
-    }
-    co_return;
-    // for (auto &&req_list : requests) {
-    //   for (auto &&req : req_list.second) {
-    //     // uint8_t flags = 0;
-    //     // if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
-    //     // futures.emplace_back(service.write(req_list.first,
-    //     std::get<0>(req),
-    //     //                                    std::get<1>(req),
-    //     //                                    std::get<2>(req), flags) |
-    //     //                      uio::panic_on_err("failed to write!", true));
-    //     pwrite(req_list.first, std::get<0>(req), std::get<1>(req),
-    //            std::get<2>(req));
+    // std::vector<uio::task<int>> futures;
+    std::vector<uio::sqe_awaitable> futures;
+    // using req_item2_t = std::tuple<int, char *, uint64_t, off_t>;
+    // std::vector<req_item2_t> unordered_req;
+    // for (const auto &be : bes) {
+    //   int fd = be->write_f_;
+    //   if (!requests[fd].empty()) {
+    //     std::reverse(requests[fd].begin(), requests[fd].end());
     //   }
     // }
-    // for (auto &&fut : futures) co_await fut;
+    // while (true) {
+    //   bool found = false;
+    //   for (const auto &be : bes) {
+    //     int fd = be->write_f_;
+    //     if (requests[fd].empty()) continue;
+    //     auto &&req = requests[fd].back();
+    //     unordered_req.emplace_back(fd, std::get<0>(req), std::get<1>(req),
+    //                                std::get<2>(req));
+    //     requests[fd].pop_back();
+    //     found = true;
+    //   }
+    //   if (!found) break;
+    // }
+    // for (auto &&req : unordered_req) {
+    //   // printf("req: %s\n", to_string(req).c_str());
+    //   // fflush(stdout);
+    //   // pwrite(std::get<0>(req), std::get<1>(req), std::get<2>(req),
+    //   //        std::get<3>(req));
+    //   // uint8_t flags = 0;
+    //   // uint8_t flags = IOSQE_IO_LINK;
+    //   uint8_t flags = IOSQE_IO_DRAIN;
+    //   futures.emplace_back(service.write(std::get<0>(req), std::get<1>(req),
+    //                                      std::get<2>(req), std::get<3>(req),
+    //                                      flags));
+    //   // co_await service.write(std::get<0>(req), std::get<1>(req),
+    //   //                        std::get<2>(req), std::get<3>(req), flags);
+    //   // futures.emplace_back(service.fsync(std::get<0>(req), 0,
+    //   // IOSQE_IO_LINK));
+    // }
+    // co_return;
+    for (auto &&req_list : requests) {
+      for (auto &&req : req_list.second) {
+        uint8_t flags = 0;
+        // if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
+        futures.emplace_back(
+            service.write(req_list.first, std::get<0>(req), std::get<1>(req),
+                          std::get<2>(req), flags)
+            // |uio::panic_on_err("failed to write!", true)
+        );
+        // futures.emplace_back(
+        // co_await service.fsync(req_list.first, 0, flags);
+        // );
+        // pwrite(req_list.first, std::get<0>(req), std::get<1>(req),
+        //        std::get<2>(req));
+      }
+    }
+    // FIXME: WTF...?
+    for (auto &&fut : futures) {
+      // printf("awaiting...\n");
+      // fflush(stdout);
+      // delay_ms(1);
+      delay_us(0);
+      // co_await fut | uio::panic_on_err("failed to write!", true);
+      co_await fut;
+      break;
+    }
   }());
   return static_cast<int>(sz_written);
 #endif
