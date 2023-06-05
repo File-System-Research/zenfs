@@ -188,7 +188,7 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
     std::vector<uio::task<int>> futures;
     for (const auto &req : requests) {
       uint8_t flags = 0;
-      if (req != *requests.cend()) flags |= IOSQE_IO_LINK;
+      // if (req != *requests.cend()) flags |= IOSQE_IO_LINK;
       futures.emplace_back(service.read(std::get<0>(req), std::get<1>(req),
                                         std::get<2>(req), std::get<3>(req),
                                         flags) |
