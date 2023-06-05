@@ -22,6 +22,7 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
  private:
   // auto-raid: manually managed zone info
   std::unique_ptr<raid_zone_t> a_zones_{};
+  zbd_zone *zone_info(idx_t idx) { return a_zones_.get() + idx; }
 
   void flush_zone_info();
 

@@ -114,6 +114,7 @@ IOStatus RaidAutoZonedBlockDevice::Reset(uint64_t start, bool *offline,
     }
   }
   flush_zone_info();
+  // zone_info(zone_idx)->wp = zone_info(zone_idx)->start;
   return r;
 }
 
@@ -131,7 +132,10 @@ IOStatus RaidAutoZonedBlockDevice::Finish(uint64_t start) {
       if (!r.ok()) return r;
     }
   }
-  flush_zone_info();
+  // flush_zone_info();
+  // FIXME: right?
+  zone_info(zone_idx)->wp =
+      zone_info(zone_idx)->start + zone_info(zone_idx)->len;
   return r;
 }
 
@@ -172,7 +176,8 @@ IOStatus RaidAutoZonedBlockDevice::Close(uint64_t start) {
       }
     }
   }
-  flush_zone_info();
+  // flush_zone_info();
+  zone_info(zone_idx)->cond = ZBD_ZONE_COND_CLOSED;
   // return r;
   return IOStatus::OK();
 }
@@ -198,7 +203,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
         return r;
       }
     }
-    flush_zone_info();
+    // flush_zone_info();
     return sz_read;
   } else {
     assert(static_cast<decltype(zone_sz_)>(size) <= zone_sz_);
@@ -280,7 +285,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
           return r;
         }
       }
-      flush_zone_info();
+      // flush_zone_info();
       return sz_read;
 #else
       uio::io_service service;
@@ -340,6 +345,8 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
 }
 
 int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
+  auto pos_raw = pos;
+  auto size_raw = size;
   // Debug(logger_, "Write(size=%x, pos=%lx)", size, pos);
   auto dev_zone_sz = def_dev()->GetZoneSize();
   if (static_cast<decltype(dev_zone_sz)>(size) > dev_zone_sz ||
@@ -454,7 +461,8 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
           return r;
         }
       }
-      flush_zone_info();
+      // flush_zone_info();
+      zone_info(pos_raw / zone_sz_)->wp += size;
       return sz_written;
 #else
       uio::io_service service;
@@ -506,7 +514,8 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
           break;
         }
       }());
-      flush_zone_info();
+      // flush_zone_info();
+      zone_info(pos_raw / zone_sz_)->wp += size;
       return static_cast<int>(sz_written);
 #endif
     }
@@ -585,7 +594,7 @@ bool RaidAutoZonedBlockDevice::ZoneIsOpen(std::unique_ptr<ZoneList> &zones,
 
 uint64_t RaidAutoZonedBlockDevice::ZoneStart(std::unique_ptr<ZoneList> &zones,
                                              idx_t idx) {
-  flush_zone_info();
+  // flush_zone_info();
   // Debug(logger_, "ZoneStart(idx=%x)", idx);
   // FIXME?
   return reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx].start;
@@ -593,7 +602,7 @@ uint64_t RaidAutoZonedBlockDevice::ZoneStart(std::unique_ptr<ZoneList> &zones,
 
 uint64_t RaidAutoZonedBlockDevice::ZoneMaxCapacity(
     std::unique_ptr<ZoneList> &zones, idx_t idx) {
-  flush_zone_info();
+  // flush_zone_info();
   // Debug(logger_, "ZoneMaxCapacity(idx=%x)", idx);
   // FIXME: capacity == max_capacity ?
   return reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx].capacity;
@@ -602,7 +611,7 @@ uint64_t RaidAutoZonedBlockDevice::ZoneMaxCapacity(
 uint64_t RaidAutoZonedBlockDevice::ZoneWp(std::unique_ptr<ZoneList> &zones,
                                           idx_t idx) {
   // Debug(logger_, "ZoneWp(idx=%x)", idx);
-  flush_zone_info();
+  // flush_zone_info();
   auto r = reinterpret_cast<raid_zone_t *>(zones.get()->GetData())[idx].wp;
   // Info(logger_, "RAID-A: ZoneWp=%llx", r);
   return r;
