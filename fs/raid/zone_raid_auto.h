@@ -5,8 +5,12 @@
 #ifndef ROCKSDB_ZONE_RAID_AUTO_H
 #define ROCKSDB_ZONE_RAID_AUTO_H
 
+#include <gflags/gflags.h>
+
 #include "zone_raid.h"
 #include "zone_raid_allocator.h"
+
+DECLARE_uint32(raid_auto_default);
 
 namespace AQUAFS_NAMESPACE {
 class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {

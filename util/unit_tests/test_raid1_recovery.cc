@@ -32,7 +32,7 @@ int main() {
   auto file = data_source_dir / filename;
   // auto kib = 128l * 1024;
   // auto kib = 1024l * 1024;
-  auto kib = 32l * 1024;
+  auto kib = 128l * 1024;
   // std::filesystem::resize_file(file, mib * 1024 * 1024);
   system((std::string("dd if=/dev/random of=") + file.string() +
           " bs=1K count=" + std::to_string(kib))

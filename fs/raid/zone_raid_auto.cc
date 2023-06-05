@@ -4,6 +4,8 @@
 
 #include "zone_raid_auto.h"
 
+#include <gflags/gflags.h>
+
 #include <memory>
 #include <numeric>
 #include <queue>
@@ -16,6 +18,8 @@
 #include "fs/zbdlib_aquafs.h"
 #include "rocksdb/io_status.h"
 #include "util/coding.h"
+
+DEFINE_uint32(raid_auto_default, 0, "Default RAID mode for auto-raid");
 
 namespace AQUAFS_NAMESPACE {
 
@@ -57,8 +61,8 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
   // allocate default layout
   a_zones_.reset(new raid_zone_t[nr_zones_]);
   memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
-  // const auto target_default_raid = RaidMode::RAID1;
-  const auto target_default_raid = RaidMode::RAID0;
+  const auto target_default_raid =
+      raid_mode_from_str(std::to_string(FLAGS_raid_auto_default));
   if (target_default_raid == RaidMode::RAID0) {
     // spare some free zones for dynamic allocation
     for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_ / 2; idx++) {
@@ -77,6 +81,8 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
         Error(logger_, "Failed to create mapping for zone %x", idx);
       }
     }
+  } else {
+    assert(false);
   }
   flush_zone_info();
   return s;
