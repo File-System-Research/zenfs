@@ -5,7 +5,11 @@
 #include "zone_raid0.h"
 
 #ifdef AQUAFS_RAID_URING
+#include <algorithm>
+#include <ranges>
+
 #include "../../liburing4cpp/include/liburing/io_service.hpp"
+#include "fs/zbdlib_aquafs.h"
 #endif
 
 namespace AQUAFS_NAMESPACE {
@@ -86,9 +90,9 @@ IOStatus Raid0ZonedBlockDevice::Close(uint64_t start) {
 }
 int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
                                 bool direct) {
+#ifndef AQUAFS_RAID_URING
   // split read range as blocks
   int sz_read = 0;
-  // TODO: Read blocks in multi-threads
   int r;
   while (size > 0) {
     auto req_size =
@@ -104,6 +108,53 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
     }
   }
   return sz_read;
+#else
+  uio::io_service service;
+  // split read range as blocks
+  int sz_read = 0;
+  using req_item_t = std::tuple<int, char *, off_t, uint64_t>;
+  std::vector<req_item_t> requests;
+  // Cannot register as files
+  // std::vector<int> fds;
+  // std::ranges::copy(devices_ | std::views::transform([&](const auto &it) {
+  //                     auto be = dynamic_cast<ZbdlibBackend *>(it.get());
+  //                     return direct ? be->read_direct_f_ : be->read_f_;
+  //                   }),
+  //                   std::back_inserter(fds));
+  // service.register_files(fds.data(), fds.size());
+  // uio::on_scope_exit unreg_file([&]() { service.unregister_files(); });
+  while (size > 0) {
+    auto req_size =
+        std::min(size, static_cast<int>(GetBlockSize() - pos % GetBlockSize()));
+    auto be = dynamic_cast<ZbdlibBackend *>(devices_[get_idx_dev(pos)].get());
+    assert(be != nullptr);
+    int fd = direct ? be->read_direct_f_ : be->read_f_;
+    // int dev_idx = get_idx_dev(pos);
+    requests.emplace_back(fd, buf, req_size, req_pos(pos));
+    size -= req_size;
+    sz_read += req_size;
+    buf += req_size;
+    pos += req_size;
+  }
+  std::vector<int> results;
+  service.run([&]() -> uio::task<> {
+    std::vector<uio::sqe_awaitable> futures;
+    std::transform(requests.begin(), requests.end(),
+                   std::back_inserter(futures), [&](const auto &req) {
+                     return service.read(std::get<0>(req), std::get<1>(req),
+                                         std::get<2>(req), std::get<3>(req), 0);
+                   });
+    for (auto &&res : futures) {
+      results.push_back(co_await res |
+                        uio::panic_on_err("failed to read!", true));
+    }
+  }());
+  auto neg_p =
+      std::find_if(results.begin(), results.end(), [](int r) { return r < 0; });
+  if (neg_p != results.end()) return *neg_p;
+  sz_read = std::accumulate(results.begin(), results.end(), 0);
+  return sz_read;
+#endif
 }
 int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
   // split read range as blocks
