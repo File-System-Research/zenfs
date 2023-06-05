@@ -250,31 +250,46 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
   }
   service.run([&]() -> uio::task<> {
     std::vector<uio::task<int>> futures;
-    for (auto &&req_list : requests) {
-      // std::ostringstream requests_stream;
-      // std::transform(req_list.second.begin(), req_list.second.end(),
-      //                std::ostream_iterator<std::string>(requests_stream,
-      //                ","),
-      //                [&](const auto &req) {
-      //                  return "<fd=" + std::to_string(req_list.first) + "," +
-      //                         to_string(req) + ">";
-      //                });
-      // Warn(logger_, "[fd=%d] got %zu requests: %s", req_list.first,
-      //      req_list.second.size(), requests_stream.str().c_str());
-      // futures.clear();
-      for (auto &&req : req_list.second) {
-        // uint8_t flags = 0;
-        // if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
-        // futures.emplace_back(service.write(req_list.first, std::get<0>(req),
-        //                                    std::get<1>(req),
-        //                                    std::get<2>(req), flags) |
-        //                      uio::panic_on_err("failed to write!", true));
-        pwrite(req_list.first, std::get<0>(req), std::get<1>(req),
-               std::get<2>(req));
+    using req_item2_t = std::tuple<int, char *, uint64_t, off_t>;
+    std::vector<req_item2_t> unordered_req;
+    for (const auto &be : bes) {
+      int fd = be->write_f_;
+      if (!requests[fd].empty()) {
+        std::reverse(requests[fd].begin(), requests[fd].end());
       }
-      // for (auto &&fut : futures) co_await fut;
     }
-    for (auto &&fut : futures) co_await fut;
+    while (true) {
+      bool found = false;
+      for (const auto &be : bes) {
+        int fd = be->write_f_;
+        if (requests[fd].empty()) continue;
+        auto &&req = requests[fd].back();
+        unordered_req.emplace_back(fd, std::get<0>(req), std::get<1>(req),
+                                   std::get<2>(req));
+        requests[fd].pop_back();
+        found = true;
+      }
+      if (!found) break;
+    }
+    for (auto &&req : unordered_req) {
+      pwrite(std::get<0>(req), std::get<1>(req), std::get<2>(req),
+             std::get<3>(req));
+    }
+    co_return;
+    // for (auto &&req_list : requests) {
+    //   for (auto &&req : req_list.second) {
+    //     // uint8_t flags = 0;
+    //     // if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
+    //     // futures.emplace_back(service.write(req_list.first,
+    //     std::get<0>(req),
+    //     //                                    std::get<1>(req),
+    //     //                                    std::get<2>(req), flags) |
+    //     //                      uio::panic_on_err("failed to write!", true));
+    //     pwrite(req_list.first, std::get<0>(req), std::get<1>(req),
+    //            std::get<2>(req));
+    //   }
+    // }
+    // for (auto &&fut : futures) co_await fut;
   }());
   return static_cast<int>(sz_written);
 #endif
