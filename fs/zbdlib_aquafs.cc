@@ -7,6 +7,7 @@
 #if !defined(ROCKSDB_LITE) && !defined(OS_WIN)
 
 #include "zbdlib_aquafs.h"
+#include "aquafs_utils.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -187,6 +188,7 @@ int ZbdlibBackend::InvalidateCache(uint64_t pos, uint64_t size) {
 }
 
 int ZbdlibBackend::Read(char *buf, int size, uint64_t pos, bool direct) {
+  // printf("ZbdlibBackend::Read size=%x, pos=%lx\n", size, pos);
 #ifdef AQUAFS_DETECT_READ_OFFLINE
   int sz = size;
   uint64_t pos2 = pos;
@@ -207,11 +209,17 @@ int ZbdlibBackend::Read(char *buf, int size, uint64_t pos, bool direct) {
     sz -= zone_sz_;
   }
 #endif
+#ifdef AQUAFS_SIM_DELAY
+  delay_us(calculate_delay_us(size));
+#endif
   return pread(direct ? read_direct_f_ : read_f_, buf, size, pos);
 }
 
 int ZbdlibBackend::Write(char *data, uint32_t size, uint64_t pos) {
   // printf("ZbdlibBackend::Write size=%x, pos=%lx\n", size, pos);
+#ifdef AQUAFS_SIM_DELAY
+  // delay_us(calculate_delay_us(size));
+#endif
   return pwrite(write_f_, data, size, pos);
 }
 

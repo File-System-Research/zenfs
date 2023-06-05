@@ -858,7 +858,7 @@ long aquafs_tools_call(const std::vector<std::string> &v) {
   printf("\n");
   // get start time
   auto start = std::chrono::high_resolution_clock::now();
-  auto r = aquafs_tools(static_cast<int>(argv.size()), argv.data());
+  aquafs_tools(static_cast<int>(argv.size()), argv.data());
   // get end time
   auto end = std::chrono::high_resolution_clock::now();
   auto duration =

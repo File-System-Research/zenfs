@@ -218,6 +218,7 @@ ZonedBlockDevice::ZonedBlockDevice(std::string path, ZbdBackendType backend,
           assert(false);
           break;
       }
+      Info(logger_, "New raid backing: %s", zbd_be_->GetFilename().c_str());
     } else {
       zbd_be_ = nullptr;
       Error(logger_,

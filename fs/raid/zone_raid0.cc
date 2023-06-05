@@ -191,30 +191,91 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   }
   std::vector<int> results;
   service.run([&]() -> uio::task<> {
-#if 0
-    // it stucks...
-
+#if 1
     // std::ostringstream requests_stream;
     // std::transform(requests.begin(), requests.end(),
-    //                std::ostream_iterator<std::string>(requests_stream,","),
+    //                std::ostream_iterator<std::string>(requests_stream, ","),
     //                [](const auto &req) { return "<" + to_string(req) + ">";
     //                });
     // Warn(logger_, "got %zu requests: %s", requests.size(),
     //      requests_stream.str().c_str());
-    std::vector<uio::sqe_awaitable> futures;
-    std::transform(requests.begin(), requests.end(),
-                   std::back_inserter(futures), [&](const auto &req) {
-                     return service.read(std::get<0>(req), std::get<1>(req),
-                                         std::get<2>(req), std::get<3>(req), 0);
-                   });
-    // Warn(logger_, "got %zu futures", futures.size());
-    for (auto &&res : futures) {
-      auto r = co_await res | uio::panic_on_err("failed to read!", true);
-      Warn(logger_, "got result %d", r);
-      if (std::accumulate(buf_raw, buf_raw + size, 0) == 0)
-        Warn(logger_, "got all zero data!");
-      results.push_back(r);
+    // std::vector<uio::sqe_awaitable> futures;
+    std::vector<uio::task<int>> futures;
+    std::unordered_set<int> related_fds;
+    for (const auto &req : requests) related_fds.insert(std::get<0>(req));
+    std::map<int, std::vector<req_item_t>> requests_by_fd;
+    for (const auto &req : requests) {
+      requests_by_fd[std::get<0>(req)].emplace_back(req);
     }
+    // std::transform(requests.begin(), requests.end(),
+    //                std::back_inserter(futures), [&](const auto &req) {
+    //                  uint8_t flags = IOSQE_ASYNC;
+    //                  if (req != *requests.end()) flags |= IOSQE_IO_LINK;
+    //                  results.push_back(std::get<2>(req));
+    //                  return service.read(std::get<0>(req), std::get<1>(req),
+    //                                      std::get<2>(req), std::get<3>(req),
+    //                                      flags);
+    //                });
+    for (const auto &req_list : requests_by_fd) {
+      for (const auto &req : req_list.second) {
+        uint8_t flags = 0;
+        if (req != *req_list.second.end()) flags |= IOSQE_IO_LINK;
+        results.push_back(std::get<2>(req));
+        auto fut = [&]() {
+          return (service.read(std::get<0>(req), std::get<1>(req),
+                               std::get<2>(req), std::get<3>(req), flags) |
+                  uio::panic_on_err("failed to read!", true));
+        };
+        // if (req == *req_list.second.end())
+        futures.emplace_back(fut());
+        // else
+        //   fut();
+      }
+      // std::transform(req_list.second.begin(), req_list.second.end(),
+      //                std::back_inserter(futures), [&](const auto &req) {
+      //                  uint8_t flags = 0;
+      //                  if (req != *req_list.second.end())
+      //                    flags |= IOSQE_IO_LINK;
+      //                  results.push_back(std::get<2>(req));
+      //                  return service.read(std::get<0>(req),
+      //                  std::get<1>(req),
+      //                                      std::get<2>(req),
+      //                                      std::get<3>(req), flags);
+      //                });
+    }
+    // Warn(logger_, "got %zu futures", futures.size());
+    // for (auto &&res : futures) {
+    //   auto r = co_await (res | uio::panic_on_err("failed to read!", true));
+    //   Warn(logger_, "got result %d", r);
+    //   if (std::accumulate(buf_raw, buf_raw + size, 0) == 0)
+    //     Warn(logger_, "got all zero data!");
+    //   results.push_back(r);
+    // }
+
+    // size_t fsync_cnt = 0;
+    // for (const auto &req : requests) {
+    //   fsync_cnt++;
+    //   // co_await service.fsync(std::get<0>(req), 0);
+    //   co_await service.fsync(std::get<0>(req), IORING_FSYNC_DATASYNC,
+    //                          IOSQE_ASYNC | IOSQE_IO_LINK);
+    // }
+
+    // for (const auto &p : requests_by_fd) {
+    //   co_await service.fsync(p.first, 0);
+    // }
+
+    for (auto &&fut : futures)
+      co_await fut | uio::panic_on_err("failed to read!", true);
+
+    // for (const auto &p : related_fds) {
+    //   for (int i = 0; i < 2048 / 4 / 4; i++) {
+    //     fsync_cnt++;
+    //     co_await service.fsync(p, IORING_FSYNC_DATASYNC,
+    //                            IOSQE_ASYNC | IOSQE_IO_LINK);
+    //   }
+    // }
+    // printf("fsync_cnt %zu\n", fsync_cnt);
+    co_return;
 #else
     std::map<int, std::vector<iovec>> req_vec;
     for (auto &req : requests) {
