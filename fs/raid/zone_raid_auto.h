@@ -83,9 +83,10 @@ class RaidInfoBasic {
   void load(ZonedBlockDevice *zbd) {
     assert(sizeof(RaidInfoBasic) == sizeof(uint32_t) * 5);
     if (zbd->IsRAIDEnabled()) {
-      auto be =
-          dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
-      if (!be) return;
+      // auto be =
+      //     dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
+      // if (!be) return;
+      auto be = (AbstractRaidZonedBlockDevice *)(zbd->getBackend().get());
       main_mode = be->getMainMode();
       nr_devices = be->nr_dev();
       dev_block_size = be->def_dev()->GetBlockSize();
@@ -96,9 +97,10 @@ class RaidInfoBasic {
 
   Status compatible(ZonedBlockDevice *zbd) const {
     if (!zbd->IsRAIDEnabled()) return Status::OK();
-    auto be =
-        dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
-    if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");
+    // auto be =
+    //     dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
+    // if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");
+    auto be = (AbstractRaidZonedBlockDevice *)(zbd->getBackend().get());
     if (main_mode != be->getMainMode())
       return Status::Corruption(
           "RAID Error", "main_mode mismatch: superblock-raid" +

@@ -187,6 +187,7 @@ int ZbdlibBackend::InvalidateCache(uint64_t pos, uint64_t size) {
 }
 
 int ZbdlibBackend::Read(char *buf, int size, uint64_t pos, bool direct) {
+#ifdef AQUAFS_DETECT_READ_OFFLINE
   int sz = size;
   uint64_t pos2 = pos;
   while (sz > 0) {
@@ -205,6 +206,7 @@ int ZbdlibBackend::Read(char *buf, int size, uint64_t pos, bool direct) {
     pos2 += std::min(static_cast<int>(zone_sz_), sz);
     sz -= zone_sz_;
   }
+#endif
   return pread(direct ? read_direct_f_ : read_f_, buf, size, pos);
 }
 

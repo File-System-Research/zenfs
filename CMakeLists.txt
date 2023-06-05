@@ -24,7 +24,7 @@ set(aquafs_LIBS_local "zbd")
 set(aquafs_COMPILE_FLAGS_local "")
 set(aquafs_INCLUDE_PATHS_local ${CMAKE_CURRENT_SOURCE_DIR})
 
-if (DEFINED AQUAFS_RAID_URING)
+if (AQUAFS_RAID_URING)
     set(liburing4cpp_INC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/liburing4cpp/include)
     list(APPEND aquafs_INCLUDE_PATHS_local ${liburing4cpp_INC_PATH})
     # include headers
@@ -37,8 +37,16 @@ if (DEFINED AQUAFS_RAID_URING)
     set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -DAQUAFS_RAID_URING=1 -Wno-non-virtual-dtor -Wno-shadow")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -fcoroutines")
-    endif()
+    endif ()
     list(APPEND aquafs_LIBS_local "uring" "fmt" "Threads::Threads")
+endif ()
+
+if (AQUAFS_DETECT_READ_OFFLINE)
+    set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -DAQUAFS_DETECT_READ_OFFLINE=1")
+endif ()
+
+if (AQUAFS_EXPORT_METRICS)
+    set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -DAQUAFS_EXPORT_METRICS=1")
 endif ()
 
 if (AQUAFS_STANDALONE)
