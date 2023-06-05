@@ -167,16 +167,17 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   std::vector<req_item_t> requests;
   std::vector<ZbdlibBackend *> bes(nr_dev());
   for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
-    // bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
-    // assert(bes[i] != nullptr);
+#ifdef USE_RTTI
+    bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
+    assert(bes[i] != nullptr);
+#else
     bes[i] = (ZbdlibBackend *)(devices_[i].get());
+#endif
   }
   while (size > 0) {
     auto req_size =
         std::min(size, static_cast<int>(GetBlockSize() - pos % GetBlockSize()));
     if (req_size == 0) break;
-    // auto be = dynamic_cast<ZbdlibBackend
-    // *>(devices_[get_idx_dev(pos)].get());
     auto be = bes[get_idx_dev(pos)];
     assert(be != nullptr);
     int fd = direct ? be->read_direct_f_ : be->read_f_;

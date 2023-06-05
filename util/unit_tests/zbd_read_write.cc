@@ -23,9 +23,12 @@ int main() {
   //            ->Reset(zone * zbd->GetZoneSize(), &tmp_offline,
   //            &tmp_max_capacity) .ok());
   // auto sz = 512ul;
-
+#ifdef USE_RTTI
   auto be = dynamic_cast<ZbdlibBackend *>(zbd->getBackend().get());
   assert(be);
+#else
+  auto be = (ZbdlibBackend *)(zbd->getBackend().get());
+#endif
   printf("write_f_: %x\n", be->write_f_);
 
   auto sz = 0x40000;
@@ -48,7 +51,7 @@ int main() {
   int written = -1;
   written = zbd->getBackend()->Write(data, sz, wp);
   if (written < 0) printf("write err: %s\n", strerror(errno));
-  if (written < 0) {
+  if (written < 0 && data) {
     // retry with pwrite
     written = pwrite(be->write_f_, data, sz, wp);
     if (written < 0) printf("pwrite err: %s\n", strerror(errno));

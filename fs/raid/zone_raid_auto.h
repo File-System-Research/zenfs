@@ -18,6 +18,7 @@ class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
   using raid_zone_t = struct zbd_zone;
 
   ZoneRaidAllocator allocator;
+
  private:
   // auto-raid: manually managed zone info
   std::unique_ptr<raid_zone_t> a_zones_{};
@@ -83,10 +84,13 @@ class RaidInfoBasic {
   void load(ZonedBlockDevice *zbd) {
     assert(sizeof(RaidInfoBasic) == sizeof(uint32_t) * 5);
     if (zbd->IsRAIDEnabled()) {
-      // auto be =
-      //     dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
-      // if (!be) return;
+#ifdef USE_RTTI
+      auto be =
+          dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
+      if (!be) return;
+#else
       auto be = (AbstractRaidZonedBlockDevice *)(zbd->getBackend().get());
+#endif
       main_mode = be->getMainMode();
       nr_devices = be->nr_dev();
       dev_block_size = be->def_dev()->GetBlockSize();
@@ -97,10 +101,13 @@ class RaidInfoBasic {
 
   Status compatible(ZonedBlockDevice *zbd) const {
     if (!zbd->IsRAIDEnabled()) return Status::OK();
-    // auto be =
-    //     dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
-    // if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");
+#ifdef USE_RTTI
+    auto be =
+        dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
+    if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");
+#else
     auto be = (AbstractRaidZonedBlockDevice *)(zbd->getBackend().get());
+#endif
     if (main_mode != be->getMainMode())
       return Status::Corruption(
           "RAID Error", "main_mode mismatch: superblock-raid" +

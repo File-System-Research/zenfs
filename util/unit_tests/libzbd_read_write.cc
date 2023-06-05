@@ -22,7 +22,6 @@ int main() {
   // char *data[sz];
   char *data = nullptr;
   assert(posix_memalign((void **)(&data), getpagesize(), sz) == 0);
-  auto r = pwrite(f, data, sz, 0);
-  assert(r > 0);
+  if (data) assert(pwrite(f, data, sz, 0) > 0);
   return 0;
 }

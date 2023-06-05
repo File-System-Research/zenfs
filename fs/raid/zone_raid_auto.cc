@@ -227,7 +227,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       auto &m = allocator.device_zone_map_[raid_zone_idx * nr_dev() +
                                            inner_zone_idx_offset];
       assert(size <= static_cast<decltype(size)>(def_dev()->GetZoneSize()));
-      int r;
+      int r = -1;
       for (auto &mm : m) {
         // TODO: spare read to all devices
         r = devices_[mm.device_idx]->Read(
@@ -282,6 +282,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       assert(false);
     }
   }
+  return -1;
 }
 
 int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {

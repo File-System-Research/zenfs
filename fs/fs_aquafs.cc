@@ -1327,29 +1327,33 @@ Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
   //    <uint32_t> raid zone idx,
   //    <RaidMapItem>
   // }
-  uint32_t nr_device_zone_map;
+  uint32_t nr_device_zone_map = -1;
   RaidAutoZonedBlockDevice::device_zone_map_t device_zone;
   RaidAutoZonedBlockDevice::mode_map_t mode_map;
   GetFixed32(slice, &nr_device_zone_map);
   for (uint32_t i = 0; i < nr_device_zone_map; i++) {
-    uint32_t raid_zone_idx;
+    uint32_t raid_zone_idx = -1;
     GetFixed32(slice, &raid_zone_idx);
     RaidMapItem item;
     auto s = item.DecodeFrom(slice);
     if (!s.ok()) return s;
     device_zone[raid_zone_idx].emplace_back(item);
   }
-  uint32_t nr_mode_map;
+  uint32_t nr_mode_map = 0;
   GetFixed32(slice, &nr_mode_map);
   for (uint32_t i = 0; i < nr_mode_map; i++) {
-    uint32_t raid_zone_idx;
+    uint32_t raid_zone_idx = -1;
     GetFixed32(slice, &raid_zone_idx);
     RaidModeItem item;
     auto s = item.DecodeFrom(slice);
     if (!s.ok()) return s;
     mode_map[raid_zone_idx] = item;
   }
+#ifdef USE_RTTI
   auto be = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
+#else
+  auto be = (RaidAutoZonedBlockDevice*)(zbd_->getBackend().get());
+#endif
   be->layout_update(std::move(device_zone), std::move(mode_map));
   return Status::OK();
 }
@@ -1361,7 +1365,11 @@ Status AquaFS::DecodeBlockingDeviceZones(Slice* slice) {
     return Status::IOError("decode dev idx failed");
   if (!GetFixed32(slice, &dev_zone_idx))
     return Status::IOError("decode zone idx failed");
+#ifdef USE_RTTI
   auto be = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
+#else
+  auto be = (RaidAutoZonedBlockDevice*)(zbd_->getBackend().get());
+#endif
   if (be) {
     be->setZoneOffline(dev_idx, dev_zone_idx, true);
     return Status::OK();
@@ -1984,7 +1992,11 @@ IOStatus AquaFS::MigrateFileExtents(
   return IOStatus::OK();
 }
 IOStatus AquaFS::selectZoneToOffline() {
+#ifdef USE_RTTI
   auto p = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
+#else
+  auto p = (RaidAutoZonedBlockDevice*)(zbd_->getBackend().get());
+#endif
   if (!p) {
     Error(logger_, "zbd_ is not a RaidAutoZonedBlockDevice, unsupported");
     return IOStatus::IOError("unsupported");
@@ -2005,11 +2017,15 @@ IOStatus AquaFS::selectZoneToOffline() {
   return IOStatus::OK();
 }
 IOStatus AquaFS::blockingDeviceZone(size_t device, size_t zone) {
+#ifdef USE_RTTI
   auto p = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
   if (!p) {
     Error(logger_, "zbd_ is not a RaidAutoZonedBlockDevice, unsupported");
     return IOStatus::IOError("unsupported");
   }
+#else
+  auto p = (RaidAutoZonedBlockDevice*)(zbd_->getBackend().get());
+#endif
   std::string output;
   std::string record;
   PutFixed32(&record, kBlockingDeviceZones);
