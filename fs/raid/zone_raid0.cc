@@ -167,8 +167,9 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   std::vector<req_item_t> requests;
   std::vector<ZbdlibBackend *> bes(nr_dev());
   for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
-    bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
-    assert(bes[i] != nullptr);
+    // bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
+    // assert(bes[i] != nullptr);
+    bes[i] = (ZbdlibBackend *)(devices_[i].get());
   }
   while (size > 0) {
     auto req_size =
