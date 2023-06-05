@@ -51,7 +51,7 @@ int aquafs_tool_dump();
 int aquafs_tool_fsinfo();
 
 int aquafs_tools(int argc, char **argv);
-int aquafs_tools_call(const std::vector<std::string> &v);
+long aquafs_tools_call(const std::vector<std::string> &v);
 
 void prepare_test_env(int num = 4);
 // void prepare_test_env();
@@ -59,6 +59,8 @@ void prepare_test_env(int num = 4);
 std::unique_ptr<ZonedBlockDevice> zbd_open(bool readonly, bool exclusive);
 Status aquafs_mount(std::unique_ptr<ZonedBlockDevice> &zbd,
                     std::unique_ptr<AquaFS> *aquaFS, bool readonly);
+
+size_t get_file_hash(std::filesystem::path file);
 
 }  // namespace aquafs
 

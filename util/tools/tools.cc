@@ -845,16 +845,27 @@ int aquafs_tools(int argc, char **argv) {
   }
 }
 
-int aquafs_tools_call(const std::vector<std::string> &v) {
+long aquafs_tools_call(const std::vector<std::string> &v) {
   std::string self = "aquafs";
   std::vector<char *> argv = {const_cast<char *>(self.c_str())};
   printf("aquafs_tools_call: ");
+  std::string argv_str;
   for (auto &s : v) {
     argv.push_back(const_cast<char *>(s.c_str()));
+    argv_str += s + " ";
     printf("%s ", s.c_str());
   }
   printf("\n");
-  return aquafs_tools(static_cast<int>(argv.size()), argv.data());
+  // get start time
+  auto start = std::chrono::high_resolution_clock::now();
+  auto r = aquafs_tools(static_cast<int>(argv.size()), argv.data());
+  // get end time
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+          .count();
+  printf("%s execution duration: %ldms\n", argv_str.c_str(), duration);
+  return duration;
 }
 
 void prepare_test_env(int num) {
@@ -862,6 +873,21 @@ void prepare_test_env(int num) {
   auto cmd = "sudo " + path_prefix + "/tests/nullblk/refresh.sh " +
              std::to_string(num);
   system(cmd.c_str());
+}
+
+size_t get_file_hash(std::filesystem::path file) {
+  std::ifstream infile(file, std::ios::binary);
+  std::hash<std::string> hash_fn;
+  constexpr size_t block_size = 1 << 20;  // 1MB
+  char buffer[block_size];
+  size_t file_hash = 0;
+  while (infile.read(buffer, block_size)) {
+    file_hash ^= hash_fn(std::string(buffer, buffer + infile.gcount()));
+  }
+  if (infile.gcount() > 0) {
+    file_hash ^= hash_fn(std::string(buffer, buffer + infile.gcount()));
+  }
+  return file_hash;
 }
 
 }  // namespace aquafs
