@@ -7,6 +7,7 @@
 #ifdef AQUAFS_RAID_URING
 #include <algorithm>
 #include <ranges>
+#include <tuple>
 
 #include "../../liburing4cpp/include/liburing/io_service.hpp"
 #include "fs/zbdlib_aquafs.h"
@@ -88,6 +89,52 @@ IOStatus Raid0ZonedBlockDevice::Close(uint64_t start) {
   }
   return r;
 }
+
+template <typename T, T...>
+struct integer_sequence {};
+
+template <std::size_t N, std::size_t... I>
+struct gen_indices : gen_indices<(N - 1), (N - 1), I...> {};
+template <std::size_t... I>
+struct gen_indices<0, I...> : integer_sequence<std::size_t, I...> {};
+
+template <typename H>
+std::string &to_string_impl(std::string &s, H &&h) {
+  using std::to_string;
+  s += to_string(std::forward<H>(h));
+  return s;
+}
+
+template <typename H, typename... T>
+std::string &to_string_impl(std::string &s, H &&h, T &&...t);
+
+template <typename... T>
+std::string &to_string_impl(std::string &s, char *const &h, T &&...t) {
+  // s += h;
+  s += std::to_string((uint64_t)((void *)h)) + ",";
+  return to_string_impl(s, std::forward<T>(t)...);
+}
+
+template <typename H, typename... T>
+std::string &to_string_impl(std::string &s, H &&h, T &&...t) {
+  s += std::to_string(std::forward<H>(h)) + ",";
+  return to_string_impl(s, std::forward<T>(t)...);
+}
+
+template <typename... T, std::size_t... I>
+std::string to_string(const std::tuple<T...> &tup,
+                      integer_sequence<std::size_t, I...>) {
+  std::string result;
+  int ctx[] = {(to_string_impl(result, std::get<I>(tup)...), 0), 0};
+  (void)ctx;
+  return result;
+}
+
+template <typename... T>
+std::string to_string(const std::tuple<T...> &tup) {
+  return to_string(tup, gen_indices<sizeof...(T)>{});
+}
+
 int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
                                 bool direct) {
 #ifndef AQUAFS_RAID_URING
@@ -109,27 +156,31 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   }
   return sz_read;
 #else
+
+#if 1
+  char *const buf_raw = buf;
+  memset(buf, 0, size);
   uio::io_service service;
   // split read range as blocks
   int sz_read = 0;
-  using req_item_t = std::tuple<int, char *, off_t, uint64_t>;
+  using req_item_t = std::tuple<int, char *, uint64_t, off_t>;
   std::vector<req_item_t> requests;
-  // Cannot register as files
-  // std::vector<int> fds;
-  // std::ranges::copy(devices_ | std::views::transform([&](const auto &it) {
-  //                     auto be = dynamic_cast<ZbdlibBackend *>(it.get());
-  //                     return direct ? be->read_direct_f_ : be->read_f_;
-  //                   }),
-  //                   std::back_inserter(fds));
-  // service.register_files(fds.data(), fds.size());
-  // uio::on_scope_exit unreg_file([&]() { service.unregister_files(); });
+  std::vector<ZbdlibBackend *> bes(nr_dev());
+  for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
+    bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
+    assert(bes[i] != nullptr);
+  }
   while (size > 0) {
     auto req_size =
         std::min(size, static_cast<int>(GetBlockSize() - pos % GetBlockSize()));
-    auto be = dynamic_cast<ZbdlibBackend *>(devices_[get_idx_dev(pos)].get());
+    if (req_size == 0) break;
+    // auto be = dynamic_cast<ZbdlibBackend
+    // *>(devices_[get_idx_dev(pos)].get());
+    auto be = bes[get_idx_dev(pos)];
     assert(be != nullptr);
     int fd = direct ? be->read_direct_f_ : be->read_f_;
     // int dev_idx = get_idx_dev(pos);
+    // requests.emplace_back(fd, buf, req_pos(pos), req_size);
     requests.emplace_back(fd, buf, req_size, req_pos(pos));
     size -= req_size;
     sz_read += req_size;
@@ -138,22 +189,95 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   }
   std::vector<int> results;
   service.run([&]() -> uio::task<> {
+#if 0
+    // it stucks...
+
+    // std::ostringstream requests_stream;
+    // std::transform(requests.begin(), requests.end(),
+    //                std::ostream_iterator<std::string>(requests_stream,","),
+    //                [](const auto &req) { return "<" + to_string(req) + ">";
+    //                });
+    // Warn(logger_, "got %zu requests: %s", requests.size(),
+    //      requests_stream.str().c_str());
     std::vector<uio::sqe_awaitable> futures;
     std::transform(requests.begin(), requests.end(),
                    std::back_inserter(futures), [&](const auto &req) {
                      return service.read(std::get<0>(req), std::get<1>(req),
                                          std::get<2>(req), std::get<3>(req), 0);
                    });
+    // Warn(logger_, "got %zu futures", futures.size());
     for (auto &&res : futures) {
-      results.push_back(co_await res |
-                        uio::panic_on_err("failed to read!", true));
+      auto r = co_await res | uio::panic_on_err("failed to read!", true);
+      Warn(logger_, "got result %d", r);
+      if (std::accumulate(buf_raw, buf_raw + size, 0) == 0)
+        Warn(logger_, "got all zero data!");
+      results.push_back(r);
     }
+#else
+    std::map<int, std::vector<iovec>> req_vec;
+    for (auto &req : requests) {
+      results.emplace_back(
+          co_await service.read(std::get<0>(req), std::get<1>(req),
+                                std::get<2>(req), std::get<3>(req), 0) |
+          uio::panic_on_err("failed to read!", true));
+      // results.emplace_back(std::get<2>(req));
+      // req_vec[std::get<0>(req)].emplace_back(std::get<1>(req),
+      // std::get<2>(req));
+    }
+#endif
   }());
   auto neg_p =
       std::find_if(results.begin(), results.end(), [](int r) { return r < 0; });
-  if (neg_p != results.end()) return *neg_p;
+  if (neg_p != results.end()) {
+    Error(logger_, "got failed result %d", *neg_p);
+    return *neg_p;
+  }
   sz_read = std::accumulate(results.begin(), results.end(), 0);
   return sz_read;
+
+#else
+  int sz_read = size;
+  uio::io_service service;
+  using req_item_t = std::tuple<int, char *, uint64_t, off_t>;
+  std::vector<req_item_t> requests;
+  service.run([&]() -> uio::task<> {
+    while (size > 0) {
+      auto req_size = std::min(
+          size, static_cast<int>(GetBlockSize() - pos % GetBlockSize()));
+      auto be = dynamic_cast<ZbdlibBackend *>(devices_[get_idx_dev(pos)].get());
+      assert(be != nullptr);
+      int fd = direct ? be->read_direct_f_ : be->read_f_;
+      // int r = co_await
+      // service.read(fd, buf, req_size, req_pos(pos), IOSQE_IO_DRAIN) |
+      //     uio::panic_on_err("failed to read!", true);
+      // Warn(logger_, "r = %d, size=%d", r, size);
+      requests.emplace_back(fd, buf, req_size, req_pos(pos));
+      size -= req_size;
+      buf += req_size;
+      pos += req_size;
+    }
+    // merge requests
+    std::map<int, std::vector<req_item_t>> req_map;
+    for (auto &req : requests) {
+      req_map[std::get<0>(req)].emplace_back(req);
+    }
+    for (auto &req : req_map) {
+      auto &reqs = req.second;
+      std::vector<iovec> req_vec;
+      for (auto &r : reqs) {
+        req_vec.emplace_back(std::get<1>(r), std::get<2>(r));
+      }
+      auto r = co_await service.readv(req.first, req_vec, 0) |
+               uio::panic_on_err("failed to read!", true);
+      if (r < 0) {
+        Error(logger_, "got failed result %d", r);
+        co_return;
+      }
+    }
+    co_return;
+  }());
+  return sz_read;
+#endif
 #endif
 }
 int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
