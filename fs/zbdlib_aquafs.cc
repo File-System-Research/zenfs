@@ -7,7 +7,6 @@
 #if !defined(ROCKSDB_LITE) && !defined(OS_WIN)
 
 #include "zbdlib_aquafs.h"
-#include "aquafs_utils.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -19,6 +18,7 @@
 #include <fstream>
 #include <string>
 
+#include "aquafs_utils.h"
 #include "rocksdb/env.h"
 #include "rocksdb/io_status.h"
 #include "rocksdb/rocksdb_namespace.h"

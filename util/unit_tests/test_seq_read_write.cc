@@ -74,7 +74,7 @@ int test_seq_read_write(int dev_num, const char* fs_uri, uint64_t kib,
 }
 
 int main() {
-  auto sz = 64l * 1024;
+  auto sz = 128l * 1024;
   auto rounds = 5;
   test_seq_read_write(1, "--raids=raida:dev:nullb0", sz, rounds);
   test_seq_read_write(

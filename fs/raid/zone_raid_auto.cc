@@ -295,8 +295,8 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       uint64_t mapped_pos;
       // split read range as blocks
       int sz_read = 0;
-      using req_item_t = std::tuple<char *, uint64_t, off_t>;
-      std::map<int, std::vector<req_item_t>> requests;
+      using req_item_t = std::tuple<int, char *, uint64_t, off_t>;
+      std::vector<req_item_t> requests;
       std::vector<ZbdlibBackend *> bes(nr_dev());
       for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
 #ifdef ROCKSDB_USE_RTTI
@@ -316,7 +316,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
         auto be = bes[m.device_idx];
         assert(be != nullptr);
         int fd = direct ? be->read_direct_f_ : be->read_f_;
-        requests[fd].emplace_back(buf, req_size, mapped_pos);
+        requests.emplace_back(fd, buf, req_size, mapped_pos);
         size -= req_size;
         sz_read += req_size;
         buf += req_size;
@@ -324,19 +324,21 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       }
       service.run([&]() -> uio::task<> {
         std::vector<uio::task<int>> futures;
-        for (auto &&req_list : requests) {
-          for (auto &&req : req_list.second) {
-            uint8_t flags = 0;
-            if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
-            futures.emplace_back(service.read(req_list.first, std::get<0>(req),
-                                              std::get<1>(req),
-                                              std::get<2>(req), flags) |
-                                 uio::panic_on_err("failed to read!", true));
-          }
+        for (auto &&req : requests) {
+          uint8_t flags = 0;
+          // read do not need order
+          // if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
+          futures.emplace_back(service.read(std::get<0>(req), std::get<1>(req),
+                                            std::get<2>(req), std::get<3>(req),
+                                            flags) |
+                               uio::panic_on_err("failed to read!", true));
         }
         for (auto &&fut : futures) co_await fut;
       }());
       // flush_zone_info();
+#ifdef AQUAFS_SIM_DELAY
+      delay_us(calculate_delay_us(size / requests.size()));
+#endif
       return sz_read;
 #endif
     } else {
@@ -472,7 +474,8 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
       uint64_t mapped_pos;
       uint32_t sz_written = 0;
       using req_item_t = std::tuple<char *, uint64_t, off_t>;
-      std::map<int, std::vector<req_item_t>> requests;
+      // <dev, zone> -> vec<ordered req>
+      std::map<std::pair<int, idx_t>, std::vector<req_item_t>> requests;
       std::vector<ZbdlibBackend *> bes(nr_dev());
       for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
 #ifdef ROCKSDB_USE_RTTI
@@ -488,11 +491,12 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
         auto req_size =
             std::min(size, static_cast<uint32_t>(GetBlockSize() -
                                                  mapped_pos % GetBlockSize()));
+        auto dev_zone_idx = mapped_pos / def_dev()->GetZoneSize();
         if (req_size == 0) break;
         auto be = bes[m.device_idx];
         assert(be != nullptr);
         int fd = be->write_f_;
-        requests[fd].emplace_back(data, req_size, mapped_pos);
+        requests[{fd, dev_zone_idx}].emplace_back(data, req_size, mapped_pos);
         size -= req_size;
         sz_written += req_size;
         data += req_size;
@@ -501,23 +505,30 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
       service.run([&]() -> uio::task<> {
         // std::vector<uio::task<int>> futures;
         std::vector<uio::sqe_awaitable> futures;
-        for (auto &&req_list : requests) {
+        for (const auto &req_list : requests) {
           for (auto &&req : req_list.second) {
             uint8_t flags = 0;
-            futures.emplace_back(service.write(req_list.first, std::get<0>(req),
-                                               std::get<1>(req),
-                                               std::get<2>(req), flags));
+            if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
+            futures.emplace_back(
+                service.write(req_list.first.first, std::get<0>(req),
+                              std::get<1>(req), std::get<2>(req), flags));
+            // pwrite(req_list.first.first, std::get<0>(req), std::get<1>(req),
+            //        std::get<2>(req));
           }
         }
-        for (auto &&fut : futures) {
-          delay_us(0);
-          // co_await fut | uio::panic_on_err("failed to write!", true);
-          co_await fut;
-          break;
-        }
+        // for (auto &&fut : futures) {
+        //   // delay_us(0);
+        //   // co_await fut | uio::panic_on_err("failed to write!", true);
+        //   // co_await fut;
+        //   break;
+        // }
+        co_return;
       }());
+#ifdef AQUAFS_SIM_DELAY
+      delay_us(calculate_delay_us(size / requests.size()));
+#endif
       // flush_zone_info();
-      zone_info(pos_raw / zone_sz_)->wp += size;
+      zone_info(pos_raw / zone_sz_)->wp += size_raw;
       return static_cast<int>(sz_written);
 #endif
     }
@@ -766,11 +777,7 @@ idx_t RaidAutoZonedBlockDevice::getAutoDeviceZoneIdx(T pos) {
   auto mode_item = allocator.mode_map_[raid_zone_idx];
   if (mode_item.mode == RaidMode::RAID_NONE ||
       mode_item.mode == RaidMode::RAID_C || mode_item.mode == RaidMode::RAID1) {
-    auto r = raid_zone_idx * nr_dev() + raid_zone_inner_idx;
-    if (pos > 0x20000000)
-      Warn(logger_, "getting mapped pos=%lx to zone idx raid%s, ret=%lx", pos,
-           raid_mode_str(mode_item.mode), r);
-    return r;
+    return raid_zone_idx * nr_dev() + raid_zone_inner_idx;
   } else if (mode_item.mode == RaidMode::RAID0) {
     // Info(logger_, "\t[pos=%x] raid_zone_idx=%lx raid_zone_block_idx = %lx",
     //      static_cast<uint32_t>(pos), raid_zone_idx, raid_zone_block_idx);

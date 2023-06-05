@@ -160,8 +160,8 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   uio::io_service service;
   // split read range as blocks
   int sz_read = 0;
-  using req_item_t = std::tuple<char *, uint64_t, off_t>;
-  std::map<int, std::vector<req_item_t>> requests;
+  using req_item_t = std::tuple<int, char *, uint64_t, off_t>;
+  std::vector<req_item_t> requests;
   std::vector<ZbdlibBackend *> bes(nr_dev());
   for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
 #ifdef ROCKSDB_USE_RTTI
@@ -178,7 +178,7 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
     auto be = bes[get_idx_dev(pos)];
     assert(be != nullptr);
     int fd = direct ? be->read_direct_f_ : be->read_f_;
-    requests[fd].emplace_back(buf, req_size, req_pos(pos));
+    requests.emplace_back(fd, buf, req_size, req_pos(pos));
     size -= req_size;
     sz_read += req_size;
     buf += req_size;
@@ -186,18 +186,19 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   }
   service.run([&]() -> uio::task<> {
     std::vector<uio::task<int>> futures;
-    for (auto &&req_list : requests) {
-      for (auto &&req : req_list.second) {
-        uint8_t flags = 0;
-        if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
-        futures.emplace_back(service.read(req_list.first, std::get<0>(req),
-                                          std::get<1>(req), std::get<2>(req),
-                                          flags) |
-                             uio::panic_on_err("failed to read!", true));
-      }
+    for (const auto &req : requests) {
+      uint8_t flags = 0;
+      if (req != *requests.cend()) flags |= IOSQE_IO_LINK;
+      futures.emplace_back(service.read(std::get<0>(req), std::get<1>(req),
+                                        std::get<2>(req), std::get<3>(req),
+                                        flags) |
+                           uio::panic_on_err("failed to read!", true));
     }
     for (auto &&fut : futures) co_await fut;
   }());
+#ifdef AQUAFS_SIM_DELAY
+  delay_us(calculate_delay_us(size / requests.size()));
+#endif
   return sz_read;
 #endif
 }
@@ -229,7 +230,7 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
   uio::io_service service;
   uint32_t sz_written = 0;
   using req_item_t = std::tuple<char *, uint64_t, off_t>;
-  std::map<int, std::vector<req_item_t>> requests;
+  std::map<std::pair<int, idx_t>, std::vector<req_item_t>> requests;
   std::vector<ZbdlibBackend *> bes(nr_dev());
   for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
 #ifdef ROCKSDB_USE_RTTI
@@ -243,7 +244,9 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
     auto req_size = std::min(
         size, GetBlockSize() - (static_cast<uint32_t>(pos)) % GetBlockSize());
     int fd = bes[get_idx_dev(pos)]->write_f_;
-    requests[fd].emplace_back(data, req_size, req_pos(pos));
+    auto mapped_pos = req_pos(pos);
+    requests[{fd, mapped_pos / def_dev()->GetZoneSize()}].emplace_back(
+        data, req_size, mapped_pos);
     size -= req_size;
     sz_written += req_size;
     data += req_size;
@@ -252,13 +255,13 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
   service.run([&]() -> uio::task<> {
     // std::vector<uio::task<int>> futures;
     std::vector<uio::sqe_awaitable> futures;
-    for (auto &&req_list : requests) {
+    for (const auto &req_list : requests) {
       for (auto &&req : req_list.second) {
         uint8_t flags = 0;
         // if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
         futures.emplace_back(
-            service.write(req_list.first, std::get<0>(req), std::get<1>(req),
-                          std::get<2>(req), flags)
+            service.write(req_list.first.first, std::get<0>(req),
+                          std::get<1>(req), std::get<2>(req), flags)
             // |uio::panic_on_err("failed to write!", true)
         );
         // futures.emplace_back(
@@ -268,16 +271,20 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
         //        std::get<2>(req));
       }
     }
-    // FIXME: WTF...?
-    for (auto &&fut : futures) {
-      // printf("awaiting...\n");
-      // fflush(stdout);
-      // delay_ms(1);
-      delay_us(0);
-      // co_await fut | uio::panic_on_err("failed to write!", true);
-      co_await fut;
-      break;
-    }
+#ifdef AQUAFS_SIM_DELAY
+    delay_us(calculate_delay_us(size / requests.size()));
+#endif
+    // // FIXME: WTF...?
+    // for (auto &&fut : futures) {
+    //   // printf("awaiting...\n");
+    //   // fflush(stdout);
+    //   // delay_ms(1);
+    //   delay_us(0);
+    //   // co_await fut | uio::panic_on_err("failed to write!", true);
+    //   co_await fut;
+    //   break;
+    // }
+    co_return;
   }());
   return static_cast<int>(sz_written);
 #endif

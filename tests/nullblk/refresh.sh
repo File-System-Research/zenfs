@@ -7,4 +7,4 @@ fi
 
 $(dirname "$0")/destroy.sh
 
-$(dirname "$0")/create.sh $1 128
+$(dirname "$0")/create.sh $1 512

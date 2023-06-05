@@ -5,10 +5,16 @@
 #ifndef ROCKSDB_AQUAFS_UTILS_H
 #define ROCKSDB_AQUAFS_UTILS_H
 
+#include <gflags/gflags.h>
 #include <sys/select.h>
 
 #include <cstdint>
 #include <ctime>
+
+DECLARE_bool(delay_sim);
+DECLARE_uint64(delay_us_transmit);
+DECLARE_uint64(delay_us_data);
+DECLARE_uint64(delay_data_blksz);
 
 namespace aquafs {
 
@@ -26,6 +32,8 @@ static inline void delay_us(uint32_t us) {
   tv.tv_usec = us % 1000000;
   select(0, nullptr, nullptr, nullptr, &tv);
 }
+
+uint32_t calculate_delay_us(uint64_t size);
 
 }  // namespace aquafs
 
