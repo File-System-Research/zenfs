@@ -43,6 +43,10 @@ if (AQUAFS_RAID_URING)
     list(APPEND aquafs_LIBS_local "uring" "fmt" "Threads::Threads")
 endif ()
 
+if (USE_RTTI)
+    set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -DUSE_RTTI=1")
+endif ()
+
 if (AQUAFS_DETECT_READ_OFFLINE)
     set(aquafs_COMPILE_FLAGS_local "${aquafs_COMPILE_FLAGS_local} -DAQUAFS_DETECT_READ_OFFLINE=1")
 endif ()

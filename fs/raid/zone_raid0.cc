@@ -156,15 +156,11 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   }
   return sz_read;
 #else
-
-#if 1
-  char *const buf_raw = buf;
-  memset(buf, 0, size);
   uio::io_service service;
   // split read range as blocks
   int sz_read = 0;
-  using req_item_t = std::tuple<int, char *, uint64_t, off_t>;
-  std::vector<req_item_t> requests;
+  using req_item_t = std::tuple<char *, uint64_t, off_t>;
+  std::map<int, std::vector<req_item_t>> requests;
   std::vector<ZbdlibBackend *> bes(nr_dev());
   for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
 #ifdef USE_RTTI
@@ -181,172 +177,33 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
     auto be = bes[get_idx_dev(pos)];
     assert(be != nullptr);
     int fd = direct ? be->read_direct_f_ : be->read_f_;
-    // int dev_idx = get_idx_dev(pos);
-    // requests.emplace_back(fd, buf, req_pos(pos), req_size);
-    requests.emplace_back(fd, buf, req_size, req_pos(pos));
+    requests[fd].emplace_back(buf, req_size, req_pos(pos));
     size -= req_size;
     sz_read += req_size;
     buf += req_size;
     pos += req_size;
   }
-  std::vector<int> results;
   service.run([&]() -> uio::task<> {
-#if 1
-    // std::ostringstream requests_stream;
-    // std::transform(requests.begin(), requests.end(),
-    //                std::ostream_iterator<std::string>(requests_stream, ","),
-    //                [](const auto &req) { return "<" + to_string(req) + ">";
-    //                });
-    // Warn(logger_, "got %zu requests: %s", requests.size(),
-    //      requests_stream.str().c_str());
-    // std::vector<uio::sqe_awaitable> futures;
     std::vector<uio::task<int>> futures;
-    std::unordered_set<int> related_fds;
-    for (const auto &req : requests) related_fds.insert(std::get<0>(req));
-    std::map<int, std::vector<req_item_t>> requests_by_fd;
-    for (const auto &req : requests) {
-      requests_by_fd[std::get<0>(req)].emplace_back(req);
-    }
-    // std::transform(requests.begin(), requests.end(),
-    //                std::back_inserter(futures), [&](const auto &req) {
-    //                  uint8_t flags = IOSQE_ASYNC;
-    //                  if (req != *requests.end()) flags |= IOSQE_IO_LINK;
-    //                  results.push_back(std::get<2>(req));
-    //                  return service.read(std::get<0>(req), std::get<1>(req),
-    //                                      std::get<2>(req), std::get<3>(req),
-    //                                      flags);
-    //                });
-    for (const auto &req_list : requests_by_fd) {
-      for (const auto &req : req_list.second) {
+    for (auto &&req_list : requests) {
+      for (auto &&req : req_list.second) {
         uint8_t flags = 0;
-        if (req != *req_list.second.end()) flags |= IOSQE_IO_LINK;
-        results.push_back(std::get<2>(req));
-        auto fut = [&]() {
-          return (service.read(std::get<0>(req), std::get<1>(req),
-                               std::get<2>(req), std::get<3>(req), flags) |
-                  uio::panic_on_err("failed to read!", true));
-        };
-        // if (req == *req_list.second.end())
-        futures.emplace_back(fut());
-        // else
-        //   fut();
-      }
-      // std::transform(req_list.second.begin(), req_list.second.end(),
-      //                std::back_inserter(futures), [&](const auto &req) {
-      //                  uint8_t flags = 0;
-      //                  if (req != *req_list.second.end())
-      //                    flags |= IOSQE_IO_LINK;
-      //                  results.push_back(std::get<2>(req));
-      //                  return service.read(std::get<0>(req),
-      //                  std::get<1>(req),
-      //                                      std::get<2>(req),
-      //                                      std::get<3>(req), flags);
-      //                });
-    }
-    // Warn(logger_, "got %zu futures", futures.size());
-    // for (auto &&res : futures) {
-    //   auto r = co_await (res | uio::panic_on_err("failed to read!", true));
-    //   Warn(logger_, "got result %d", r);
-    //   if (std::accumulate(buf_raw, buf_raw + size, 0) == 0)
-    //     Warn(logger_, "got all zero data!");
-    //   results.push_back(r);
-    // }
-
-    // size_t fsync_cnt = 0;
-    // for (const auto &req : requests) {
-    //   fsync_cnt++;
-    //   // co_await service.fsync(std::get<0>(req), 0);
-    //   co_await service.fsync(std::get<0>(req), IORING_FSYNC_DATASYNC,
-    //                          IOSQE_ASYNC | IOSQE_IO_LINK);
-    // }
-
-    // for (const auto &p : requests_by_fd) {
-    //   co_await service.fsync(p.first, 0);
-    // }
-
-    for (auto &&fut : futures)
-      co_await fut | uio::panic_on_err("failed to read!", true);
-
-    // for (const auto &p : related_fds) {
-    //   for (int i = 0; i < 2048 / 4 / 4; i++) {
-    //     fsync_cnt++;
-    //     co_await service.fsync(p, IORING_FSYNC_DATASYNC,
-    //                            IOSQE_ASYNC | IOSQE_IO_LINK);
-    //   }
-    // }
-    // printf("fsync_cnt %zu\n", fsync_cnt);
-    co_return;
-#else
-    std::map<int, std::vector<iovec>> req_vec;
-    for (auto &req : requests) {
-      results.emplace_back(
-          co_await service.read(std::get<0>(req), std::get<1>(req),
-                                std::get<2>(req), std::get<3>(req), 0) |
-          uio::panic_on_err("failed to read!", true));
-      // results.emplace_back(std::get<2>(req));
-      // req_vec[std::get<0>(req)].emplace_back(std::get<1>(req),
-      // std::get<2>(req));
-    }
-#endif
-  }());
-  auto neg_p =
-      std::find_if(results.begin(), results.end(), [](int r) { return r < 0; });
-  if (neg_p != results.end()) {
-    Error(logger_, "got failed result %d", *neg_p);
-    return *neg_p;
-  }
-  sz_read = std::accumulate(results.begin(), results.end(), 0);
-  return sz_read;
-
-#else
-  int sz_read = size;
-  uio::io_service service;
-  using req_item_t = std::tuple<int, char *, uint64_t, off_t>;
-  std::vector<req_item_t> requests;
-  service.run([&]() -> uio::task<> {
-    while (size > 0) {
-      auto req_size = std::min(
-          size, static_cast<int>(GetBlockSize() - pos % GetBlockSize()));
-      auto be = dynamic_cast<ZbdlibBackend *>(devices_[get_idx_dev(pos)].get());
-      assert(be != nullptr);
-      int fd = direct ? be->read_direct_f_ : be->read_f_;
-      // int r = co_await
-      // service.read(fd, buf, req_size, req_pos(pos), IOSQE_IO_DRAIN) |
-      //     uio::panic_on_err("failed to read!", true);
-      // Warn(logger_, "r = %d, size=%d", r, size);
-      requests.emplace_back(fd, buf, req_size, req_pos(pos));
-      size -= req_size;
-      buf += req_size;
-      pos += req_size;
-    }
-    // merge requests
-    std::map<int, std::vector<req_item_t>> req_map;
-    for (auto &req : requests) {
-      req_map[std::get<0>(req)].emplace_back(req);
-    }
-    for (auto &req : req_map) {
-      auto &reqs = req.second;
-      std::vector<iovec> req_vec;
-      for (auto &r : reqs) {
-        req_vec.emplace_back(std::get<1>(r), std::get<2>(r));
-      }
-      auto r = co_await service.readv(req.first, req_vec, 0) |
-               uio::panic_on_err("failed to read!", true);
-      if (r < 0) {
-        Error(logger_, "got failed result %d", r);
-        co_return;
+        if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
+        futures.emplace_back(service.read(req_list.first, std::get<0>(req),
+                                          std::get<1>(req), std::get<2>(req),
+                                          flags) |
+                             uio::panic_on_err("failed to read!", true));
       }
     }
-    co_return;
+    for (auto &&fut : futures) co_await fut;
   }());
   return sz_read;
-#endif
 #endif
 }
 int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
+#ifndef AQUAFS_RAID_URING
   // split read range as blocks
   int sz_written = 0;
-  // TODO: write blocks in multi-threads
   int r;
   while (size > 0) {
     auto req_size = std::min(
@@ -367,6 +224,60 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
     }
   }
   return sz_written;
+#else
+  uio::io_service service;
+  uint32_t sz_written = 0;
+  using req_item_t = std::tuple<char *, uint64_t, off_t>;
+  std::map<int, std::vector<req_item_t>> requests;
+  std::vector<ZbdlibBackend *> bes(nr_dev());
+  for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
+#ifdef USE_RTTI
+    bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
+    assert(bes[i] != nullptr);
+#else
+    bes[i] = (ZbdlibBackend *)(devices_[i].get());
+#endif
+  }
+  while (size > 0) {
+    auto req_size = std::min(
+        size, GetBlockSize() - (static_cast<uint32_t>(pos)) % GetBlockSize());
+    int fd = bes[get_idx_dev(pos)]->write_f_;
+    requests[fd].emplace_back(data, req_size, req_pos(pos));
+    size -= req_size;
+    sz_written += req_size;
+    data += req_size;
+    pos += req_size;
+  }
+  service.run([&]() -> uio::task<> {
+    std::vector<uio::task<int>> futures;
+    for (auto &&req_list : requests) {
+      // std::ostringstream requests_stream;
+      // std::transform(req_list.second.begin(), req_list.second.end(),
+      //                std::ostream_iterator<std::string>(requests_stream,
+      //                ","),
+      //                [&](const auto &req) {
+      //                  return "<fd=" + std::to_string(req_list.first) + "," +
+      //                         to_string(req) + ">";
+      //                });
+      // Warn(logger_, "[fd=%d] got %zu requests: %s", req_list.first,
+      //      req_list.second.size(), requests_stream.str().c_str());
+      // futures.clear();
+      for (auto &&req : req_list.second) {
+        // uint8_t flags = 0;
+        // if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
+        // futures.emplace_back(service.write(req_list.first, std::get<0>(req),
+        //                                    std::get<1>(req),
+        //                                    std::get<2>(req), flags) |
+        //                      uio::panic_on_err("failed to write!", true));
+        pwrite(req_list.first, std::get<0>(req), std::get<1>(req),
+               std::get<2>(req));
+      }
+      // for (auto &&fut : futures) co_await fut;
+    }
+    for (auto &&fut : futures) co_await fut;
+  }());
+  return static_cast<int>(sz_written);
+#endif
 }
 int Raid0ZonedBlockDevice::InvalidateCache(uint64_t pos, uint64_t size) {
   assert(size % GetBlockSize() == 0);
