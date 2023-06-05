@@ -55,8 +55,8 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
   // allocate default layout
   a_zones_.reset(new raid_zone_t[nr_zones_]);
   memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
-  const auto target_default_raid = RaidMode::RAID1;
-  // const auto target_default_raid = RaidMode::RAID0;
+  // const auto target_default_raid = RaidMode::RAID1;
+  const auto target_default_raid = RaidMode::RAID0;
   if (target_default_raid == RaidMode::RAID0) {
     // spare some free zones for dynamic allocation
     for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_ / 2; idx++) {
