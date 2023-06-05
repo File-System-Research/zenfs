@@ -84,7 +84,7 @@ class RaidInfoBasic {
   void load(ZonedBlockDevice *zbd) {
     assert(sizeof(RaidInfoBasic) == sizeof(uint32_t) * 5);
     if (zbd->IsRAIDEnabled()) {
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
       auto be =
           dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
       if (!be) return;
@@ -101,7 +101,7 @@ class RaidInfoBasic {
 
   Status compatible(ZonedBlockDevice *zbd) const {
     if (!zbd->IsRAIDEnabled()) return Status::OK();
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
     auto be =
         dynamic_cast<AbstractRaidZonedBlockDevice *>(zbd->getBackend().get());
     if (!be) return Status::NotSupported("RAID Error", "cannot cast pointer");

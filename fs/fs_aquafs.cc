@@ -1349,7 +1349,7 @@ Status AquaFS::DecodeRaidAppendFrom(Slice* slice) {
     if (!s.ok()) return s;
     mode_map[raid_zone_idx] = item;
   }
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
   auto be = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
 #else
   auto be = (RaidAutoZonedBlockDevice*)(zbd_->getBackend().get());
@@ -1365,7 +1365,7 @@ Status AquaFS::DecodeBlockingDeviceZones(Slice* slice) {
     return Status::IOError("decode dev idx failed");
   if (!GetFixed32(slice, &dev_zone_idx))
     return Status::IOError("decode zone idx failed");
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
   auto be = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
 #else
   auto be = (RaidAutoZonedBlockDevice*)(zbd_->getBackend().get());
@@ -1992,7 +1992,7 @@ IOStatus AquaFS::MigrateFileExtents(
   return IOStatus::OK();
 }
 IOStatus AquaFS::selectZoneToOffline() {
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
   auto p = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
 #else
   auto p = (RaidAutoZonedBlockDevice*)(zbd_->getBackend().get());
@@ -2017,7 +2017,7 @@ IOStatus AquaFS::selectZoneToOffline() {
   return IOStatus::OK();
 }
 IOStatus AquaFS::blockingDeviceZone(size_t device, size_t zone) {
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
   auto p = dynamic_cast<RaidAutoZonedBlockDevice*>(zbd_->getBackend().get());
   if (!p) {
     Error(logger_, "zbd_ is not a RaidAutoZonedBlockDevice, unsupported");

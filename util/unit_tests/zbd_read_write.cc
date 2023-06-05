@@ -23,7 +23,7 @@ int main() {
   //            ->Reset(zone * zbd->GetZoneSize(), &tmp_offline,
   //            &tmp_max_capacity) .ok());
   // auto sz = 512ul;
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
   auto be = dynamic_cast<ZbdlibBackend *>(zbd->getBackend().get());
   assert(be);
 #else

@@ -164,7 +164,7 @@ int Raid0ZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
   std::map<int, std::vector<req_item_t>> requests;
   std::vector<ZbdlibBackend *> bes(nr_dev());
   for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
     bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
     assert(bes[i] != nullptr);
 #else
@@ -232,7 +232,7 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
   std::map<int, std::vector<req_item_t>> requests;
   std::vector<ZbdlibBackend *> bes(nr_dev());
   for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
-#ifdef USE_RTTI
+#ifdef ROCKSDB_USE_RTTI
     bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
     assert(bes[i] != nullptr);
 #else
@@ -252,44 +252,6 @@ int Raid0ZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
   service.run([&]() -> uio::task<> {
     // std::vector<uio::task<int>> futures;
     std::vector<uio::sqe_awaitable> futures;
-    // using req_item2_t = std::tuple<int, char *, uint64_t, off_t>;
-    // std::vector<req_item2_t> unordered_req;
-    // for (const auto &be : bes) {
-    //   int fd = be->write_f_;
-    //   if (!requests[fd].empty()) {
-    //     std::reverse(requests[fd].begin(), requests[fd].end());
-    //   }
-    // }
-    // while (true) {
-    //   bool found = false;
-    //   for (const auto &be : bes) {
-    //     int fd = be->write_f_;
-    //     if (requests[fd].empty()) continue;
-    //     auto &&req = requests[fd].back();
-    //     unordered_req.emplace_back(fd, std::get<0>(req), std::get<1>(req),
-    //                                std::get<2>(req));
-    //     requests[fd].pop_back();
-    //     found = true;
-    //   }
-    //   if (!found) break;
-    // }
-    // for (auto &&req : unordered_req) {
-    //   // printf("req: %s\n", to_string(req).c_str());
-    //   // fflush(stdout);
-    //   // pwrite(std::get<0>(req), std::get<1>(req), std::get<2>(req),
-    //   //        std::get<3>(req));
-    //   // uint8_t flags = 0;
-    //   // uint8_t flags = IOSQE_IO_LINK;
-    //   uint8_t flags = IOSQE_IO_DRAIN;
-    //   futures.emplace_back(service.write(std::get<0>(req), std::get<1>(req),
-    //                                      std::get<2>(req), std::get<3>(req),
-    //                                      flags));
-    //   // co_await service.write(std::get<0>(req), std::get<1>(req),
-    //   //                        std::get<2>(req), std::get<3>(req), flags);
-    //   // futures.emplace_back(service.fsync(std::get<0>(req), 0,
-    //   // IOSQE_IO_LINK));
-    // }
-    // co_return;
     for (auto &&req_list : requests) {
       for (auto &&req : req_list.second) {
         uint8_t flags = 0;

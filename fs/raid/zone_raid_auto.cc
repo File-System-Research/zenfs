@@ -9,6 +9,9 @@
 #include <queue>
 #include <utility>
 
+#include "../../liburing4cpp/include/liburing/io_service.hpp"
+#include "fs/aquafs_utils.h"
+#include "fs/zbdlib_aquafs.h"
 #include "rocksdb/io_status.h"
 #include "util/coding.h"
 
@@ -249,6 +252,7 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       }
       return r;
     } else if (mode_item.mode == RaidMode::RAID0) {
+#ifndef AQUAFS_RAID_URING
       RaidMapItem m;
       uint64_t mapped_pos;
       // split read range as blocks
@@ -278,6 +282,56 @@ int RaidAutoZonedBlockDevice::Read(char *buf, int size, uint64_t pos,
       }
       flush_zone_info();
       return sz_read;
+#else
+      uio::io_service service;
+      RaidMapItem m;
+      uint64_t mapped_pos;
+      // split read range as blocks
+      int sz_read = 0;
+      using req_item_t = std::tuple<char *, uint64_t, off_t>;
+      std::map<int, std::vector<req_item_t>> requests;
+      std::vector<ZbdlibBackend *> bes(nr_dev());
+      for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
+#ifdef ROCKSDB_USE_RTTI
+        bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
+        assert(bes[i] != nullptr);
+#else
+        bes[i] = (ZbdlibBackend *)(devices_[i].get());
+#endif
+      }
+      while (size > 0) {
+        m = getAutoDeviceZone(pos);
+        mapped_pos = getAutoMappedDevicePos(pos);
+        auto req_size = std::min(
+            size,
+            static_cast<int>(GetBlockSize() - mapped_pos % GetBlockSize()));
+        if (req_size == 0) break;
+        auto be = bes[m.device_idx];
+        assert(be != nullptr);
+        int fd = direct ? be->read_direct_f_ : be->read_f_;
+        requests[fd].emplace_back(buf, req_size, mapped_pos);
+        size -= req_size;
+        sz_read += req_size;
+        buf += req_size;
+        pos += req_size;
+      }
+      service.run([&]() -> uio::task<> {
+        std::vector<uio::task<int>> futures;
+        for (auto &&req_list : requests) {
+          for (auto &&req : req_list.second) {
+            uint8_t flags = 0;
+            if (req != *req_list.second.cend()) flags |= IOSQE_IO_LINK;
+            futures.emplace_back(service.read(req_list.first, std::get<0>(req),
+                                              std::get<1>(req),
+                                              std::get<2>(req), flags) |
+                                 uio::panic_on_err("failed to read!", true));
+          }
+        }
+        for (auto &&fut : futures) co_await fut;
+      }());
+      // flush_zone_info();
+      return sz_read;
+#endif
     } else {
       assert(false);
     }
@@ -360,6 +414,7 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
       }
       return r;
     } else if (mode_item.mode == RaidMode::RAID0) {
+#ifndef AQUAFS_RAID_URING
       RaidMapItem m;
       uint64_t mapped_pos;
       // split write range as blocks
@@ -401,6 +456,59 @@ int RaidAutoZonedBlockDevice::Write(char *data, uint32_t size, uint64_t pos) {
       }
       flush_zone_info();
       return sz_written;
+#else
+      uio::io_service service;
+      RaidMapItem m;
+      uint64_t mapped_pos;
+      uint32_t sz_written = 0;
+      using req_item_t = std::tuple<char *, uint64_t, off_t>;
+      std::map<int, std::vector<req_item_t>> requests;
+      std::vector<ZbdlibBackend *> bes(nr_dev());
+      for (decltype(nr_dev()) i = 0; i < nr_dev(); i++) {
+#ifdef ROCKSDB_USE_RTTI
+        bes[i] = dynamic_cast<ZbdlibBackend *>(devices_[i].get());
+        assert(bes[i] != nullptr);
+#else
+        bes[i] = (ZbdlibBackend *)(devices_[i].get());
+#endif
+      }
+      while (size > 0) {
+        m = getAutoDeviceZone(pos);
+        mapped_pos = getAutoMappedDevicePos(pos);
+        auto req_size =
+            std::min(size, static_cast<uint32_t>(GetBlockSize() -
+                                                 mapped_pos % GetBlockSize()));
+        if (req_size == 0) break;
+        auto be = bes[m.device_idx];
+        assert(be != nullptr);
+        int fd = be->write_f_;
+        requests[fd].emplace_back(data, req_size, mapped_pos);
+        size -= req_size;
+        sz_written += req_size;
+        data += req_size;
+        pos += req_size;
+      }
+      service.run([&]() -> uio::task<> {
+        // std::vector<uio::task<int>> futures;
+        std::vector<uio::sqe_awaitable> futures;
+        for (auto &&req_list : requests) {
+          for (auto &&req : req_list.second) {
+            uint8_t flags = 0;
+            futures.emplace_back(service.write(req_list.first, std::get<0>(req),
+                                               std::get<1>(req),
+                                               std::get<2>(req), flags));
+          }
+        }
+        for (auto &&fut : futures) {
+          delay_us(0);
+          // co_await fut | uio::panic_on_err("failed to write!", true);
+          co_await fut;
+          break;
+        }
+      }());
+      flush_zone_info();
+      return static_cast<int>(sz_written);
+#endif
     }
   }
   return -1;
