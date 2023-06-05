@@ -218,7 +218,7 @@ int ZbdlibBackend::Read(char *buf, int size, uint64_t pos, bool direct) {
 int ZbdlibBackend::Write(char *data, uint32_t size, uint64_t pos) {
   // printf("ZbdlibBackend::Write size=%x, pos=%lx\n", size, pos);
 #ifdef AQUAFS_SIM_DELAY
-  // delay_us(calculate_delay_us(size));
+  delay_us(calculate_delay_us(size));
 #endif
   return pwrite(write_f_, data, size, pos);
 }

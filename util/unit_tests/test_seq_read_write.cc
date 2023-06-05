@@ -18,16 +18,19 @@ typedef struct test_result {
   uint64_t size;
   uint64_t time_read;
   uint64_t time_write;
+  int rounds;
 } test_result_t;
 
 std::vector<test_result_t> results;
 
-int test_seq_read_write(int dev_num, const char* fs_uri, uint64_t kib) {
+int test_seq_read_write(int dev_num, const char* fs_uri, uint64_t kib,
+                        int rounds) {
   prepare_test_env(dev_num);
   test_result_t result;
   result.dev_num = dev_num;
   result.fs_uri = fs_uri;
   result.size = kib * 1024;
+  result.rounds = rounds;
   aquafs_tools_call({"mkfs", fs_uri, "--aux_path=/tmp/aux_path", "--force"});
   auto data_source_dir = std::filesystem::temp_directory_path() / "aquafs_test";
   system((std::string("rm -rf ") + data_source_dir.string()).c_str());
@@ -41,15 +44,19 @@ int test_seq_read_write(int dev_num, const char* fs_uri, uint64_t kib) {
   size_t file_hash = get_file_hash(file);
   printf("file hash: %zx\n", file_hash);
   // call restore
-  result.time_write = aquafs_tools_call(
-      {"restore", fs_uri, "--path=" + data_source_dir.string()});
+  for (int round = 0; round < rounds; round++)
+    result.time_write += aquafs_tools_call(
+        {"restore", fs_uri, "--path=" + data_source_dir.string()});
+  result.time_write /= rounds;
 
   auto dump_dir = std::filesystem::temp_directory_path() / "aquafs_dump";
   system((std::string("rm -rf ") + dump_dir.string()).c_str());
   std::filesystem::create_directories(dump_dir);
-  result.time_read =
-      aquafs_tools_call({"backup", fs_uri, "--path=" + dump_dir.string()});
-  sleep(1);
+  for (int round = 0; round < rounds; round++)
+    result.time_read +=
+        aquafs_tools_call({"backup", fs_uri, "--path=" + dump_dir.string()});
+  result.time_read /= rounds;
+  // sleep(1);
   // calculate checksum again
   auto backup_file = dump_dir / filename;
   assert(std::filesystem::exists(backup_file));
@@ -67,19 +74,22 @@ int test_seq_read_write(int dev_num, const char* fs_uri, uint64_t kib) {
 }
 
 int main() {
-  auto sz = 256l * 1024;
-  test_seq_read_write(1, "--zbd=nullb0", sz);
-  test_seq_read_write(1, "--raids=raida:dev:nullb0", sz);
+  auto sz = 64l * 1024;
+  auto rounds = 5;
+  test_seq_read_write(1, "--raids=raida:dev:nullb0", sz, rounds);
   test_seq_read_write(
-      4, "--raids=raida:dev:nullb0,dev:nullb1,dev:nullb2,dev:nullb3", sz);
+      4, "--raids=raid0:dev:nullb0,dev:nullb1,dev:nullb2,dev:nullb3", sz,
+      rounds);
   test_seq_read_write(
-      4, "--raids=raid0:dev:nullb0,dev:nullb1,dev:nullb2,dev:nullb3", sz);
+      4, "--raids=raida:dev:nullb0,dev:nullb1,dev:nullb2,dev:nullb3", sz,
+      rounds);
+  test_seq_read_write(1, "--zbd=nullb0", sz, rounds);
 
   // display results
-  printf("dev_num,\tsize/MiB,\ttime_read,\ttime_write,\tfs_uri\n");
+  printf("dev_num,\tsize/MiB,\ttime_read,\ttime_write,\trounds,\tfs_uri\n");
   for (auto& result : results) {
-    printf("\t  %d,\t\t%lu,\t\t%lu,\t\t%lu,\t\t%s\n", result.dev_num,
+    printf("\t  %d,\t\t%lu,\t\t%lu,\t\t%lu\t\t%d,\t\t%s\n", result.dev_num,
            result.size / 1024 / 1024, result.time_read, result.time_write,
-           result.fs_uri.c_str());
+           result.rounds, result.fs_uri.c_str());
   }
 }

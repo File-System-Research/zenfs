@@ -27,8 +27,8 @@ class ZbdlibBackend : public ZonedBlockDeviceBackend {
   int read_direct_f_;
   int write_f_;
 
-  static const uint32_t delay_us_transmit_ = 10;
-  static const uint32_t delay_us_read_per_blk_ = 3;
+  static const uint32_t delay_us_transmit_ = 30;
+  static const uint32_t delay_us_read_per_blk_ = 5;
   uint32_t calculate_delay_us(uint64_t size) {
     return static_cast<uint32_t>(
         ((size / block_sz_) + 1) * delay_us_read_per_blk_ + delay_us_transmit_);

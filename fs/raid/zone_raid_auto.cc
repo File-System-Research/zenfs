@@ -9,7 +9,9 @@
 #include <queue>
 #include <utility>
 
+#ifdef AQUAFS_RAID_URING
 #include "../../liburing4cpp/include/liburing/io_service.hpp"
+#endif
 #include "fs/aquafs_utils.h"
 #include "fs/zbdlib_aquafs.h"
 #include "rocksdb/io_status.h"
