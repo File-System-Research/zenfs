@@ -19,7 +19,7 @@
 #include "rocksdb/io_status.h"
 #include "util/coding.h"
 
-DEFINE_uint32(raid_auto_default, 0, "Default RAID mode for auto-raid");
+DEFINE_string(raid_auto_default, "1", "Default RAID mode for auto-raid");
 
 namespace AQUAFS_NAMESPACE {
 
@@ -62,7 +62,8 @@ IOStatus RaidAutoZonedBlockDevice::Open(bool readonly, bool exclusive,
   a_zones_.reset(new raid_zone_t[nr_zones_]);
   memset(a_zones_.get(), 0, sizeof(raid_zone_t) * nr_zones_);
   const auto target_default_raid =
-      raid_mode_from_str(std::to_string(FLAGS_raid_auto_default));
+      raid_mode_from_str(FLAGS_raid_auto_default);
+  Info(logger_, "target_default_raid = %s", FLAGS_raid_auto_default.c_str());
   if (target_default_raid == RaidMode::RAID0) {
     // spare some free zones for dynamic allocation
     for (idx_t idx = AQUAFS_META_ZONES; idx < nr_zones_ / 2; idx++) {

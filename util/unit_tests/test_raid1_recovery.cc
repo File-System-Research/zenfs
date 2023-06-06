@@ -21,7 +21,7 @@ void emit_device_zone_offline(const std::string& devID) {
 }
 
 int main() {
-  prepare_test_env();
+  prepare_test_env(4);
   const char* fs_uri =
       "--raids=raida:dev:nullb0,dev:nullb1,dev:nullb2,dev:nullb3";
   aquafs_tools_call({"mkfs", fs_uri, "--aux_path=/tmp/aux_path", "--force"});

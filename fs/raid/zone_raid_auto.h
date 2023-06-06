@@ -10,7 +10,7 @@
 #include "zone_raid.h"
 #include "zone_raid_allocator.h"
 
-DECLARE_uint32(raid_auto_default);
+DECLARE_string(raid_auto_default);
 
 namespace AQUAFS_NAMESPACE {
 class RaidAutoZonedBlockDevice : public AbstractRaidZonedBlockDevice {
